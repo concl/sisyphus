@@ -1,0 +1,150 @@
+/* Terminal page: tab strip, shell picker, and pane stack. */
+
+.page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.unavailable {
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+/* Tab bar: packed rectangular tabs. The active tab uses the content
+   background (--bg) and the bar has no bottom border, so the active tab
+   reads as connected to the terminal below. */
+.tabs {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-elevated);
+}
+
+.tab-strip {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 200px;
+  padding: 7px 10px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.tab.active {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.tab.active .dot {
+  background: var(--success);
+}
+
+.tab.dead .dot {
+  background: var(--danger);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--text-dim);
+}
+
+.tab-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+/* New-tab controls: + spawns the default shell, the chevron opens a picker. */
+.tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: auto auto auto 0px;
+  padding: 0 6px;
+}
+
+.backend-picker {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--accent-soft);
+}
+
+.menu-default {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.stack {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}

@@ -1,0 +1,70 @@
+/* Sidebar navigation, including the collapsed (icon-only) state. */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  padding: 10px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  transition: width 0.18s ease;
+  overflow: hidden;
+}
+
+.collapsed {
+  width: var(--sidebar-w-collapsed);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.footer {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+/* Collapsed: drop labels out of the layout so items center on the icon alone. */
+.collapsed .item {
+  justify-content: center;
+  padding: 9px 0;
+}
+
+.collapsed .label {
+  display: none;
+}
