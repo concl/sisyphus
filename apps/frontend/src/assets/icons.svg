@@ -1,10 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg">
   <!-- App icons. Swap the paths inside any <symbol> to replace that icon. -->
-  <symbol id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <line x1="3" y1="12" x2="21" y2="12" />
-    <line x1="3" y1="18" x2="21" y2="18" />
-  </symbol>
   <symbol id="icon-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
     <path d="M9 21v-6h6v6" />
@@ -23,5 +18,23 @@
   </symbol>
   <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="6 9 12 15 18 9" />
+  </symbol>
+  <symbol id="icon-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22v-5" />
+    <path d="M9 8V2" />
+    <path d="M15 8V2" />
+    <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
+  </symbol>
+  <symbol id="icon-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="5" width="14" height="14" rx="1" />
+    <rect x="9" y="9" width="6" height="6" />
+    <path d="M9 2v3" />
+    <path d="M15 2v3" />
+    <path d="M9 19v3" />
+    <path d="M15 19v3" />
+    <path d="M2 9h3" />
+    <path d="M2 15h3" />
+    <path d="M19 9h3" />
+    <path d="M19 15h3" />
   </symbol>
 </svg>

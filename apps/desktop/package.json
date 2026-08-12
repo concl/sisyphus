@@ -1,19 +1,24 @@
 {
   "name": "desktop",
+  "productName": "Sisyphus",
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
+    "test": "node --test \"test/*.test.js\"",
+    "package": "electron-builder",
     "build:ui": "npm --prefix ../frontend run build"
   },
-  "author": "",
+  "author": "Sisyphus",
   "license": "ISC",
   "description": "",
-  "devDependencies": {
-    "electron": "^43.2.0"
-  },
   "dependencies": {
+    "@sisyphus/shared": "*",
     "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3"
   }
 }

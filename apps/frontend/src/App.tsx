@@ -1,52 +1,39 @@
-import { useEffect, useState } from 'react'
-import { Icon } from './icons'
-import { Sidebar, type Page } from './components/Sidebar'
-import { HomePage } from './components/HomePage'
-import { TerminalPage } from './components/TerminalPage'
+import { useEffect, useSyncExternalStore, useState } from 'react'
+import { Sidebar } from './components/Sidebar'
+import { getPages, subscribePages } from './extensions/registry'
 import styles from './App.module.css'
 
 export default function App() {
-  const [page, setPage] = useState<Page>('home')
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === '1')
+  const [page, setPage] = useState('home')
+  // The page list starts as the compile-time pages; runtime extensions append
+  // to it via the registry store (see extensions/loader.ts).
+  const pages = useSyncExternalStore(subscribePages, getPages)
 
   useEffect(() => {
     if (window.versions?.platform() === 'darwin') document.body.classList.add('darwin')
   }, [])
 
-  const toggleSidebar = () => {
-    setCollapsed((prev) => {
-      const next = !prev
-      localStorage.setItem('sidebarCollapsed', next ? '1' : '0')
-      return next
-    })
-  }
-
   return (
     <div className={styles.app}>
       <header className={styles.titlebar}>
-        <button
-          type="button"
-          className={`icon-btn ${styles.noDrag}`}
-          title="Toggle sidebar"
-          aria-label="Toggle sidebar"
-          onClick={toggleSidebar}
-        >
-          <Icon name="icon-menu" className="icon" />
-        </button>
         <span className={styles.appTitle}>Sisyphus</span>
       </header>
 
       <div className={styles.layout}>
-        <Sidebar page={page} onNavigate={setPage} collapsed={collapsed} />
+        <Sidebar page={page} onNavigate={setPage} pages={pages} />
 
-        {/* Both pages stay mounted so terminals survive page switches. */}
+        {/* keepAlive pages stay mounted while inactive so their state (e.g.
+            terminals) survives switches; other pages mount on activation. */}
         <main className={styles.content}>
-          <div className={`${styles.page}${page === 'home' ? ` ${styles.active}` : ''}`}>
-            <HomePage />
-          </div>
-          <div className={`${styles.page}${page === 'terminal' ? ` ${styles.active}` : ''}`}>
-            <TerminalPage active={page === 'terminal'} />
-          </div>
+          {pages.map((p) => {
+            const isActive = page === p.id
+            if (!isActive && !p.keepAlive) return null
+            return (
+              <div key={p.id} className={`${styles.page}${isActive ? ` ${styles.active}` : ''}`}>
+                <p.component active={isActive} />
+              </div>
+            )
+          })}
         </main>
       </div>
     </div>

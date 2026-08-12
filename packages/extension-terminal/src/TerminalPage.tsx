@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Icon } from '../icons'
-import type { TerminalBackend } from '../types'
+import { Icon } from '@sisyphus/shared'
+import type { TerminalBackend } from '@sisyphus/shared'
 import { TerminalPane } from './TerminalPane'
 import styles from './TerminalPage.module.css'
 

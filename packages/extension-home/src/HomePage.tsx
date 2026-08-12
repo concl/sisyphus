@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Icon } from '../icons'
+import { Icon } from '@sisyphus/shared'
 import styles from './HomePage.module.css'
 
 export function HomePage() {

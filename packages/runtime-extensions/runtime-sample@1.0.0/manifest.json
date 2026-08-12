@@ -1,0 +1,9 @@
+{
+  "id": "runtime-sample",
+  "version": "1.0.0",
+  "entry": "entry.js",
+  "style": "style.css",
+  "pages": [
+    { "id": "runtime-sample", "title": "Runtime Sample", "icon": "icon-plug", "keepAlive": false }
+  ]
+}

@@ -4,8 +4,9 @@ interface IconProps {
 }
 
 /**
- * Renders an icon from the SVG sprite (src/assets/icons.svg), which main.tsx
- * inlines into the document. Replace a <symbol> in that file to swap an icon.
+ * Renders an icon from the app's inline SVG sprite. The sprite is an
+ * app-level asset (inlined into the document by the frontend's main.tsx);
+ * this component only emits the `<use>` reference against it.
  */
 export function Icon({ name, className }: IconProps) {
   return (

@@ -1,8 +1,23 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, protocol } = require('electron')
 const path = require('node:path')
 const os = require('node:os')
 const fs = require('node:fs')
-const { spawn, spawnSync, execFileSync } = require('node:child_process')
+const { spawn } = require('node:child_process')
+const { IPC } = require('@sisyphus/shared')
+const { detectBackends } = require('./lib/backends')
+const { ServiceSupervisor } = require('./lib/service-supervisor')
+const { collectProcesses } = require('./lib/processes')
+const { ensureStore, seedDefaults, scanStore } = require('./lib/extension-store')
+const { ScopedStore, isValidScope } = require('./lib/app-storage')
+
+// Serve runtime extensions from the store over a privileged scheme so the
+// renderer can `import()` their entry modules (must be registered pre-ready).
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'sisyphus-ext',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+  },
+])
 
 // node-pty is a native module; load it defensively so the app still boots
 // (e.g. during dev on a machine where it could not be installed).
@@ -16,89 +31,8 @@ try {
 const WINDOWS = process.platform === 'win32'
 
 // ---------------------------------------------------------------------------
-// Terminal backend detection
+// Terminal backend detection (pure logic lives in lib/backends.js)
 // ---------------------------------------------------------------------------
-
-function commandExists(cmd) {
-  try {
-    const probe = WINDOWS ? 'where.exe' : 'which'
-    return spawnSync(probe, [cmd], { stdio: 'ignore', windowsHide: true }).status === 0
-  } catch {
-    return false
-  }
-}
-
-function findGitBash() {
-  const candidates = [
-    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Git', 'bin', 'bash.exe'),
-    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe'),
-    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe'),
-  ]
-  return candidates.find((p) => fs.existsSync(p)) || null
-}
-
-// Returns the default WSL distro name, or null when WSL is missing/unset.
-function detectWslDistro() {
-  try {
-    const out = execFileSync('wsl.exe', ['-l', '-q'], {
-      encoding: 'buffer',
-      timeout: 4000,
-      windowsHide: true,
-    })
-    // Old WSL builds output UTF-16LE; detect it by the NUL bytes.
-    const text = out
-      .toString(out.includes(0) ? 'utf16le' : 'utf8')
-      .replace(/^\uFEFF/, '')
-    const lines = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-    return lines[0] || null
-  } catch {
-    return null
-  }
-}
-
-function detectBackends() {
-  const backends = []
-  let defaultId = null
-
-  if (WINDOWS) {
-    backends.push({
-      id: 'powershell',
-      name: 'PowerShell',
-      command: 'powershell.exe',
-      args: ['-NoLogo'],
-    })
-    if (commandExists('pwsh.exe')) {
-      backends.push({ id: 'pwsh', name: 'PowerShell 7', command: 'pwsh.exe', args: ['-NoLogo'] })
-    }
-    backends.push({
-      id: 'cmd',
-      name: 'Command Prompt',
-      command: process.env.COMSPEC || 'cmd.exe',
-      args: [],
-    })
-    const gitBash = findGitBash()
-    if (gitBash) {
-      backends.push({ id: 'gitbash', name: 'Git Bash', command: gitBash, args: ['--login', '-i'] })
-    }
-    const distro = detectWslDistro()
-    if (distro) {
-      backends.push({ id: 'wsl', name: `WSL: ${distro}`, command: 'wsl.exe', args: ['-d', distro] })
-    }
-    // Windows PowerShell is the stock default shell on Windows.
-    defaultId = 'powershell'
-  } else {
-    const shell = process.env.SHELL || (fs.existsSync('/bin/zsh') ? '/bin/zsh' : '/bin/bash')
-    const name = path.basename(shell)
-    backends.push({ id: name, name: name[0].toUpperCase() + name.slice(1), command: shell, args: [] })
-    defaultId = name
-  }
-
-  if (!backends.find((b) => b.id === defaultId)) defaultId = backends[0].id
-  return { backends, defaultId }
-}
 
 let backendCache = null
 function getBackends() {
@@ -107,7 +41,7 @@ function getBackends() {
 }
 
 // ---------------------------------------------------------------------------
-// PTY management (ptyId -> { pty, webContents })
+// PTY management (ptyId -> { pty, wc, backendId, suppressExit })
 // ---------------------------------------------------------------------------
 
 const ptys = new Map()
@@ -125,17 +59,17 @@ function spawnTerminal(wc, ptyId, backendId, cols, rows) {
       env: { ...process.env, TERM: 'xterm-256color' },
     })
 
-    const entry = { pty: term, wc, suppressExit: false }
+    const entry = { pty: term, wc, backendId, suppressExit: false }
     ptys.set(ptyId, entry)
 
     term.onData((data) => {
-      if (!wc.isDestroyed()) wc.send('terminal:data', { ptyId, data })
+      if (!wc.isDestroyed()) wc.send(IPC.terminalData, { ptyId, data })
     })
     term.onExit(({ exitCode }) => {
       ptys.delete(ptyId)
       // Don't announce shells we killed deliberately (tab close, restart, quit).
       if (!wc.isDestroyed() && !entry.suppressExit) {
-        wc.send('terminal:exit', { ptyId, exitCode })
+        wc.send(IPC.terminalExit, { ptyId, exitCode })
       }
     })
 
@@ -174,17 +108,82 @@ function killPty(ptyId, notify = false) {
   }
 }
 
-function registerTerminalIpc() {
-  ipcMain.handle('terminal:list-backends', () => getBackends())
+// ---------------------------------------------------------------------------
+// Managed services (the python-host FastAPI app, spawned/stopped here)
+// ---------------------------------------------------------------------------
 
-  ipcMain.handle('terminal:spawn', (event, { ptyId, backendId, cols, rows }) => {
+// The python-host service ships alongside the packaged app (extraResources);
+// in dev it lives in the repo under services/.
+function resolvePythonHostDir() {
+  const packaged = path.join(process.resourcesPath, 'python-host')
+  if (fs.existsSync(packaged)) return packaged
+  return path.join(__dirname, '..', '..', 'services', 'python-host')
+}
+
+const pythonHost = new ServiceSupervisor({
+  hostDir: resolvePythonHostDir(),
+})
+
+// ---------------------------------------------------------------------------
+// Runtime extensions (store under userData/extensions)
+// ---------------------------------------------------------------------------
+
+// Bundled defaults that seed the store on first run: shipped in the packaged
+// app via extraResources, or read from the repo in dev.
+function resolveExtensionSeedDir() {
+  const packaged = path.join(process.resourcesPath, 'runtime-extensions')
+  if (fs.existsSync(packaged)) return packaged
+  return path.join(__dirname, '..', '..', 'packages', 'runtime-extensions')
+}
+
+// Resolved in whenReady; used by the extensions:list IPC handler.
+let extensionStoreDir = null
+
+// Resolved in whenReady; used by the storage:* IPC handlers.
+let appStorageDir = null
+
+function mimeFor(file) {
+  const ext = path.extname(file).toLowerCase()
+  if (ext === '.js' || ext === '.mjs') return 'text/javascript'
+  if (ext === '.css') return 'text/css'
+  if (ext === '.json') return 'application/json'
+  if (ext === '.html') return 'text/html'
+  return 'application/octet-stream'
+}
+
+// Serves files from the extension store: sisyphus-ext://ext/<id>@<version>/<file>.
+function registerExtensionProtocol(storeDir) {
+  protocol.handle('sisyphus-ext', (request) => {
+    const url = new URL(request.url)
+    const segments = url.pathname.split('/').filter(Boolean)
+    const [idver, ...rest] = segments
+    if (!idver || idver.includes('..') || idver.includes('\\') || rest.length === 0) {
+      return new Response('not found', { status: 404 })
+    }
+    const base = path.resolve(storeDir, idver)
+    const file = path.resolve(base, ...rest)
+    if (!file.startsWith(base + path.sep)) return new Response('forbidden', { status: 403 })
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+      return new Response('not found', { status: 404 })
+    }
+    return new Response(fs.readFileSync(file), {
+      headers: { 'content-type': mimeFor(file), 'access-control-allow-origin': '*' },
+    })
+  })
+}
+
+function registerIpc() {
+  // terminals
+  ipcMain.handle(IPC.terminalListBackends, () => getBackends())
+
+  ipcMain.handle(IPC.terminalSpawn, (event, { ptyId, backendId, cols, rows }) => {
     if (!pty) return { ok: false, error: 'node-pty is not available' }
     if (!ptyId || typeof backendId !== 'string') return { ok: false, error: 'bad arguments' }
     killPty(ptyId) // replacing an existing tab's shell
     return spawnTerminal(event.sender, ptyId, backendId, cols, rows)
   })
 
-  ipcMain.on('terminal:input', (_event, { ptyId, data }) => {
+  ipcMain.on(IPC.terminalInput, (_event, { ptyId, data }) => {
     const entry = ptys.get(ptyId)
     if (!entry || typeof data !== 'string') return
     try {
@@ -194,7 +193,7 @@ function registerTerminalIpc() {
     }
   })
 
-  ipcMain.on('terminal:resize', (_event, { ptyId, cols, rows }) => {
+  ipcMain.on(IPC.terminalResize, (_event, { ptyId, cols, rows }) => {
     const entry = ptys.get(ptyId)
     if (!entry) return
     try {
@@ -204,15 +203,59 @@ function registerTerminalIpc() {
     }
   })
 
-  ipcMain.on('terminal:kill', (_event, { ptyId }) => killPty(ptyId))
+  ipcMain.on(IPC.terminalKill, (_event, { ptyId }) => killPty(ptyId))
+
+  // managed services: status + a scoped HTTP proxy into the service's API.
+  // Paths are validated so the proxy can only reach the service itself.
+  ipcMain.handle(IPC.serviceStatus, () => pythonHost.status())
+  ipcMain.handle(IPC.serviceCall, async (_event, { path: apiPath }) => {
+    if (typeof apiPath !== 'string' || !apiPath.startsWith('/')) {
+      return { ok: false, error: 'invalid path' }
+    }
+    if (!pythonHost.running) return { ok: false, error: 'python-host is not running' }
+    try {
+      const res = await fetch(pythonHost.url + apiPath, { signal: AbortSignal.timeout(5000) })
+      const body = await res.json().catch(() => null)
+      return { ok: res.ok, status: res.status, body }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  // managed subprocess registry (services + terminal shells)
+  ipcMain.handle(IPC.processesList, () => collectProcesses(pythonHost, ptys, getBackends()))
+
+  // runtime extensions: installed extensions from the userData store
+  ipcMain.handle(IPC.extensionsList, () => scanStore(extensionStoreDir))
+
+  // scoped key-value data storage (userData/storage/<scope>.json). The app
+  // and extensions share this API; scope is validated to a safe file name.
+  ipcMain.handle(IPC.storageGet, (_event, { scope, key }) => {
+    if (!isValidScope(scope) || typeof key !== 'string') return undefined
+    return new ScopedStore(path.join(appStorageDir, scope + '.json')).read(key)
+  })
+  ipcMain.handle(IPC.storageSet, (_event, { scope, key, value }) => {
+    if (!isValidScope(scope) || typeof key !== 'string') return
+    new ScopedStore(path.join(appStorageDir, scope + '.json')).write(key, value)
+  })
+  ipcMain.handle(IPC.storageDelete, (_event, { scope, key }) => {
+    if (!isValidScope(scope) || typeof key !== 'string') return
+    new ScopedStore(path.join(appStorageDir, scope + '.json')).remove(key)
+  })
 }
 
 // ---------------------------------------------------------------------------
 // Window + app lifecycle
 // ---------------------------------------------------------------------------
 
-// The renderer is the React app in apps/frontend (built to dist/).
-const frontendIndex = path.join(__dirname, '..', 'frontend', 'dist', 'index.html')
+// The renderer is the React app in apps/frontend (built to dist/). In a
+// packaged build the bundle is staged at frontend-dist/ inside the app.
+function resolveFrontendIndex() {
+  const dev = path.join(__dirname, '..', 'frontend', 'dist', 'index.html')
+  if (fs.existsSync(dev)) return dev
+  return path.join(__dirname, 'frontend-dist', 'index.html')
+}
+const frontendIndex = resolveFrontendIndex()
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -242,11 +285,21 @@ const createWindow = () => {
   })
 
   // DevTools toggle. The app sets no application menu, so the default
-  // Ctrl+Shift+I accelerator is unavailable; bind F12 instead.
+  // accelerators are unavailable; bind F12 plus the conventional
+  // Ctrl+Shift+I (Cmd+Shift+I on macOS) shortcuts.
   wc.on('before-input-event', (_event, input) => {
-    if (input.type === 'keyDown' && input.key === 'F12') {
+    const isDevToolsShortcut =
+      input.type === 'keyDown' &&
+      input.key.toLowerCase() === 'i' &&
+      input.shift &&
+      (input.control || input.meta)
+    if (isDevToolsShortcut || (input.type === 'keyDown' && input.key === 'F12')) {
       wc.toggleDevTools()
     }
+  })
+
+  wc.on('did-fail-load', (_event, code, desc) => {
+    console.log('[main] did-fail-load', code, desc)
   })
 
   // In dev, point at the Vite dev server (npm --prefix ../frontend run dev).
@@ -271,60 +324,29 @@ const createWindow = () => {
     })
 
     win.webContents.once('did-finish-load', async () => {
+      console.log('[main] smoke: did-finish-load')
+      // Safety net: never leave the smoke hanging in packaged runs.
+      const guard = setTimeout(() => {
+        console.log('[main] smoke: timed out')
+        win.close()
+      }, 60_000)
       try {
-        const result = await win.webContents.executeJavaScript(`(async () => {
-          const waitFor = (sel, ms = 8000) => new Promise((resolve, reject) => {
-            const t0 = Date.now();
-            const iv = setInterval(() => {
-              if (document.querySelector(sel)) { clearInterval(iv); resolve(true); }
-              else if (Date.now() - t0 > ms) { clearInterval(iv); reject(new Error('timeout waiting for ' + sel)); }
-            }, 50);
-          });
-
-          await waitFor('[data-page]');
-          await waitFor('[data-testid="terminal-page"]');
-
-          const backends = await window.terminals.listBackends();
-
-          // Icons: the sprite must be inlined and every <use> must resolve.
-          const spriteSymbols = document.querySelectorAll('#icons-sprite symbol').length;
-          const uses = [...document.querySelectorAll('svg use')].map((u) => u.getAttribute('href'));
-          const iconsResolve = spriteSymbols >= 6 && uses.length > 0 && uses.every((h) => !!h && h.startsWith('#') && !!document.getElementById(h.slice(1)));
-
-          // Open the Terminal page the way a user would: creates the first tab + shell.
-          document.querySelector('[data-page="terminal"]').click();
-          await waitFor('[data-testid="terminal-tab"]');
-
-          const uiReady =
-            document.querySelectorAll('[data-page]').length === 2 &&
-            document.querySelectorAll('[data-testid="terminal-tab"]').length === 1 &&
-            !!document.querySelector('.xterm') &&
-            !!document.querySelector('[aria-haspopup="menu"]');
-
-          const res = await window.terminals.spawn({ ptyId: 'smoke-1', backendId: backends.defaultId, cols: 80, rows: 24 });
-          const output = await new Promise((resolve) => {
-            const off = window.terminals.onData((d) => {
-              if (d.ptyId !== 'smoke-1') return;
-              if (d.data.includes('SMOKE_OK')) { off(); resolve('SMOKE_OK'); }
-            });
-            window.terminals.write('smoke-1', 'echo SMOKE_OK; exit\\r');
-            setTimeout(() => { off(); resolve('TIMEOUT'); }, 8000);
-          });
-          window.terminals.kill('smoke-1');
-
-          // Close the first tab; a fresh one should be auto-created.
-          const countBeforeClose = document.querySelectorAll('[data-testid="terminal-tab"]').length;
-          const closeBtn = document.querySelector('[data-testid="terminal-tab-close"]');
-          closeBtn && closeBtn.click();
-          await new Promise((r) => setTimeout(r, 400));
-          const tabsAfterClose = document.querySelectorAll('[data-testid="terminal-tab"]').length;
-          const tabLabels = [...document.querySelectorAll('[data-testid="terminal-tab-name"]')].map((e) => e.textContent);
-
-          return JSON.stringify({ defaultId: backends.defaultId, spriteSymbols, iconsResolve, uiReady, countBeforeClose, tabsAfterClose, tabLabels, spawnOk: res.ok, output });
-        })()`)
+        // The smoke script lives in its own file (smoke/smoke-script.js) —
+        // real JS, no escaping mess — and is injected into the renderer.
+        const smokeScript = fs.readFileSync(path.join(__dirname, 'smoke', 'smoke-script.js'), 'utf8')
+        const result = await win.webContents.executeJavaScript(smokeScript)
         console.log('SMOKE_RESULT ' + result)
+        // Packaged runs may not have stdout attached; mirror the result to a
+        // file so it can be verified regardless.
+        try {
+          fs.writeFileSync(path.join(app.getPath('userData'), 'smoke-result.json'), result)
+        } catch {
+          /* non-fatal */
+        }
+        clearTimeout(guard)
       } catch (err) {
         console.log('SMOKE_ERROR ' + ((err && err.message) || err))
+        clearTimeout(guard)
       }
       // Exercise the window-close path (kills all shells) and quit.
       win.close()
@@ -333,8 +355,19 @@ const createWindow = () => {
 }
 
 app.whenReady().then(() => {
+  console.log('[main] ready')
+  // Local data foundation: the per-user extension store under userData,
+  // seeded with the bundled defaults (see ARCHITECTURE.md).
+  extensionStoreDir = path.join(app.getPath('userData'), 'extensions')
+  ensureStore(extensionStoreDir)
+  appStorageDir = path.join(app.getPath('userData'), 'storage')
+  const seeded = seedDefaults(extensionStoreDir, resolveExtensionSeedDir())
+  if (seeded > 0) console.log(`[main] seeded ${seeded} default extension(s)`)
+
   Menu.setApplicationMenu(null)
-  registerTerminalIpc()
+  registerIpc()
+  registerExtensionProtocol(extensionStoreDir)
+  pythonHost.start()
   createWindow()
 
   app.on('activate', () => {
@@ -343,6 +376,7 @@ app.whenReady().then(() => {
 })
 
 app.on('before-quit', () => {
+  pythonHost.stop()
   for (const ptyId of [...ptys.keys()]) killPty(ptyId)
 })
 

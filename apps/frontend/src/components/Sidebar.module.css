@@ -1,4 +1,4 @@
-/* Sidebar navigation, including the collapsed (icon-only) state. */
+/* Icon-only sidebar navigation. Labels are hidden — the icon is enough. */
 
 .sidebar {
   display: flex;
@@ -9,12 +9,7 @@
   padding: 10px;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
-  transition: width 0.18s ease;
   overflow: hidden;
-}
-
-.collapsed {
-  width: var(--sidebar-w-collapsed);
 }
 
 .items {
@@ -26,9 +21,10 @@
 .item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 9px 0;
   border: none;
   border-radius: var(--radius);
   background: transparent;
@@ -52,19 +48,13 @@
   color: var(--accent);
 }
 
+.label {
+  display: none;
+}
+
 .footer {
   font-size: 11px;
   color: var(--text-dim);
   padding: 4px 10px;
   white-space: nowrap;
-}
-
-/* Collapsed: drop labels out of the layout so items center on the icon alone. */
-.collapsed .item {
-  justify-content: center;
-  padding: 9px 0;
-}
-
-.collapsed .label {
-  display: none;
 }

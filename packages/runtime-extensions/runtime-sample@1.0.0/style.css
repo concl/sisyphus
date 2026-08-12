@@ -1,0 +1,25 @@
+/* Runtime extension styles — global classes, prefixed to avoid collisions. */
+.runtime-sample {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+
+.runtime-sample h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.runtime-sample p {
+  margin: 0 0 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.runtime-sample-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

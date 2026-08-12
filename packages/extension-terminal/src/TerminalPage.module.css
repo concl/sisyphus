@@ -96,7 +96,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  margin: auto auto auto 0px;
+  margin-left: 0px;
   padding: 0 6px;
 }
 

@@ -14,8 +14,7 @@
   --danger: #f07178;
   --success: #7dc98a;
   --radius: 8px;
-  --sidebar-w: 224px;
-  --sidebar-w-collapsed: 64px;
+  --sidebar-w: 64px;
   --titlebar-h: 40px;
   --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "Cascadia Mono", Consolas, "Courier New", monospace;

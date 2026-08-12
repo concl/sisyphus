@@ -1,0 +1,19 @@
+{
+  "name": "@sisyphus/extension-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    }
+  },
+  "dependencies": {
+    "@sisyphus/shared": "*",
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17"
+  }
+}

@@ -7,6 +7,9 @@ export default defineConfig({
   // from the Electron main process (win.loadFile).
   base: './',
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   css: {
     modules: {
       // Kebab-case class names in *.module.css are exported to JS as

@@ -6,7 +6,11 @@ import type {
   TerminalSpawnResult,
   TerminalDataEvent,
   TerminalExitEvent,
-} from './types'
+  ServiceStatus,
+  ServiceCallResult,
+  ManagedProcessInfo,
+  ListedExtension,
+} from '@sisyphus/shared'
 
 declare global {
   interface Window {
@@ -30,6 +34,23 @@ declare global {
       kill: (ptyId: string) => void
       onData: (cb: (payload: TerminalDataEvent) => void) => () => void
       onExit: (cb: (payload: TerminalExitEvent) => void) => () => void
+    }
+    services?: {
+      status: () => Promise<ServiceStatus>
+      call: (path: string) => Promise<ServiceCallResult>
+    }
+    processes?: {
+      list: () => Promise<ManagedProcessInfo[]>
+    }
+    sisyphus?: {
+      extensions: {
+        list: () => Promise<ListedExtension[]>
+      }
+      storage: {
+        get: (scope: string, key: string) => Promise<unknown>
+        set: (scope: string, key: string, value: unknown) => Promise<void>
+        delete: (scope: string, key: string) => Promise<void>
+      }
     }
   }
 }

@@ -1,41 +1,30 @@
-import { Icon } from '../icons'
+import { Icon } from '@sisyphus/shared'
+import type { ExtensionPage } from '@sisyphus/shared'
 import styles from './Sidebar.module.css'
 
-export type Page = 'home' | 'terminal'
-
 interface SidebarProps {
-  page: Page
-  onNavigate: (page: Page) => void
-  collapsed: boolean
+  page: string
+  onNavigate: (page: string) => void
+  pages: readonly ExtensionPage[]
 }
 
-export function Sidebar({ page, onNavigate, collapsed }: SidebarProps) {
+export function Sidebar({ page, onNavigate, pages }: SidebarProps) {
   return (
-    <nav
-      className={`${styles.sidebar}${collapsed ? ` ${styles.collapsed}` : ''}`}
-      aria-label="Main navigation"
-    >
+    <nav className={styles.sidebar} aria-label="Main navigation">
       <div className={styles.items}>
-        <button
-          type="button"
-          className={`${styles.item}${page === 'home' ? ` ${styles.active}` : ''}`}
-          data-page="home"
-          title="Home"
-          onClick={() => onNavigate('home')}
-        >
-          <Icon name="icon-home" className="icon" />
-          <span className={styles.label}>Home</span>
-        </button>
-        <button
-          type="button"
-          className={`${styles.item}${page === 'terminal' ? ` ${styles.active}` : ''}`}
-          data-page="terminal"
-          title="Terminal"
-          onClick={() => onNavigate('terminal')}
-        >
-          <Icon name="icon-terminal" className="icon" />
-          <span className={styles.label}>Terminal</span>
-        </button>
+        {pages.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`${styles.item}${page === p.id ? ` ${styles.active}` : ''}`}
+            data-page={p.id}
+            title={p.title}
+            onClick={() => onNavigate(p.id)}
+          >
+            <Icon name={p.icon} className="icon" />
+            <span className={styles.label}>{p.title}</span>
+          </button>
+        ))}
       </div>
       <div className={styles.footer}>
         <span className={styles.label}>v1.0.0</span>
