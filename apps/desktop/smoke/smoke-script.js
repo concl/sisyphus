@@ -15,10 +15,11 @@
 
   const backends = await window.terminals.listBackends();
 
-  // Icons: the sprite must be inlined and every <use> must resolve.
-  const spriteSymbols = document.querySelectorAll('#icons-sprite symbol').length;
-  const uses = [...document.querySelectorAll('svg use')].map((u) => u.getAttribute('href'));
-  const iconsResolve = spriteSymbols >= 7 && uses.length > 0 && uses.every((h) => !!h && h.startsWith('#') && !!document.getElementById(h.slice(1)));
+  // Icons: every sidebar page renders its own inline SVG — extensions own
+  // their icons, there is no app-level sprite.
+  const sidebarIcons = [...document.querySelectorAll('[data-page] svg')].map((s) => s.innerHTML.trim());
+  const sidebarIconCount = sidebarIcons.length;
+  const iconsResolve = sidebarIconCount >= 4 && sidebarIcons.every((h) => h.length > 0);
 
   // Open the Terminal page the way a user would: creates the first tab + shell.
   document.querySelector('[data-page="terminal"]').click();
@@ -72,6 +73,11 @@
   await waitFor('[data-testid="runtime-sample"]');
   const runtimeSampleText = document.querySelector('[data-testid="runtime-sample"]').textContent;
 
+  // The runtime extension's own icon (icon.svg, fetched over sisyphus-ext://)
+  // must have been injected into its sidebar entry by the host.
+  const runtimeIcon = document.querySelector('[data-page="runtime-sample"] svg');
+  const runtimeIconResolves = !!runtimeIcon && runtimeIcon.innerHTML.trim().length > 0;
+
   // Managed services: the python-host process + its HTTP API.
   const serviceStatus = await window.services.status();
   const serviceInfo = serviceStatus.running ? await window.services.call('/api/info') : null;
@@ -82,5 +88,5 @@
     .then(() => window.sisyphus.storage.get('app', 'smoke'))
     .then((v) => v === '1');
 
-  return JSON.stringify({ defaultId: backends.defaultId, spriteSymbols, iconsResolve, uiReady, countBeforeClose, tabsAfterClose, tabLabels, spawnOk: res.ok, output, processRows, apiOk, runtimePageCount, runtimeSampleText, serviceStatus, serviceInfo, processes, storageOk });
+  return JSON.stringify({ defaultId: backends.defaultId, sidebarIconCount, iconsResolve, uiReady, countBeforeClose, tabsAfterClose, tabLabels, spawnOk: res.ok, output, processRows, apiOk, runtimePageCount, runtimeSampleText, runtimeIconResolves, serviceStatus, serviceInfo, processes, storageOk });
 })()

@@ -40,15 +40,20 @@ pages register into a sidebar-visible registry.
   in `vite.config.ts`. Design tokens (`:root` variables), base element styles,
   and shared primitives (`.icon`, `.icon-sm`, `.icon-btn`) stay global in
   `src/index.css`.
-- **Icons:** an inline SVG sprite (`src/assets/icons.svg`), inlined into the DOM
-  by `main.tsx` so `<use href="#…">` works when loaded via `file://`.
+- **Icons:** extensions own their icons — no app-level sprite. Each extension
+  ships an `icon.svg` next to its source, imported `?raw` (compile-time) or
+  declared in the manifest and fetched over `sisyphus-ext://` (runtime), and
+  passes the inline SVG markup as the page descriptor's `icon`. The shared
+  `Icon` component (`packages/shared/src/icon.tsx`) parses and renders the
+  markup, inheriting `currentColor`.
 
 ## Extension model
 
 ### Adding a page (compile-time extension)
 
 1. Create `packages/extension-<name>` exporting a descriptor (`id`, `title`,
-   `icon`, `keepAlive`, `component`) typed as `ExtensionPage`; types and
+   `icon` — inline SVG markup from the extension's own `icon.svg`, imported
+   `?raw` — `keepAlive`, `component`) typed as `ExtensionPage`; types and
    `PageProps` come from `@sisyphus/shared`. Pages receive `PageProps`
    (`{ active: boolean }`).
 2. Add the descriptor to the registry in
@@ -93,10 +98,12 @@ install directory:
     <id>@<version>/
       manifest.json
       entry.js
+      icon.svg
       style.css
-    runtime-sample@1.0.0/
+    runtime-sample@1.1.0/
       manifest.json
       entry.js
+      icon.svg
       style.css
 ```
 
@@ -115,17 +122,19 @@ to `%APPDATA%\Sisyphus` (Windows; named by `productName` in
   "entry": "entry.js",
   "style": "style.css",
   "pages": [
-    { "id": "my-tool", "title": "My Tool", "icon": "icon-plug", "keepAlive": false }
+    { "id": "my-tool", "title": "My Tool", "icon": "icon.svg", "keepAlive": false }
   ]
 }
 ```
 
-`entry.js` is plain ESM exporting `register(host)`; the host hands it an SDK —
-`{ React, registerPages, storage }` — and the extension calls
-`registerPages(...)` with `ExtensionPage` descriptors built via
-`host.React.createElement`. No bare imports and no build step; relative
-imports resolve within the extension dir. `style.css` (optional) is injected
-by the host.
+`icon` names a file inside the extension dir; the host resolves it to a
+`sissyphus-ext://` URL and inlines its SVG markup into the registered page
+(extensions own their icons). `entry.js` is plain ESM exporting
+`register(host)`; the host hands it an SDK — `{ React, registerPages, storage }`
+— and the extension calls `registerPages(...)` with `ExtensionPage`
+descriptors built via `host.React.createElement`. No bare imports and no
+build step; relative imports resolve within the extension dir. `style.css`
+(optional) is injected by the host.
 
 #### Loading
 
@@ -133,19 +142,22 @@ by the host.
   `ensureStore` creates `userData/extensions`, `seedDefaults` copies the
   bundled defaults from `packages/runtime-extensions` (dev) or
   `resources/runtime-extensions` (packaged) into the store on first run, and
-  `scanStore` lists installed extensions (highest version wins per id).
+  `scanStore` lists installed extensions (highest version wins per id), with
+  each manifest page's icon URL resolved.
 - A privileged custom protocol (`sisyphus-ext://`, registered pre-ready with
-  `corsEnabled`/`stream`, handled in `whenReady`) serves store files with path
-  validation and correct MIME types.
+  `corsEnabled`/`stream`/`supportFetchAPI`, handled in `whenReady`) serves
+  store files with path validation and correct MIME types.
 - The renderer (`apps/frontend/src/extensions/loader.ts`) lists extensions
   over IPC (`extensions:list`), dynamically `import()`s each entry URL, calls
-  `register(host)`, and injects the stylesheet. Pages land in the dynamic
-  registry (`apps/frontend/src/extensions/registry.ts`), which `App` reads via
-  `useSyncExternalStore` — no UI changes needed for new pages.
+  `register(host)`, and injects the stylesheet. The host's `registerPages`
+  fetches each page's icon file (declared in the manifest) and inlines the
+  SVG markup into the descriptor before registering. Pages land in the
+  dynamic registry (`apps/frontend/src/extensions/registry.ts`), which `App`
+  reads via `useSyncExternalStore` — no UI changes needed for new pages.
 - Extensions talk to the main process only through declared IPC channels (see
   "Process model & IPC").
 
-The shipped sample (`packages/runtime-extensions/runtime-sample@1.0.0`)
+The shipped sample (`packages/runtime-extensions/runtime-sample@1.1.0`)
 demonstrates the full path end-to-end.
 
 #### Storage API

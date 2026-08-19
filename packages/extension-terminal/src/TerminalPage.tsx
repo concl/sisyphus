@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '@sisyphus/shared'
 import type { TerminalBackend } from '@sisyphus/shared'
+import plusIcon from './icons/plus.svg?raw'
+import chevronDownIcon from './icons/chevron-down.svg?raw'
 import { TerminalPane } from './TerminalPane'
 import styles from './TerminalPage.module.css'
 
@@ -153,7 +155,7 @@ export function TerminalPage({ active }: TerminalPageProps) {
             aria-label="New terminal tab"
             onClick={() => addTab()}
           >
-            <Icon name="icon-plus" className="icon icon-sm" />
+            <Icon svg={plusIcon} className="icon icon-sm" />
           </button>
           <div className={styles.backendPicker} ref={menuRef}>
             <button
@@ -166,7 +168,7 @@ export function TerminalPage({ active }: TerminalPageProps) {
               disabled={backends.length === 0}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              <Icon name="icon-chevron-down" className="icon icon-sm" />
+              <Icon svg={chevronDownIcon} className="icon icon-sm" />
             </button>
             {menuOpen && (
               <div className={styles.menu} role="menu">

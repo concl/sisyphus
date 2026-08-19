@@ -52,6 +52,14 @@
   display: none;
 }
 
+/* Fallback when a page declares no icon: the title's first character. */
+.fallback {
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .footer {
   font-size: 11px;
   color: var(--text-dim);

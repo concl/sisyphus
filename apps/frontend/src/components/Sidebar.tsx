@@ -21,7 +21,13 @@ export function Sidebar({ page, onNavigate, pages }: SidebarProps) {
             title={p.title}
             onClick={() => onNavigate(p.id)}
           >
-            <Icon name={p.icon} className="icon" />
+            {p.icon ? (
+              <Icon svg={p.icon} className="icon" />
+            ) : (
+              <span className={`${styles.fallback} icon`} aria-hidden="true">
+                {p.title.charAt(0)}
+              </span>
+            )}
             <span className={styles.label}>{p.title}</span>
           </button>
         ))}

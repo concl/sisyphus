@@ -39,8 +39,8 @@ body {
   overflow: hidden;
 }
 
-/* Shared sprite sizing: applied to <Icon> across all components. These stay
-   global because the sprite itself is inlined globally (see main.tsx). */
+/* Shared icon sizing: applied to extension-owned inline icons across all
+   components. */
 .icon {
   width: 20px;
   height: 20px;

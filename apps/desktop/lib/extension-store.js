@@ -38,9 +38,11 @@ function seedDefaults(storeDir, sourceDir) {
   return copied
 }
 
-// Lists installed extensions as { id, version, url, styleUrl }. When several
-// versions of an id are present, the highest version wins. Directories without
-// a readable manifest.json are ignored.
+// Lists installed extensions as { id, version, url, styleUrl, pages }. When
+// several versions of an id are present, the highest version wins.
+// Directories without a readable manifest.json are ignored. `pages` carries
+// the manifest's page ids with their icon URLs resolved, so the renderer can
+// fetch each extension's own icon (extensions own their icons).
 function scanStore(storeDir, baseUrl = 'sisyphus-ext://ext') {
   const out = []
   if (!fs.existsSync(storeDir)) return out
@@ -65,6 +67,14 @@ function scanStore(storeDir, baseUrl = 'sisyphus-ext://ext') {
         ...(typeof manifest.style === 'string'
           ? { styleUrl: `${baseUrl}/${name}/${manifest.style}` }
           : {}),
+        pages: (Array.isArray(manifest.pages) ? manifest.pages : [])
+          .filter((p) => p && typeof p.id === 'string')
+          .map((p) => ({
+            id: p.id,
+            ...(typeof p.icon === 'string'
+              ? { iconUrl: `${baseUrl}/${name}/${p.icon}` }
+              : {}),
+          })),
       })
     }
   }

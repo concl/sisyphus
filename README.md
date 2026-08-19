@@ -2,9 +2,11 @@
 
 Extendable app for workspace, planning, and automation — an Electron desktop
 shell with a React frontend, built around an extension model where pages
-register into a sidebar-visible registry. Extensions ship as workspace
-packages under `packages/`; a managed python-host (FastAPI) service shows how
-the app can own and expose additional processes.
+register into a sidebar-visible registry. First-party pages ship as
+workspace packages under `packages/`; the app also loads runtime extensions
+from a store under `userData`, seeded from `packages/runtime-extensions/`.
+A managed python-host (FastAPI) service shows how the app can own and
+expose additional processes.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design: the extension
 model, IPC contracts, managed services, packaging, and testing.

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Icon } from '@sisyphus/shared'
+import icon from './icon.svg?raw'
 import styles from './HomePage.module.css'
 
 export function HomePage() {
@@ -17,7 +18,7 @@ export function HomePage() {
 
   return (
     <div className={styles.hero}>
-      <Icon name="icon-home" className={styles.logo} />
+      <Icon svg={icon} className={styles.logo} />
       <h1>Hello, World!</h1>
       <p>
         Welcome to <strong>Sisyphus</strong>. Head over to the Terminal page to open a

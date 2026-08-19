@@ -4,10 +4,11 @@ import { processesExtension } from '@sisyphus/extension-processes'
 import { apiExtension } from '@sisyphus/extension-api'
 
 /**
- * The page registry — the single place extensions declare sidebar pages.
+ * The compile-time page registry — the pages that ship in the bundle.
  * Each entry is an extension package under packages/; adding a page means
- * adding its descriptor here (a future runtime loader would push descriptors
- * into this list instead).
+ * adding its descriptor here. Runtime extensions (loaded from the userData
+ * store at startup) append to the live registry instead — see registry.ts
+ * and loader.ts.
  */
 export const pages = [
   homeExtension,

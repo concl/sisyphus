@@ -6,14 +6,14 @@ export interface PageProps {
 }
 
 /**
- * Framework-agnostic page descriptor — the data that would come from an
- * extension manifest. `ExtensionPage` adds the renderer-side component.
+ * Renderer-side page descriptor. The extension owns its icon: `icon` is
+ * inline SVG markup, not a reference to an app-level sprite.
  */
 export interface ExtensionManifest {
   id: string
   title: string
-  /** Sprite symbol id (see the frontend's assets/icons.svg). */
-  icon: string
+  /** Inline SVG markup for the sidebar icon (e.g. an icon.svg imported `?raw`). */
+  icon?: string
   /** Keep mounted while inactive so state survives page switches. */
   keepAlive: boolean
 }
@@ -21,6 +21,18 @@ export interface ExtensionManifest {
 /** A sidebar-visible page contributed by an extension. */
 export interface ExtensionPage extends ExtensionManifest {
   component: ComponentType<PageProps>
+}
+
+/**
+ * A page declared in a runtime extension's manifest.json. `icon` is a file
+ * name within the extension directory (e.g. "icon.svg"); the host resolves
+ * it to a URL and inlines the SVG markup into the registered page.
+ */
+export interface RuntimePageManifest {
+  id: string
+  title: string
+  icon?: string
+  keepAlive: boolean
 }
 
 /**
@@ -34,7 +46,14 @@ export interface RuntimeExtensionManifest {
   entry: string
   /** Optional stylesheet, injected by the host when present. */
   style?: string
-  pages: ExtensionManifest[]
+  pages: RuntimePageManifest[]
+}
+
+/** A page of an installed runtime extension, as listed over IPC. */
+export interface ListedPage {
+  id: string
+  /** URL of the page's icon file (served over `sisyphus-ext://`), when declared. */
+  iconUrl?: string
 }
 
 /** An installed runtime extension as listed over IPC. */
@@ -45,4 +64,6 @@ export interface ListedExtension {
   url: string
   /** URL of the optional stylesheet. */
   styleUrl?: string
+  /** Pages declared in the manifest, with icon URLs resolved by the main process. */
+  pages: ListedPage[]
 }

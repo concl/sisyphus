@@ -60,6 +60,30 @@ test('scanStore lists extensions and builds entry/style urls', () => {
   assert.equal(a.styleUrl, 'sisyphus-ext://ext/a@1.0.0/style.css')
 })
 
+test('scanStore resolves per-page icon urls from the manifest', () => {
+  const dir = tmpDir()
+  writeExt(dir, 'a', '1.0.0', {
+    pages: [
+      { id: 'a', title: 'A', icon: 'icon.svg', keepAlive: false },
+      { id: 'a-extra', title: 'Extra', keepAlive: false },
+    ],
+  })
+
+  const [listed] = scanStore(dir, 'sisyphus-ext://ext')
+  assert.deepEqual(listed.pages, [
+    { id: 'a', iconUrl: 'sisyphus-ext://ext/a@1.0.0/icon.svg' },
+    { id: 'a-extra' },
+  ])
+})
+
+test('scanStore tolerates malformed pages entries', () => {
+  const dir = tmpDir()
+  writeExt(dir, 'a', '1.0.0', { pages: [null, 3, { icon: 'x.svg' }] })
+
+  const [listed] = scanStore(dir)
+  assert.deepEqual(listed.pages, [])
+})
+
 test('scanStore picks the highest version per id', () => {
   const dir = tmpDir()
   writeExt(dir, 'a', '1.0.0')

@@ -12,7 +12,7 @@ describe('page registry', () => {
     for (const p of pages) {
       expect(p.id.length).toBeGreaterThan(0)
       expect(p.title.length).toBeGreaterThan(0)
-      expect(p.icon.length).toBeGreaterThan(0)
+      expect(typeof p.icon).toBe('string')
       expect(typeof p.keepAlive).toBe('boolean')
       expect(typeof p.component).toBe('function')
     }
@@ -23,7 +23,7 @@ describe('runtime registry store', () => {
   it('starts with the compile-time pages and appends runtime ones', () => {
     const before = getPages().length
     registerExtensionPages([
-      { id: 'x', title: 'X', icon: 'icon-plug', keepAlive: false, component: () => null },
+      { id: 'x', title: 'X', icon: '<svg viewBox="0 0 24 24"></svg>', keepAlive: false, component: () => null },
     ])
     expect(getPages().length).toBe(before + 1)
     expect(getPages().some((p) => p.id === 'x')).toBe(true)
@@ -33,12 +33,12 @@ describe('runtime registry store', () => {
     const listener = vi.fn()
     const unsubscribe = subscribePages(listener)
     registerExtensionPages([
-      { id: 'y', title: 'Y', icon: 'icon-plug', keepAlive: false, component: () => null },
+      { id: 'y', title: 'Y', keepAlive: false, component: () => null },
     ])
     expect(listener).toHaveBeenCalledTimes(1)
     unsubscribe()
     registerExtensionPages([
-      { id: 'z', title: 'Z', icon: 'icon-plug', keepAlive: false, component: () => null },
+      { id: 'z', title: 'Z', keepAlive: false, component: () => null },
     ])
     expect(listener).toHaveBeenCalledTimes(1)
   })
