@@ -50,9 +50,13 @@ async function boot() {
       )
     }
   }
-  runtime.subscribe(render)
+  const stopDrawing = runtime.subscribe(render)
   render()
   const dispose = () => {
+    // The window stops drawing before its root goes away. Disposing the runtime tells
+    // every subscriber, and a plugin leaving the composition notifies them, so a window
+    // still subscribed while it unmounts renders into an unmounted root and throws.
+    stopDrawing()
     root.unmount()
     library.dispose()
     void runtime.dispose()
