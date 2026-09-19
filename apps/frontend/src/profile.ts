@@ -8,6 +8,7 @@ import { plannerPlugin } from '@sisyphus/plugin-planner'
 import { workspacePlugin } from '@sisyphus/plugin-workspace'
 import { themePlugin } from '@sisyphus/plugin-theme'
 import { settingsPlugin } from '@sisyphus/plugin-settings'
+import { chatPlugin } from '@sisyphus/plugin-chat'
 
 export function profile(runtime: Profile): AppPlugin[] {
   return [
@@ -51,6 +52,7 @@ export function profile(runtime: Profile): AppPlugin[] {
     panelsPlugin,
     themePlugin,
     settingsPlugin,
+    chatPlugin,
     homePlugin,
     terminalPlugin,
     pythonPlugin,
