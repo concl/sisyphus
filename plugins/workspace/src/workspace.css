@@ -232,6 +232,7 @@ i {
   gap: 13px;
 }
 .rail button {
+  position: relative;
   width: 37px;
   height: 37px;
   padding: 0;
@@ -244,6 +245,31 @@ i {
 .rail button:hover {
   background: var(--hover);
   color: var(--accent);
+}
+/* The icon being dragged, and the gap it would land in. */
+.rail button.dragging {
+  opacity: 0.35;
+}
+.rail button.drop-before,
+.rail button.drop-after {
+  background: var(--hover);
+  color: var(--accent);
+}
+.rail button.drop-before::before,
+.rail button.drop-after::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  left: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.rail button.drop-before::before {
+  top: -7px;
+}
+.rail button.drop-after::after {
+  bottom: -7px;
 }
 .rail button:last-child {
   font-size: 16px;

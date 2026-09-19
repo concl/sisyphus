@@ -1,4 +1,12 @@
-import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import {
+  Component,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type DragEvent,
+  type ReactNode,
+} from 'react'
 import {
   DockviewReact,
   type DockviewApi,
@@ -18,7 +26,19 @@ import {
   type Storage,
 } from '@sisyphus/sdk'
 import './workspace.css'
+import {
+  dropPanel,
+  movePanel,
+  orderedPanels,
+  readRailOrder,
+  readSavedLayout,
+  rememberArrangement,
+  type SavedLayout,
+} from './layout'
 import shipIcon from './ship-lineart.svg'
+
+/** A layout a previous session saved: the dock arrangement, and the rail order of the time. */
+type StoredLayout = SerializedDockview | SavedLayout<SerializedDockview>
 
 function migrateLayout(layout: SerializedDockview): SerializedDockview {
   return { ...layout, floatingGroups: [], popoutGroups: [],
@@ -27,10 +47,15 @@ function migrateLayout(layout: SerializedDockview): SerializedDockview {
   }
 }
 
-class PanelBoundary extends Component<{ children: ReactNode }, { error: string }> {
+class PanelBoundary extends Component<{ children: ReactNode; version?: unknown }, { error: string }> {
   state = { error: '' }
   static getDerivedStateFromError(error: Error) {
     return { error: error.message }
+  }
+  componentDidUpdate(previous: { version?: unknown }) {
+    // Different code for the same block is a fresh start: a problem reported by the
+    // version that was just thrown away must not sit on top of its replacement.
+    if (previous.version !== this.props.version && this.state.error) this.setState({ error: '' })
   }
   render() {
     return this.state.error ? (
@@ -64,6 +89,32 @@ const PROVIDER_LABELS: Record<string, string> = {
 /** A plugin that can be switched off from this drawer: a feature, or one you wrote. */
 const switchable = (id: string) => id.startsWith('feature.') || id.startsWith('user.')
 
+/**
+ * Closes the blocks whose panel is no longer contributed, and keeps the titles of the
+ * ones that are current.
+ *
+ * A reload does not reach here. The panel registry holds a withdrawal for a turn and
+ * lets the plugin's new code take the id back inside it, so the contribution a block
+ * draws never leaves the list and the block is never told anything changed. What does
+ * reach here is a contribution that is really gone - a plugin unmounted, deleted, or
+ * switched off - and that is when its blocks close, the way the drawer describes it.
+ *
+ * Note that a block's `params.type` is the panel id its plugin registered (`chat`),
+ * not the plugin id (`feature.chat`): the two are chosen by the plugin and are not
+ * meant to be derived from each other, so nothing here matches one against the other.
+ */
+function pruneBlocks(api: DockviewApi, panels: Panels) {
+  for (const panel of [...api.panels]) {
+    const type = panel.params?.type
+    const definition = panels.list().find((item) => item.id === type)
+    if (!definition) {
+      api.removePanel(panel)
+      continue
+    }
+    if (panel.title !== definition.title) panel.api.setTitle(definition.title)
+  }
+}
+
 export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[]): AppPlugin {
   return {
     id: 'ui.workspace',
@@ -85,7 +136,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
             )
           const Content = definition.component
           return (
-            <PanelBoundary>
+            <PanelBoundary version={Content}>
               <Content instanceId={api.id} />
             </PanelBoundary>
           )
@@ -99,7 +150,13 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
         const [addMenu, setAddMenu] = useState(false)
         const [showLayouts, setShowLayouts] = useState(false)
         const [layoutName, setLayoutName] = useState('')
-        const [savedLayouts, setSavedLayouts] = useState<Record<string, SerializedDockview>>({})
+        const [savedLayouts, setSavedLayouts] = useState<Record<string, StoredLayout>>({})
+        /** The rail order the person arranged; an empty arrangement is the registry's order. */
+        const [arrangement, setArrangement] = useState<string[]>([])
+        const [dragging, setDragging] = useState('')
+        /** Where a dragged icon would land: an index between two icons, or null off the rail. */
+        const [insertAt, setInsertAt] = useState<number | null>(null)
+        const rail = orderedPanels(available, arrangement)
         const [runtimePlugins, setRuntimePlugins] = useState(runtime.list())
         const [nativePlugins, setNativePlugins] = useState<PluginStatus[]>([])
         const [message, setMessage] = useState('')
@@ -107,7 +164,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
         useEffect(() => runtime.subscribe(setRuntimePlugins), [])
         useEffect(() => {
           void storage
-            .get<Record<string, SerializedDockview>>('ui.workspace', 'saved-layouts.v1')
+            .get<Record<string, StoredLayout>>('ui.workspace', 'saved-layouts.v1')
             .then((value) => setSavedLayouts(value ?? {}))
             .catch((error) => setMessage(String(error)))
         }, [])
@@ -145,6 +202,52 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           })
         }
 
+        /** Records the rail order and saves it, the way the dock layout is saved. */
+        function saveArrangement(order: string[]) {
+          setArrangement(order)
+          void storage
+            .set('ui.workspace', 'rail.v1', order)
+            .catch((error) => setMessage(`The rail order could not be saved: ${error}`))
+        }
+
+        /** Records an order the rail moved to, keeping a place for what it does not show. */
+        function commitArrangement(order: string[]) {
+          const ids = rail.map((panel) => panel.id)
+          if (order.every((id, index) => id === ids[index])) return
+          saveArrangement(rememberArrangement(order, arrangement))
+        }
+
+        /** Takes the place of another icon, which is the move the arrow keys ask for. */
+        function moveInRail(from: number, to: number) {
+          const ids = rail.map((panel) => panel.id)
+          commitArrangement(movePanel(ids, from, to))
+        }
+
+        /**
+         * Where in the rail the pointer is: an index between two icons, or null when it
+         * is not over one. An icon's middle is the split - above it is before, below it
+         * is after - so what is highlighted is the gap the block would land in.
+         */
+        function dropIndex(event: DragEvent<HTMLElement>) {
+          const target = event.target as HTMLElement | null
+          const icon = target?.closest<HTMLElement>('button[data-open]')
+          const index = icon ? rail.findIndex((panel) => panel.id === icon.dataset.open) : -1
+          if (!icon || index < 0) return null
+          const box = icon.getBoundingClientRect()
+          return event.clientY < box.top + box.height / 2 ? index : index + 1
+        }
+
+        function dropInRail(event: DragEvent<HTMLElement>) {
+          event.preventDefault()
+          const ids = rail.map((panel) => panel.id)
+          const from = ids.indexOf(dragging)
+          const at = insertAt ?? dropIndex(event)
+          setDragging('')
+          setInsertAt(null)
+          if (from < 0 || at === null) return
+          commitArrangement(dropPanel(ids, from, at))
+        }
+
         async function ready({ api }: DockviewReadyEvent) {
           dock.current = api
           let alive = true
@@ -160,14 +263,8 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
             }, 250)
           }
           const layout = api.onDidLayoutChange(persist)
-          const removeMissing = () => {
-            for (const panel of [...api.panels]) {
-              const definition = panels.list().find((item) => item.id === panel.params?.type)
-              if (!definition) api.removePanel(panel)
-              else if (panel.title !== definition.title) panel.api.setTitle(definition.title)
-            }
-          }
-          const offPanels = panels.subscribe(removeMissing)
+          const prune = () => pruneBlocks(api, panels)
+          const offPanels = panels.subscribe(prune)
           const offOpen = panels.onOpen(addPanel)
           dispose.current = () => {
             if (!restoring)
@@ -181,11 +278,13 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           }
           try {
             const saved = await storage.get<SerializedDockview>('ui.workspace', 'layout.v1')
+            const order = await storage.get<string[]>('ui.workspace', 'rail.v1')
             if (!alive) return
+            setArrangement(readRailOrder(order))
             if (saved) {
               // This workspace is tiled; ignore unsupported floating/popout state.
               api.fromJSON(migrateLayout(saved))
-              removeMissing()
+              prune()
             } else reset()
           } catch {
             if (alive) {
@@ -224,10 +323,21 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           api.panels[0]?.api.setActive()
         }
 
+        /** Restores the default arrangement: the default blocks, and the registry's rail order. */
+        function restoreDefaultLayout() {
+          reset()
+          saveArrangement([])
+        }
+
         async function saveNamedLayout() {
           const name = layoutName.trim()
           if (!dock.current || !name || name.length > 60) return
-          const next = { ...savedLayouts, [name]: dock.current.toJSON() }
+          // A layout is both arrangements: where the blocks sit, and the order the rail
+          // shows them in.
+          const next: Record<string, StoredLayout> = {
+            ...savedLayouts,
+            [name]: { layout: dock.current.toJSON(), rail: arrangement },
+          }
           try {
             await storage.set('ui.workspace', 'saved-layouts.v1', next)
             setSavedLayouts(next)
@@ -242,12 +352,11 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           try {
             const api = dock.current
             if (!api) return
-            api.fromJSON(migrateLayout(savedLayouts[name]))
-            for (const panel of [...api.panels]) {
-              const definition = panels.list().find((item) => item.id === panel.params?.type)
-              if (!definition) api.removePanel(panel)
-              else if (panel.title !== definition.title) panel.api.setTitle(definition.title)
-            }
+            const stored = readSavedLayout(savedLayouts[name])
+            api.fromJSON(migrateLayout(stored.layout))
+            pruneBlocks(api, panels)
+            // A layout saved before the rail was part of one leaves the rail alone.
+            if (stored.rail !== null) saveArrangement(stored.rail)
             setShowLayouts(false)
           } catch (error) {
             setMessage(`Could not open layout: ${error}`)
@@ -376,13 +485,61 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
             </header>
             <div className="workspace-body">
               <nav className="rail" aria-label="Blocks">
-                <div className="rail-top">
-                  {available.map((panel) => (
+                {/*
+                 * The rail is the blocks in the order the person arranged them, and it is
+                 * drag-and-drop because that order is theirs to make: an icon is picked up
+                 * and dropped into the gap it belongs in, and the gap is what is
+                 * highlighted. The registry's order is only the starting point (it is how
+                 * Settings, which registers a high priority, leads the rail until the person
+                 * says otherwise), and the arrangement is saved with the layout.
+                 */}
+                <div
+                  className="rail-top"
+                  onDragOver={(event) => {
+                    if (!dragging) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                    const at = dropIndex(event)
+                    if (at !== null && at !== insertAt) setInsertAt(at)
+                  }}
+                  onDrop={dropInRail}
+                  onDragLeave={(event) => {
+                    // Only leaving the rail clears the gap; moving between icons keeps it.
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+                      setInsertAt(null)
+                  }}
+                >
+                  {rail.map((panel, index) => (
                     <button
-                      title={panel.title}
+                      title={`${panel.title} — drag, or press Alt with an arrow key, to move it`}
                       aria-label={`Open ${panel.title}`}
                       data-open={panel.id}
                       key={panel.id}
+                      className={
+                        dragging === panel.id
+                          ? 'dragging'
+                          : insertAt === index
+                            ? 'drop-before'
+                            : insertAt === rail.length && index === rail.length - 1
+                              ? 'drop-after'
+                              : ''
+                      }
+                      draggable
+                      onDragStart={(event) => {
+                        setDragging(panel.id)
+                        event.dataTransfer.effectAllowed = 'move'
+                        event.dataTransfer.setData('text/plain', panel.id)
+                      }}
+                      onDragEnd={() => {
+                        setDragging('')
+                        setInsertAt(null)
+                      }}
+                      onKeyDown={(event) => {
+                        if (!event.altKey) return
+                        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+                        event.preventDefault()
+                        moveInRail(index, event.key === 'ArrowUp' ? index - 1 : index + 1)
+                      }}
                       onClick={() => addPanel(panel.id)}
                     >
                       <span
@@ -393,7 +550,11 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                     </button>
                   ))}
                 </div>
-                <button title="Reset layout" aria-label="Reset layout" onClick={reset}>
+                <button
+                  title="Reset layout"
+                  aria-label="Reset layout"
+                  onClick={restoreDefaultLayout}
+                >
                   ⊞
                 </button>
               </nav>
@@ -473,7 +634,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                     its processes. Reopen blocks after enabling a provider. Add or edit plugins of
                     your own in Plugin studio.
                   </p>
-                  <button className="reset-button" onClick={reset}>
+                  <button className="reset-button" onClick={restoreDefaultLayout}>
                     Restore default layout ↗
                   </button>
                 </aside>
@@ -492,8 +653,8 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                 <i /> Local first. Yours to sync.
               </span>
               <span>
-                {available.length} blocks available <b>·</b> Drag tabs to arrange <b>·</b> Layout
-                saved on this device
+                {available.length} blocks available <b>·</b> Drag tabs and rail icons to arrange{' '}
+                <b>·</b> Layout saved on this device
               </span>
             </footer>
           </div>

@@ -64,8 +64,9 @@ service contracts in Electron.
   To-dos. Completion and edits affect the same record in either view. Existing
   planner data and file sync are retained; old Planner layouts open To-dos.
 - **Terminal, Python Host, VS Code, Browser Tabs, Home, Settings, Theme, and
-  Workspace:** independently composed plugins. Drag blocks to stack or split them;
-  save arrangements from Layouts.
+  Workspace:** independently composed plugins. Drag blocks to stack or split them,
+  and drag the rail icons to arrange the sidebar; a saved layout keeps both orders,
+  and Restore default layout puts both back.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for package manifests, service boundaries,
 and lifecycle details.
