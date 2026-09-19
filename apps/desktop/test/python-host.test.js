@@ -1,7 +1,7 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
-const { PythonHost } = require('../lib/python-host')
+const { PythonHost } = require('../../../plugins/python/native/lib/python-host.js')
 
 function fixture() {
   const children = []

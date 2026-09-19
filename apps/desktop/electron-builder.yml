@@ -13,11 +13,12 @@ files:
   - smoke/**
   - frontend-dist/**
   - package.json
-# The filesystem MCP server is spawned as a child process, so it cannot live
-# inside the asar archive.
-asarUnpack:
-  - node_modules/@modelcontextprotocol/**
+# The runtime compiler and child processes need ordinary filesystem paths for
+# plugin dependencies. Native esbuild cannot resolve files inside an asar archive.
+asar: false
 extraResources:
+  - from: ../../build/plugins
+    to: plugins
   - from: ../../services/python-host
     to: python-host
     filter:

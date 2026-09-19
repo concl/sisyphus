@@ -10,7 +10,7 @@ const {
   truncate,
   defaultBackend,
   MAX_OUTPUT,
-} = require('../lib/shell-run')
+} = require('../../../plugins/shell/native/lib/shell-run.js')
 
 function workspace(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-shell-'))
@@ -100,7 +100,7 @@ test('runCommand captures a real command in the folder', async (t) => {
 test('the shell plugin keeps commands inside the conversation folder', async (t) => {
   const dir = workspace(t)
   const tools = registry()
-  require('../plugins/shell')().apply(context({ 'agent.tools.v1': tools }))
+  require('../../../plugins/shell/native/shell.js')().apply(context({ 'agent.tools.v1': tools }))
   const run = tools.get('run_command')
   assert.equal(run.access, 'write')
   await assert.rejects(() => run.execute({ command: 'echo hi' }, {}), /no folder/)

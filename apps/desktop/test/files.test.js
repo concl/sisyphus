@@ -3,8 +3,8 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { FileBridge } = require('../lib/mcp-files')
-const { FileIndex } = require('../lib/file-index')
+const { FileBridge } = require('../../../plugins/files/native/lib/mcp-files.js')
+const { FileIndex } = require('../../../plugins/files/native/lib/file-index.js')
 
 // The bridge must close before the folder is removed: the server process would
 // otherwise keep it locked while it shuts down.
@@ -81,7 +81,7 @@ test('the files plugin registers read and write tools that need a folder', async
   fs.writeFileSync(path.join(dir, 'readme.md'), '# notes')
   const tools = registry()
   const handlers = transport()
-  require('../plugins/files')({
+  require('../../../plugins/files/native/files.js')({
     index: new FileIndex(),
   }).apply(context({ 'transport.v1': handlers, 'agent.tools.v1': tools }))
 

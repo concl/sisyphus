@@ -3,8 +3,8 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { validateFolder, resolveInside, folderLabel } = require('../lib/chat-folder')
-const { FileIndex, search } = require('../lib/file-index')
+const { validateFolder, resolveInside, folderLabel } = require('../../../packages/native/chat-folder.js')
+const { FileIndex, search } = require('../../../plugins/files/native/lib/file-index.js')
 
 function workspace(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-folder-'))

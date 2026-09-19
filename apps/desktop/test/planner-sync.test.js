@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { empty, merge, FolderDocumentTransport, syncDocument } = require('../lib/planner-sync')
+const { empty, merge, FolderDocumentTransport, syncDocument } = require('../../../plugins/planner/native/lib/planner-sync.js')
 
 test('merges separate devices and retains tombstones', () => {
   const one = { id: 'one', kind: 'todo', title: 'A', updatedAt: '2026-01-01', actor: 'a' }

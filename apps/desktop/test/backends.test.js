@@ -1,7 +1,7 @@
 'use strict'
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { detectBackends } = require('../lib/backends')
+const { detectBackends } = require('../../../packages/native/backends.js')
 
 test('detectBackends returns a valid default shell on this platform', () => {
   const { backends, defaultId } = detectBackends()

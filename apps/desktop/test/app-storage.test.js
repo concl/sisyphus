@@ -4,7 +4,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { ScopedStore, isValidScope } = require('../lib/app-storage')
+const { ScopedStore, isValidScope } = require('../../../plugins/platform/native/lib/app-storage.js')
 
 function storeFor(name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-storage-test-'))

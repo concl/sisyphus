@@ -1,16 +1,26 @@
 const path = require('node:path')
-/** Desktop composition root. Cordis owns lifecycle and dependency injection. */
-module.exports = ({ userData, hostDir, frontend, smoke }) => [
-  require('./plugins/transport')(),
-  require('./plugins/storage')(path.join(userData, 'storage')),
-  require('./plugins/preferences')({ userData }),
-  require('./plugins/agent-tools')(),
-  require('./plugins/planner-data')(),
-  require('./plugins/files')(),
-  require('./plugins/shell')(),
-  require('./plugins/chat')({ userData }),
-  require('./plugins/planner-sync')(),
-  require('./plugins/terminal')(),
-  require('./plugins/python-host')({ hostDir }),
-  require('./plugins/window')({ frontend, smoke }),
-]
+const { PluginArtifacts } = require('./lib/plugin-artifacts')
+const { PluginLoader } = require('./lib/plugin-loader')
+const { createWorker } = require('./lib/plugin-compiler')
+
+// The host knows how to load packages, never which features a build contains.
+module.exports = async (options) => {
+  const directory = path.join(options.userData, 'plugins')
+  const artifacts = new PluginArtifacts({ shippedDir: options.shippedPlugins, directory })
+  artifacts.seed()
+  const loader = new PluginLoader(directory, {
+    manifest: artifacts.available ? artifacts.manifest() : null,
+    options: { ...options, preload: path.join(__dirname, 'preload.js') },
+  })
+  loader.ensure()
+  await loader.prepare()
+  const loaded = await loader.loadAll()
+  const plugins = []
+  for (const result of loaded) {
+    if (result.error) console.error(`[plugins] ${result.id}: ${result.error}`)
+    else plugins.push(result.plugin)
+  }
+  return [{ id: 'platform.workers', provide: ['runtime.workers.v1'],
+    apply(ctx) { ctx.provide('runtime.workers.v1', { create: createWorker }) } },
+    ...plugins, require('./plugins/plugin-loader')({ ...options, loader, artifacts, loaded })]
+}
