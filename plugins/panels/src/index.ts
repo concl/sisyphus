@@ -4,11 +4,27 @@ export function createPanels(): Panels {
   let panels: PanelDefinition[] = []
   const listeners = new Set<() => void>()
   const openListeners = new Set<(id: string) => void>()
+  // Contributions whose owner has just let go of them, by panel id.
+  //
+  // Reloading a plugin disposes its old code and mounts its new code in the same turn,
+  // so its panel is withdrawn and registered again almost immediately. Dropping it out
+  // of the list in between would take the block that draws it off the screen and its
+  // icon out of the rail on every reload, for a gap nobody can see. The withdrawal
+  // therefore waits a turn, and a registration for the same id inside that turn is a
+  // replacement: the new code appears in the same place, and the block is never told
+  // that anything left. A contribution that is really gone - a plugin unmounted,
+  // deleted, or switched off - is dropped when the turn passes.
+  const leaving = new Map<string, PanelDefinition>()
   const notify = () => listeners.forEach((listener) => listener())
   return {
     register(panel) {
-      if (panels.some((item) => item.id === panel.id))
+      const superseded = leaving.get(panel.id)
+      if (superseded) {
+        leaving.delete(panel.id)
+        panels = panels.filter((item) => item !== superseded)
+      } else if (panels.some((item) => item.id === panel.id)) {
         throw new Error(`Duplicate panel: ${panel.id}`)
+      }
       // Array#sort is stable, so equal-priority contributions keep plugin mount order.
       // This lets a plugin opt into prominent placement without coupling the registry
       // to a hard-coded list of plugin ids.
@@ -17,8 +33,15 @@ export function createPanels(): Panels {
       )
       notify()
       return () => {
-        panels = panels.filter((item) => item !== panel)
-        notify()
+        leaving.set(panel.id, panel)
+        setTimeout(() => {
+          // A replacement may have taken this id's place while the withdrawal waited,
+          // and then this contribution is already out of the list.
+          if (leaving.get(panel.id) !== panel) return
+          leaving.delete(panel.id)
+          panels = panels.filter((item) => item !== panel)
+          notify()
+        }, 0)
       }
     },
     list: () => panels,
