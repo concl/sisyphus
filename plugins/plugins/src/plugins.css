@@ -110,6 +110,10 @@
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
+.studio-pending {
+  color: var(--accent);
+  font-weight: 500;
+}
 .studio-row-actions {
   display: flex;
   align-items: center;

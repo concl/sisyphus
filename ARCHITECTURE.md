@@ -57,13 +57,30 @@ Even Workspace, Theme, and the panel registry are runtime-loaded plugins.
 
 ## Reload lifecycle
 
-The recursive watcher detects changes to source, CSS, assets, and manifests.
-Manual Reload also invalidates the compiled entry and local imports. Native sync
-and renderer refresh are serialized; Cordis disposes old effects and mounts new
-code. Compile errors preserve the running version. An exception during activation
-rolls back to the previous plugin. Invalid manifests preserve previously known
-entries until repaired. New/removed entry points mount/unmount without host edits.
-Each renderer stylesheet follows its plugin and is replaced on reload.
+Noticing a change and applying it are separate. The recursive watcher detects
+changes to source, CSS, assets, and manifests and reports the affected entries as
+`pending` in the catalog; the code that is already mounted keeps running.
+Mounting happens on an explicit reload: Plugin studio's **Reload** or **Reload
+all**, the agent's `plugin_reload`, or a write that names the file. Reload on save
+is the opt-in that hands the decision to the watcher, and it is off by default. A
+reload mounts the file that is on disk now, in place: a mounted id is replaced, a
+file that appeared is added, a file that is gone is unmounted, and a manual reload
+also invalidates the compiled entry and local imports. Native sync and renderer
+refresh are serialized; Cordis disposes old effects and mounts new code. Compile
+errors preserve the running version and roll the replacement back. Invalid
+manifests preserve previously known entries until repaired. New/removed entry
+points mount/unmount without host edits. Each renderer stylesheet follows its
+plugin and is replaced on reload.
+
+A reload happens under the blocks that are on screen, and it does not disturb them.
+A plugin's panel is withdrawn when its old code is disposed and registered again when
+its new code mounts, so the panel registry holds a withdrawal for a turn and lets a
+registration of the same id inside that turn replace it. A contribution that comes
+back in the same turn never left: the block keeps drawing, its icon stays in the rail,
+and nothing is told that the plugin went away. Blocks close when a contribution is
+really gone - a plugin unmounted, deleted, or switched off - which is the rule the
+plugins drawer describes. A block's error boundary is cleared when new code arrives
+for it, so a failed version does not sit on top of the one that replaced it.
 
 The Electron platform adapters declare `restart: true`: replacing transport,
 window ownership, or storage while handling a reload would invalidate the reload
@@ -148,7 +165,9 @@ File sync remains available in To-dos.
 ## Developer loop
 
 `npm run plugins:watch` rebuilds the staging manifest and copies source changes to
-app data. The app's normal source watcher performs compilation and Cordis reload.
+app data. The app's source watcher then compiles them and reports the changed
+entries as pending; with Reload on save off, which is the default, each copy waits
+for **Reload** or **Reload all** in Plugin studio before it is mounted.
 `npm run dev:app` combines this watcher with Vite and Electron. `plugins:sync`
 performs a one-time stage/copy, preserving app-data edits unless `--force` is given.
 Use `--dest` or `SISYPHUS_USER_DATA` to select an isolated installation. Shared host

@@ -236,16 +236,19 @@ export interface LibraryDeps {
 interface Catalog {
   folder: string
   watching: boolean
+  reloadOnSave: boolean
   plugins: PluginLibraryEntry[]
 }
 
 /**
  * The plugins this window runs, read from the folder they live in.
  *
- * It keeps them in step with the disk: a file that changes is re-evaluated and
- * replaced, a file that disappears is unmounted, and a file that fails to load
- * leaves the code that already works in place. A plugin's stylesheet is tied to
- * its lifetime too, so switching a plugin off takes its styles with it.
+ * It keeps them in step with the disk: a file that appears is mounted, a file that
+ * disappears is unmounted, and a file that changes is reported as pending and
+ * mounted again when a reload asks for it - which is what Reload on save does by
+ * itself. A file that fails to load leaves the code that already works in place.
+ * A plugin's stylesheet is tied to its lifetime too, so switching a plugin off
+ * takes its styles with it.
  */
 export function createLibrary(deps: LibraryDeps): PluginLibrary {
   const listeners = new Set<() => void>()
@@ -253,11 +256,22 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
   const failures = new Map<string, string>()
   const sources = new Map<string, string>()
   const versions = new Map<string, string>()
+  // Files that are ahead of the code this window runs, by the version seen when the
+  // change was noticed. Reloading one is the person's decision, so a change is
+  // remembered rather than applied.
+  const pending = new Map<string, string>()
   const styles = new Map<string, HTMLStyleElement>()
-  let catalog: Catalog = { folder: '', watching: false, plugins: [] }
+  let catalog: Catalog = { folder: '', watching: false, reloadOnSave: false, plugins: [] }
+  let reloadOnSave = false
   let problem = ''
   let stopped = false
-  let snapshot: PluginLibrarySnapshot = { loading: true, folder: '', watching: false, plugins: [] }
+  let snapshot: PluginLibrarySnapshot = {
+    loading: true,
+    folder: '',
+    watching: false,
+    reloadOnSave: false,
+    plugins: [],
+  }
   let queue: Promise<void> = Promise.resolve()
 
   const setStyle = (id: string, css: string | undefined) => {
@@ -284,6 +298,7 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
       loading: false,
       folder: catalog.folder,
       watching: catalog.watching,
+      reloadOnSave,
       error: problem || undefined,
       plugins: catalog.plugins.map((entry) => {
         if (entry.target !== 'renderer') return entry
@@ -292,6 +307,7 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
           ...entry,
           enabled: state?.enabled,
           state: state?.state,
+          pending: pending.has(entry.id),
           error: failures.get(entry.id) ?? entry.error,
         }
       }),
@@ -314,6 +330,7 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
     if (stopped) return
     try {
       catalog = await deps.call<Catalog>('plugins.catalog')
+      reloadOnSave = catalog.reloadOnSave === true
       problem = ''
     } catch (error) {
       problem = readable(error)
@@ -346,6 +363,8 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
       mounted.delete(id)
       failures.delete(id)
       sources.delete(id)
+      versions.delete(id)
+      pending.delete(id)
       setStyle(id, undefined)
     }
     for (const entry of files) {
@@ -354,6 +373,9 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
       const wanted = reload.includes('*') || reload.includes(entry.id)
       try {
         if (!wanted && entry.version && versions.get(entry.id) === entry.version) continue
+        // Already known to be ahead of the running code, and still the same file: the
+        // catalog can report that without reading a build that may be megabytes wide.
+        if (!wanted && entry.version && pending.get(entry.id) === entry.version) continue
         const read = await deps.call<{ source: string; css?: string }>('plugins.render', {
           id: entry.id,
           target: 'renderer',
@@ -363,7 +385,15 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
           // Unchanged. Its stylesheet is still checked, because it is the one thing
           // a plugin needs that is not visible in the code: a missing style element
           // means an unstyled plugin that otherwise reports itself healthy.
+          pending.delete(entry.id)
           setStyle(entry.id, read.css)
+          continue
+        }
+        // The file changed. Mounting it again is a decision, and it is taken by a
+        // reload: an edit that arrived from outside the app waits here, with the
+        // code that works still running underneath it.
+        if (known && !wanted && !reloadOnSave) {
+          pending.set(entry.id, entry.version ?? '')
           continue
         }
         const artifact = Boolean(entry.export) || read.source.includes('SisyphusRuntime.register')
@@ -378,6 +408,7 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
         mounted.add(entry.id)
         sources.set(entry.id, key)
         if (entry.version) versions.set(entry.id, entry.version)
+        pending.delete(entry.id)
         failures.delete(entry.id)
         setStyle(entry.id, read.css)
       } catch (error) {
@@ -432,6 +463,10 @@ export function createLibrary(deps: LibraryDeps): PluginLibrary {
       }),
     restore: (id, target) => run(() => deps.call('plugins.restore', { id, target }), [id]),
     setWatching: (watching) => run(() => deps.call('plugins.watch', { watching })),
+    setReloadOnSave: (next) =>
+      // Turning it on applies what is already waiting, so the switch means what it
+      // says instead of taking effect at the next save.
+      run(() => deps.call('plugins.reloadOnSave', { reloadOnSave: next }), next ? ['*'] : []),
     async reveal(id, target) {
       try {
         await deps.call('plugins.reveal', id ? { id, target } : {})

@@ -49,6 +49,7 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
 
       function Studio() {
         const snapshot = useSyncExternalStore(host.subscribe, host.getSnapshot)
+        const waiting = snapshot.plugins.filter((entry) => entry.pending).length
         const [open, setOpen] = useState<PluginLibraryEntry | null>(null)
         const [draft, setDraft] = useState('')
         const [original, setOriginal] = useState('')
@@ -114,7 +115,8 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
             </h2>
             <p className="studio-quiet">
               Edit a plugin’s source and reload it here. Open its folder to edit components,
-              styles, or native code. Failed edits keep the working version running.
+              styles, or native code: a file changed there waits, marked changed, until it is
+              reloaded. Failed edits keep the working version running.
             </p>
 
             <div className="studio-tools">
@@ -124,14 +126,35 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
               <button disabled={busy || !snapshot.folder} onClick={() => void host.reveal()}>
                 Open folder
               </button>
-              <button disabled={busy} onClick={() => void attempt(() => host.reloadAll())}>
+              <button
+                disabled={busy}
+                title={waiting ? 'Mount every file that changed' : 'Load every file again'}
+                className={waiting ? 'primary' : undefined}
+                onClick={() => void attempt(() => host.reloadAll())}
+              >
                 Reload all
               </button>
-              <label className="studio-switch">
+              <label
+                className="studio-switch"
+                title="Notice edits made outside the app and report them on their rows"
+              >
                 <input
                   type="checkbox"
                   checked={snapshot.watching}
                   onChange={(event) => void attempt(() => host.setWatching(event.target.checked))}
+                />
+                Watch for changes
+              </label>
+              <label
+                className="studio-switch"
+                title="Apply a noticed change on the spot instead of waiting for Reload"
+              >
+                <input
+                  type="checkbox"
+                  checked={snapshot.reloadOnSave}
+                  onChange={(event) =>
+                    void attempt(() => host.setReloadOnSave(event.target.checked))
+                  }
                 />
                 Reload on save
               </label>
@@ -166,6 +189,7 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
                         ? 'main process'
                         : 'unusable file name'}
                     {entry.shipped ? (entry.edited ? ' · shipped, edited' : ' · shipped') : ''}
+                    {entry.pending ? <b className="studio-pending"> · file changed</b> : ''}
                     {entry.error ? ` · ${entry.error}` : entry.state ? ` · ${entry.state}` : ''}
                   </small>
                 </div>
@@ -189,6 +213,8 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
                   )}
                   <button
                     disabled={busy}
+                    className={entry.pending ? 'primary' : undefined}
+                    title={entry.pending ? 'Mount this file as it is now' : 'Load this file again'}
                     onClick={() =>
                       void attempt(() => host.reload(entry.id, entry.target ?? 'main'))
                     }
@@ -278,7 +304,8 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
                 </div>
                 <p className="studio-note">
                   A plugin is trusted code: it shares this window's reach and the services it asks
-                  for. Edits apply to the running app, so keep a copy of anything you may want back.
+                  for. Saving here mounts the new code at once, so keep a copy of anything you may
+                  want back.
                 </p>
               </section>
             )}

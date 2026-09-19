@@ -129,7 +129,7 @@ test('a renderer file is written for the window, and the main process leaves it 
     source: "sisyphus.define({ id: 'user.panel', plugin: { apply() {} } })",
   })
   assert.deepEqual(runtime.calls, [], 'the main process does not mount renderer files')
-  assert.equal(result.mounted, 'the window mounts renderer files on change')
+  assert.equal(result.mounted, 'the window mounts a renderer file when it is written or reloaded')
   assert.deepEqual(
     (await tools.plugin_list.execute({})).plugins.map((entry) => `${entry.id}:${entry.target}`),
     ['user.panel:renderer'],
@@ -154,8 +154,8 @@ test('a broken edit is reported, and the code that works stays mounted', async (
   assert.deepEqual(runtime.calls, ['add:user.notes'], 'the working code is never unmounted')
 })
 
-test('reload runs a file that changed outside the app, even in the same millisecond', async () => {
-  const { directory, runtime, tools } = setup()
+test('a file that changed outside the app waits until it is reloaded', async () => {
+  const { directory, host, runtime, tools } = setup()
   const file = path.join(directory, 'user.notes.main.js')
   // A file that arrived the way a synced one does: written by something else.
   fs.writeFileSync(file, MAIN)
@@ -163,9 +163,32 @@ test('reload runs a file that changed outside the app, even in the same millisec
   assert.equal(runtime.get('user.notes').plugin.value(), 'first')
 
   fs.writeFileSync(file, MAIN.replace('first', 'synced'))
+  // What the folder watcher does: look again. Noticing is not applying, so the
+  // code that works is still the code that runs and the file is reported pending.
+  await host.sync()
+  assert.equal(runtime.get('user.notes').plugin.value(), 'first')
+  assert.equal((await tools.plugin_list.execute({})).plugins[0].pending, true)
+  assert.deepEqual(runtime.calls, ['add:user.notes'], 'nothing was mounted again')
+
+  // The same path the studio's Reload button takes, from the agent's side.
   await tools.plugin_reload.execute({ id: 'user.notes' })
   assert.equal(runtime.get('user.notes').plugin.value(), 'synced')
   assert.deepEqual(runtime.calls, ['add:user.notes', 'replace:user.notes'])
+  assert.equal((await tools.plugin_list.execute({})).plugins[0].pending, false)
+})
+
+test('reload on save is the opt-in that applies a change by itself', async () => {
+  const { directory, host, runtime } = setup()
+  const file = path.join(directory, 'user.notes.main.js')
+  fs.writeFileSync(file, MAIN)
+  await host.sync()
+  assert.equal(runtime.get('user.notes').plugin.value(), 'first')
+
+  host.reloadOnSave = true
+  fs.writeFileSync(file, MAIN.replace('first', 'edited'))
+  await host.sync()
+  assert.equal(runtime.get('user.notes').plugin.value(), 'edited')
+  assert.equal(host.catalog().plugins[0].pending, false)
 })
 
 test('a plugin that is already part of the app is not replaced by a file of the same id', async () => {

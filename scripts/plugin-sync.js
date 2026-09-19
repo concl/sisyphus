@@ -12,8 +12,10 @@
 //   --dry-run        report what would happen, and change nothing
 //
 // The app performs this same copy by itself on startup, so a distribution needs no
-// script; this is the developer's way to push a change into a *running* app. Reload
-// on save is on by default, so a synced file is mounted as soon as it lands.
+// script; this is the developer's way to push a change into a *running* app. The
+// copy lands as a changed file, which the app notices and does not mount by
+// itself: press Reload all in Plugin studio, or switch on Reload on save while
+// iterating.
 //
 // A file edited in the app's folder is left alone unless --force is given: the app's
 // copy is the copy the app runs, and losing an edit to a sync would be the wrong
@@ -153,7 +155,7 @@ function main() {
     }),
   )
   console.log(`\n  watching plugins/; copying source to ${parsed.destination}`)
-  console.log('  save a package and the running app reloads it. Ctrl+C to stop.\n')
+  console.log('  save a package and the app marks it changed; Reload all mounts it. Ctrl+C to stop.\n')
 }
 
 main()

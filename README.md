@@ -23,7 +23,9 @@ app copies them to `userData/plugins`, preserving local edits. Electron discover
 package manifests there and compiles their entry points on demand. The renderer
 loads the resulting code through Cordis. Editing a component or CSS file in app
 data and pressing **Plugin studio → Reload** changes the running feature without
-rebuilding or restarting the app. **Reload on save** is optional. Compilation or
+rebuilding or restarting the app. A file that changed is noticed and marked
+changed; it is mounted when **Reload** (or the chat agent's `plugin_reload`) asks
+for it, and on its own only when **Reload on save** is switched on. Compilation or
 activation errors leave the previous working plugin mounted.
 
 For development against the repository:
@@ -34,7 +36,9 @@ npm run dev:app
 npm run plugins:watch
 ```
 
-The watcher stages and copies source changes from `plugins/` to app data. Use
+The watcher stages and copies source changes from `plugins/` to app data. Each
+copy lands as a changed file in the running app: press **Reload all** in Plugin
+studio to mount them, or switch on **Reload on save** while iterating. Use
 `npm run plugins:sync -- --dest <app-data-plugins-folder>` for a one-time sync.
 App-data edits are preserved unless `--force` is explicitly supplied.
 `SISYPHUS_USER_DATA` selects an alternate app-data root for both Electron and sync.

@@ -44,6 +44,43 @@ test('editable source packages reload imported modules and styles, and retain wo
   assert.equal(runtime.get('notes'), 200, 'an invalid manifest must not unmount the working package')
 })
 
+test('a source package that changed on disk waits for a reload, and says so', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'source-plugin-pending-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const folder = path.join(directory, 'notes')
+  fs.mkdirSync(folder)
+  const manifest = { sisyphus: { id: 'feature.notes', entry: './view.ts', export: 'plugin',
+    native: [{ id: 'desktop.notes', entry: './native.cjs' }] } }
+  fs.writeFileSync(path.join(folder, 'package.json'), JSON.stringify(manifest))
+  fs.writeFileSync(path.join(folder, 'view.ts'), 'export const plugin = { apply() {} }')
+  const native = (value) => `module.exports = () => ({ provide: ['notes'], apply(ctx) { ctx.provide('notes', '${value}') } })`
+  fs.writeFileSync(path.join(folder, 'native.cjs'), native('first'))
+  const { Profile } = await import('@sisyphus/profile')
+  const runtime = new Profile()
+  const loader = new PluginLoader(directory)
+  const host = new PluginHost({ loader, runtime, watching: false })
+  t.after(async () => { await host.close(); await runtime.dispose() })
+  await host.sync()
+  assert.equal(runtime.get('notes'), 'first')
+
+  // A save outside the app, seen the way the watcher sees it: the catalog knows,
+  // and the version that works goes on running.
+  fs.writeFileSync(path.join(folder, 'native.cjs'), native('second'))
+  await host.sync()
+  assert.equal(runtime.get('notes'), 'first', 'a noticed change is not an applied one')
+  assert.equal(host.catalog().plugins.find(entry => entry.id === 'desktop.notes').pending, true)
+
+  await host.reload('desktop.notes')
+  assert.equal(runtime.get('notes'), 'second')
+  assert.equal(host.catalog().plugins.find(entry => entry.id === 'desktop.notes').pending, false)
+
+  // Reload on save is what hands that decision to the watcher.
+  host.reloadOnSave = true
+  fs.writeFileSync(path.join(folder, 'native.cjs'), native('third'))
+  await host.sync()
+  assert.equal(runtime.get('notes'), 'third')
+})
+
 test('Cordis restores the previous plugin when replacement fails during apply', async () => {
   const { Profile } = await import('@sisyphus/profile')
   const runtime = new Profile()

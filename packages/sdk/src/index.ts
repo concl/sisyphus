@@ -126,6 +126,12 @@ export interface PluginLibraryEntry {
   export?: string
   needs?: string[]
   css?: string | null
+  /**
+   * True when the file on disk is not the code this process is running. A pending
+   * file waits for a reload: the studio says so on its row, and the agent sees it
+   * in `plugin_list`.
+   */
+  pending?: boolean
   error?: string
   enabled?: boolean
   state?: PluginStatus['state']
@@ -134,7 +140,10 @@ export interface PluginLibraryEntry {
 export interface PluginLibrarySnapshot {
   loading: boolean
   folder: string
+  /** True when edits in the folder are noticed and reported as pending. */
   watching: boolean
+  /** True when a noticed edit is applied on the spot instead of waiting. */
+  reloadOnSave: boolean
   plugins: PluginLibraryEntry[]
   error?: string
 }
@@ -152,6 +161,8 @@ export interface PluginLibrary {
   /** Copies the shipped version back over an edited or deleted plugin file. */
   restore(id: string, target: string): Promise<void>
   setWatching(watching: boolean): Promise<void>
+  /** Turns applying a noticed edit on or off, and applies what already waits. */
+  setReloadOnSave(reloadOnSave: boolean): Promise<void>
   reveal(id?: string, target?: string): Promise<void>
   /** Stops following the folder and forgets the listeners. */
   dispose(): void

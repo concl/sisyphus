@@ -73,6 +73,7 @@ function bridge(
   files: Record<string, string>,
   others: PluginLibraryEntry[] = [],
   artifacts: Record<string, Artifact> = {},
+  reloadOnSave = false,
 ) {
   const listeners = new Set<(value: unknown) => void>()
   return {
@@ -90,6 +91,7 @@ function bridge(
         return {
           folder: '/plugins',
           watching: true,
+          reloadOnSave,
           plugins: [
             ...Object.keys(files).map((name) => ({
               id: name,
@@ -131,6 +133,10 @@ function bridge(
       }
       if (method === 'plugins.remove') {
         delete files[id]
+        return undefined as T
+      }
+      if (method === 'plugins.reloadOnSave') {
+        reloadOnSave = Boolean((input as { reloadOnSave?: boolean })?.reloadOnSave)
         return undefined as T
       }
       if (method === 'plugins.watch' || method === 'plugins.reload') return undefined as T
@@ -185,7 +191,7 @@ describe('a plugin file the person wrote', () => {
 describe('the renderer host', () => {
   // No panel is on screen in these tests on purpose: the host has to follow the
   // folder on its own, or a renderer plugin would not mount until someone looked.
-  it('mounts what it finds, replaces an edited file, and unmounts a deleted one', async () => {
+  it('mounts what it finds, waits for an edit, and unmounts a deleted one', async () => {
     const files: Record<string, string> = { 'user.notes': pluginFile('user.notes') }
     const runtime = fakeRuntime()
     const api = bridge(files)
@@ -200,9 +206,16 @@ describe('the renderer host', () => {
     await host.refresh()
     expect(runtime.log).toEqual(['add:user.notes'])
 
+    // An edit that arrived from outside the app is noticed and reported, and the
+    // code that works keeps running until a reload asks for the new one.
     files['user.notes'] = pluginFile('user.notes', 'ctx.provide("notes", 2)')
     await host.refresh()
+    expect(runtime.log).toEqual(['add:user.notes'])
+    expect(host.getSnapshot().plugins[0].pending).toBe(true)
+
+    await host.reload('user.notes', 'renderer')
     expect(runtime.log).toEqual(['add:user.notes', 'replace:user.notes'])
+    expect(host.getSnapshot().plugins[0].pending).toBe(false)
 
     delete files['user.notes']
     await host.refresh()
@@ -210,7 +223,21 @@ describe('the renderer host', () => {
     expect(host.getSnapshot().plugins).toEqual([])
   })
 
-  it('leaves the code that works in place when an edit does not load', async () => {
+  it('mounts an edit on the spot when reload on save is on', async () => {
+    const files: Record<string, string> = { 'user.notes': pluginFile('user.notes') }
+    const runtime = fakeRuntime()
+    const api = bridge(files, [], {}, true)
+    const host = createLibrary({ runtime, call: api.call, on: api.on })
+    await host.refresh()
+    expect(host.getSnapshot().reloadOnSave).toBe(true)
+
+    files['user.notes'] = pluginFile('user.notes', 'ctx.provide("notes", 2)')
+    await host.refresh()
+    expect(runtime.log).toEqual(['add:user.notes', 'replace:user.notes'])
+    expect(host.getSnapshot().plugins[0].pending).toBe(false)
+  })
+
+  it('leaves the code that works in place when a reload brings an edit that does not load', async () => {
     const files: Record<string, string> = { 'user.notes': pluginFile('user.notes') }
     const runtime = fakeRuntime()
     const api = bridge(files)
@@ -219,12 +246,14 @@ describe('the renderer host', () => {
 
     files['user.notes'] = "sisyphus.define({ id: 'user.notes' })"
     await host.refresh()
-    expect(runtime.log).toEqual(['add:user.notes'])
-    expect(host.getSnapshot().plugins[0].error).toMatch(/apply\(context\)/)
+    expect(host.getSnapshot().plugins[0].pending).toBe(true)
+    expect(host.getSnapshot().plugins[0].error).toBeUndefined()
 
-    // A reload on demand still reports the problem rather than throwing at the app.
+    // A reload on demand reports the problem rather than throwing at the app, and
+    // the code that already works is never unmounted.
     await host.reload('user.notes', 'renderer')
     expect(host.getSnapshot().error).toBeUndefined()
+    expect(host.getSnapshot().plugins[0].error).toMatch(/apply\(context\)/)
     expect(runtime.log).toEqual(['add:user.notes'])
   })
 
@@ -359,7 +388,7 @@ SisyphusRuntime.register('feature.notes', __sisyphusPlugin);`
     )
   })
 
-  it('mounts from the folder, is replaced when edited, and restores the shipped copy', async () => {
+  it('mounts from the folder, waits for an edit, and restores the shipped copy', async () => {
     installGlobals()
     const running = artifact('feature.notes', 'notesPlugin')
     const artifacts: Record<string, Artifact> = {
@@ -377,15 +406,21 @@ SisyphusRuntime.register('feature.notes', __sisyphusPlugin);`
     await host.refresh()
     expect(runtime.log).toEqual(['add:feature.notes'])
 
-    // The studio (or an agent) edits the file, and the running code is replaced.
+    // The studio (or an agent) edits the file: the window notices, and mounts it
+    // when a reload asks for it.
     artifacts['feature.notes'].source = artifact(
       'feature.notes',
       'notesPlugin',
       'ctx.provide("n", 2)',
     )
     await host.refresh()
-    expect(runtime.log).toEqual(['add:feature.notes', 'replace:feature.notes'])
+    expect(runtime.log).toEqual(['add:feature.notes'])
+    expect(host.getSnapshot().plugins[0].pending).toBe(true)
     expect(host.getSnapshot().plugins[0].edited).toBe(true)
+
+    await host.reload('feature.notes', 'renderer')
+    expect(runtime.log).toEqual(['add:feature.notes', 'replace:feature.notes'])
+    expect(host.getSnapshot().plugins[0].pending).toBe(false)
 
     // Restore goes through the native half and puts the built copy back in place.
     await host.restore('feature.notes', 'renderer')

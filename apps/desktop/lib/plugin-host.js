@@ -8,6 +8,10 @@
 // A plugin file is text the app writes, and a build of one is not small: the chat
 // plugin's artifact is over 2 MB because it carries its own dependencies. The limit
 // is here to refuse an absurd payload, not to make a real artifact unsaveable.
+//
+// Nothing here is mounted because it appeared. Watching the folder tells this host
+// which files differ from the code it is running; mounting them again is an
+// explicit act, and `reloadOnSave` hands that act to the watcher.
 const MAX_SOURCE = 8 * 1024 * 1024
 
 const message = (error) => (error instanceof Error ? error.message : String(error))
@@ -29,13 +33,17 @@ const checkSource = (value) => {
 }
 
 class PluginHost {
-  constructor({ loader, runtime, artifacts = null, watching = true }) {
+  constructor({ loader, runtime, artifacts = null, watching = true, reloadOnSave = false }) {
     this.loader = loader
     this.runtime = runtime
     // The shipped build, when this app carries one: what a file came from, and how
     // to put a shipped plugin back after an edit.
     this.artifacts = artifacts
+    // Watching notices a change; reloadOnSave applies it. Off is the default: a
+    // save in an editor should not replace the code a terminal or a chat run is
+    // using until the person asks for it.
     this.watching = watching
+    this.reloadOnSave = reloadOnSave
     // The main-process plugins this folder put into the profile, and why the
     // ones that are not there failed.
     this.mounted = new Map()
@@ -50,6 +58,16 @@ class PluginHost {
   }
 
   /**
+   * True when the file on disk is not the code this process is running. The main
+   * process answers for itself; a renderer file is judged by the window, which
+   * knows what it mounted, so its entries carry no answer from here.
+   */
+  pending(entry) {
+    const known = this.mounted.get(entry.id)
+    return Boolean(known && known.mtime !== entry.mtime)
+  }
+
+  /**
    * Every plugin file in the folder, with what is known about it. This is what
    * both the studio and the agent's `plugin_list` read, so the two never
    * disagree about the folder.
@@ -58,6 +76,7 @@ class PluginHost {
     return {
       folder: this.loader.directory,
       watching: this.watching,
+      reloadOnSave: this.reloadOnSave,
       plugins: this.loader.scan().map((entry) => ({
         id: entry.id,
         target: entry.target,
@@ -67,6 +86,7 @@ class PluginHost {
         needs: entry.needs,
         css: entry.css ?? (this.loader.compiled.get(entry.id)?.css ? `${entry.id}.css` : null),
         version: `${entry.mtime}:${this.loader.versions.get(entry.id) ?? 0}`,
+        pending: entry.target === 'main' ? this.pending(entry) : undefined,
         shipped: entry.shipped ?? false,
         edited: entry.shipped ? this.artifacts?.edited(require('node:path').relative(this.loader.directory, entry.file)) : undefined,
         error: entry.error ?? this.failures.get(entry.id),
@@ -78,8 +98,11 @@ class PluginHost {
 
   /**
    * Brings the mounted set in line with the folder: mount what is new, replace
-   * what changed, unmount what is gone. A file that fails to load leaves the
-   * code that already works mounted, and the reason is kept for the report.
+   * what changed or was asked for, unmount what is gone. A file that fails to
+   * load leaves the code that already works mounted, and the reason is kept for
+   * the report. A file that changed on disk waits: it is reported as pending and
+   * mounted again when a reload names it, or on the spot when this app reloads
+   * on save.
    */
   sync(options = {}) {
     const operation = this.queue.then(() => this.syncOnce(options))
@@ -106,6 +129,9 @@ class PluginHost {
         continue
       }
       if (known && !wanted && known.mtime === entry.mtime) continue
+      // What was noticed is not what is applied. The code that works stays
+      // mounted, and the catalog says the file is ahead of it.
+      if (known && !wanted && !this.reloadOnSave) continue
       if (!known && this.status(entry.id)) {
         this.failures.set(entry.id, `${entry.id} is already a plugin of this app.`)
         continue
