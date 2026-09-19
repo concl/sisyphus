@@ -317,8 +317,10 @@
     () => document.querySelector('.chat-toolbar .chat-folder')?.textContent.includes(folderName),
     'the header folder of the reopened conversation',
   )
-  // The @ picker lists the bound folder and inserts a mention chip.
-  chatEditor.focus()
+  // The @ picker lists the bound folder and inserts a mention chip. Reopening the
+  // conversation builds a new composer, so the editor is queried again here.
+  const mentionEditor = document.querySelector('.chat-composer .chat-editor')
+  mentionEditor.focus()
   document.execCommand('insertText', false, '@')
   await waitFor(
     () => document.querySelectorAll('.chat-mentions button').length > 0,
