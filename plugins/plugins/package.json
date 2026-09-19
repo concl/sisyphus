@@ -1,0 +1,23 @@
+{
+  "name": "@sisyphus/plugin-plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "dependencies": {
+    "@sisyphus/profile": "*",
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8"
+  },
+  "sisyphus": {
+    "id": "feature.plugins",
+    "entry": "./src/index.tsx",
+    "export": "pluginsPlugin",
+    "needs": [
+      "runtime"
+    ],
+    "order": 6
+  }
+}

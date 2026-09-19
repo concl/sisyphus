@@ -1,0 +1,40 @@
+{
+  "name": "@sisyphus/plugin-contexts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.tsx",
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8"
+  },
+  "sisyphus": {
+    "id": "feature.contexts",
+    "entry": "./src/index.tsx",
+    "export": "contextsPlugin",
+    "needs": [],
+    "order": 4,
+    "native": [
+      {
+        "id": "desktop.app-contexts",
+        "entry": "./native/app-contexts.js",
+        "order": 1
+      },
+      {
+        "id": "desktop.integrations",
+        "entry": "./native/integrations.js",
+        "order": 2
+      },
+      {
+        "id": "desktop.integration.browser",
+        "entry": "./native/integration-browser.js",
+        "order": 3
+      },
+      {
+        "id": "desktop.integration.vscode",
+        "entry": "./native/integration-vscode.js",
+        "order": 4
+      }
+    ]
+  }
+}

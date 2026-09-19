@@ -1,0 +1,16 @@
+{
+  "name": "@sisyphus/plugin-todo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8"
+  },
+  "sisyphus": {
+    "id": "feature.todo",
+    "entry": "./src/index.tsx",
+    "export": "todoPlugin",
+    "order": 30
+  }
+}

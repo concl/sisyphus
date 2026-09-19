@@ -1,0 +1,65 @@
+:root {
+  --app-bg: #f3f4f8;
+  --surface: #ffffff;
+  --panel: #fbfaf8;
+  --subtle: #f1f3f9;
+  --hover: #edf0f9;
+  --text: #293047;
+  --muted: #6c7890;
+  --faint: #8c96a9;
+  --border: #dfe3ed;
+  --border-strong: #c4ccdf;
+  --accent: #5368bd;
+  --accent-hover: #647bd0;
+  --accent-soft: #e9edfb;
+  --on-accent: #ffffff;
+  --danger: #bb4855;
+  --success: #328461;
+  --success-bg: #e3f4eb;
+  --shadow: #1e2d4a26;
+  --drag-overlay: #5368bd20;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --app-bg: #12151c;
+  --surface: #171b24;
+  --panel: #1c212c;
+  --subtle: #222837;
+  --hover: #293145;
+  --text: #dce2ef;
+  --muted: #a2adc3;
+  --faint: #818da5;
+  --border: #30394c;
+  --border-strong: #485671;
+  --accent: #94a7ff;
+  --accent-hover: #adbcff;
+  --accent-soft: #303c60;
+  --on-accent: #141b30;
+  --danger: #f19b9f;
+  --success: #8bd5b1;
+  --success-bg: #233e35;
+  --shadow: #00000055;
+  --drag-overlay: #94a7ff28;
+  color-scheme: dark;
+}
+/* Block icons draw the plugin's own line-art SVG as a mask, so every block
+   shares one color: the theme accent. The color comes from the token instead
+   of the asset, so dark mode follows the theme without an image filter. */
+.icon-mask {
+  display: block;
+  background-color: var(--accent);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+input,
+select,
+textarea {
+  color: var(--text);
+  background: var(--surface);
+}
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

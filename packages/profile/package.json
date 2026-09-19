@@ -7,6 +7,10 @@
     ".": {
       "types": "./index.d.ts",
       "default": "./index.js"
+    },
+    "./preferences": {
+      "types": "./preferences.d.ts",
+      "default": "./preferences.js"
     }
   },
   "dependencies": {

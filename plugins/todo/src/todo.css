@@ -1,0 +1,14 @@
+.todo-panel { height: 100%; overflow: auto; padding: 24px; color: var(--text); background: var(--panel); }
+.todo-panel h2 { margin: 0 0 6px; font-size: 24px; }
+.todo-panel header p, .todo-empty, .todo-sync p { color: var(--muted); font-size: 12px; }
+.todo-add { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
+.todo-panel input:not([type=checkbox]) { min-width: 0; border: 1px solid var(--border); border-radius: 3px; color: var(--text); background: var(--surface); padding: 8px; }
+.todo-add input:first-child { flex: 1; min-width: 140px; }
+.todo-count { color: var(--muted); font-size: 11px; }
+.todo-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.todo-row span { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.todo-row[data-done=true] span { text-decoration: line-through; color: var(--muted); }
+.todo-row input[type=date] { font-size: 11px; padding: 4px; width: 120px; }
+.todo-row button { background: transparent; border: 0; color: var(--muted); }
+.todo-sync { margin-top: 24px; color: var(--muted); font-size: 11px; }
+.todo-sync button { margin-right: 8px; }

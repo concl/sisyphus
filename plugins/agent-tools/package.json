@@ -1,0 +1,14 @@
+{
+  "name": "@sisyphus/plugin-agent-tools",
+  "version": "0.1.0",
+  "private": true,
+  "sisyphus": {
+    "native": [
+      {
+        "id": "desktop.agent-tools",
+        "entry": "./native/agent-tools.js",
+        "order": 11
+      }
+    ]
+  }
+}

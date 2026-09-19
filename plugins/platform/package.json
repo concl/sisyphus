@@ -1,0 +1,33 @@
+{
+  "name": "@sisyphus/plugin-platform",
+  "version": "0.1.0",
+  "private": true,
+  "sisyphus": {
+    "native": [
+      {
+        "id": "desktop.transport",
+        "entry": "./native/transport.js",
+        "order": 12,
+        "restart": true
+      },
+      {
+        "id": "desktop.storage",
+        "entry": "./native/storage.js",
+        "order": 13,
+        "restart": true
+      },
+      {
+        "id": "desktop.preferences",
+        "entry": "./native/preferences.js",
+        "order": 14,
+        "restart": true
+      },
+      {
+        "id": "desktop.window",
+        "entry": "./native/window.js",
+        "order": 15,
+        "restart": true
+      }
+    ]
+  }
+}

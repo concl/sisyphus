@@ -1,0 +1,219 @@
+.studio-panel {
+  height: 100%;
+  overflow: auto;
+  padding: 28px 25px;
+  background: var(--panel);
+}
+.studio-panel h2 {
+  font-size: 22px;
+  letter-spacing: -0.6px;
+  margin: 14px 0 8px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.studio-mark {
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+  padding: 6px;
+  border-radius: 2px;
+  display: inline-flex;
+}
+.studio-mark .icon-mask {
+  width: 22px;
+  height: 22px;
+  display: block;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+.studio-quiet {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0;
+}
+.studio-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 18px 0 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.studio-path {
+  flex: 1;
+  min-width: 140px;
+  font:
+    9.5px/1.6 Consolas,
+    monospace;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+  direction: rtl;
+  text-align: left;
+}
+.studio-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.studio-switch input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+.studio-error {
+  color: var(--danger);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 9px 11px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  margin: 14px 0 0;
+}
+.studio-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.studio-row.selected {
+  padding-left: 9px;
+  border-left: 2px solid var(--accent);
+  background: var(--subtle);
+}
+.studio-meta {
+  min-width: 0;
+}
+.studio-meta strong {
+  font-weight: 500;
+  font-size: 11px;
+}
+.studio-meta small {
+  display: block;
+  font-size: 9px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.studio-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.studio-row-actions button {
+  font-size: 9.5px;
+  padding: 4px 7px;
+}
+.studio-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 20px;
+}
+.studio-form .section-label {
+  width: 100%;
+}
+.studio-form input,
+.studio-form select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font: inherit;
+  font-size: 10.5px;
+  padding: 7px 9px;
+  min-width: 120px;
+  flex: 1;
+}
+.studio-form input:focus,
+.studio-form select:focus {
+  outline: 1px solid var(--accent);
+}
+.studio-editor {
+  margin-top: 22px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+}
+.studio-editor header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--border);
+}
+.studio-editor header strong {
+  font-size: 10.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.studio-editor header span {
+  font-size: 9px;
+  color: var(--faint);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.studio-editor header button {
+  margin-left: auto;
+  font-size: 15px;
+  padding: 0 4px;
+  border: 0;
+}
+.studio-textarea {
+  width: 100%;
+  min-height: 300px;
+  resize: vertical;
+  border: 0;
+  border-radius: 0;
+  background: var(--subtle);
+  color: var(--text);
+  padding: 12px;
+  font:
+    10px/1.75 Consolas,
+    monospace;
+  tab-size: 2;
+}
+.studio-textarea:focus {
+  outline: none;
+}
+.studio-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--border);
+}
+.studio-note {
+  font-size: 9.5px;
+  line-height: 1.8;
+  color: var(--faint);
+  margin: 14px 0 0;
+  overflow-wrap: anywhere;
+}
+.studio-editor .studio-note {
+  padding: 0 11px 11px;
+  margin-top: 0;
+}
+.studio-note code {
+  font:
+    9.5px Consolas,
+    monospace;
+  color: var(--muted);
+}

@@ -4,15 +4,21 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "plugins/*"
   ],
   "scripts": {
-    "build": "npm -w frontend run build",
+    "build:plugins": "node scripts/build-plugins.mjs",
+    "build": "npm run build:plugins && npm -w frontend run build",
+    "typecheck:plugins": "npm -w frontend run typecheck:plugins",
     "test": "npm -w @sisyphus/profile test && npm -w desktop test && npm -w frontend test",
-    "lint": "eslint --config apps/frontend/eslint.config.js apps/frontend/src packages",
+    "lint": "eslint --config apps/frontend/eslint.config.js apps/frontend/src packages plugins",
     "start": "npm -w desktop start",
+    "dev:app": "npm run build:plugins && node scripts/dev-app.js",
+    "plugins:sync": "node scripts/plugin-sync.js",
+    "plugins:watch": "node scripts/plugin-sync.js --watch",
     "smoke": "npm run build && npm -w desktop run smoke",
-    "format": "prettier --write apps packages README.md ARCHITECTURE.md package.json"
+    "format": "prettier --write apps packages plugins scripts README.md ARCHITECTURE.md package.json"
   },
   "devDependencies": {
     "eslint": "^10.8.0",

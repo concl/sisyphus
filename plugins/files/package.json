@@ -1,0 +1,14 @@
+{
+  "name": "@sisyphus/plugin-files",
+  "version": "0.1.0",
+  "private": true,
+  "sisyphus": {
+    "native": [
+      {
+        "id": "desktop.files",
+        "entry": "./native/files.js",
+        "order": 7
+      }
+    ]
+  }
+}

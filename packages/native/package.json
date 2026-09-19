@@ -1,0 +1,9 @@
+{
+  "name": "@sisyphus/native",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./folder": "./chat-folder.js",
+    "./backends": "./backends.js"
+  }
+}

@@ -1,0 +1,20 @@
+.calendar-panel { height: 100%; overflow: auto; padding: 24px; background: var(--panel); color: var(--text); }
+.calendar-panel h2 { margin: 0 0 6px; font-size: 24px; }
+.calendar-panel header p, .calendar-empty { color: var(--muted); font-size: 12px; }
+.calendar-month { display: flex; align-items: center; justify-content: space-between; margin: 24px 0 12px; }
+.calendar-month button { border: 0; background: transparent; color: var(--accent); font-size: 22px; padding: 2px 12px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; }
+.calendar-grid b { text-align: center; color: var(--muted); font-size: 10px; padding: 6px 0; }
+.calendar-grid button { position: relative; height: 44px; padding: 4px; border: 1px solid transparent; background: var(--surface); color: var(--text); font-size: 12px; }
+.calendar-grid button[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); }
+.calendar-grid button[data-today=true] { color: var(--accent); font-weight: 700; }
+.calendar-grid small { position: absolute; bottom: 2px; right: 5px; font-size: 9px; color: var(--muted); }
+.calendar-panel h3 { font-size: 13px; margin-top: 24px; }
+.calendar-panel form { display: flex; gap: 8px; }
+.calendar-panel input:not([type=checkbox]) { min-width: 0; padding: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.calendar-panel form input { flex: 1; }
+.calendar-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; font-size: 12px; border-bottom: 1px solid var(--border); }
+.calendar-item span { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.calendar-item[data-done=true] span { text-decoration: line-through; color: var(--muted); }
+.calendar-item input[type=date] { width: 120px; font-size: 11px; padding: 4px; }
+.calendar-item button { background: transparent; border: 0; color: var(--muted); }

@@ -1,0 +1,14 @@
+{
+  "name": "@sisyphus/plugin-shell",
+  "version": "0.1.0",
+  "private": true,
+  "sisyphus": {
+    "native": [
+      {
+        "id": "desktop.shell",
+        "entry": "./native/shell.js",
+        "order": 8
+      }
+    ]
+  }
+}

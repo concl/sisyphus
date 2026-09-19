@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <title>Sailing ship icon</title>
+  <desc>A tilted sailing ship in minimal line art, with two sails and a curved hull viewed slightly from below.</desc>
+  <g transform="rotate(-10 32 32)" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M27 7v6m0 20v7"/>
+    <path d="M15 13q11-2 21 2c-3 6-2 13 1 19q-11-3-23-1c4-7 5-14 1-20Z"/>
+    <path d="m41 17 12 17q-6-2-13 1c3-6 3-12 1-18Z"/>
+    <path d="M9 40q22 6 47-1c-5 12-13 18-22 18S15 51 9 40Z"/>
+    <path d="M14 47q19 8 38-1"/>
+  </g>
+</svg>
