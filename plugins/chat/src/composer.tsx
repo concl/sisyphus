@@ -166,7 +166,7 @@ export function ChatComposer({
           </button>
         ) : (
           <button className="primary" type="submit" disabled={empty || !config?.model}>
-            Send ↑
+            Send
           </button>
         )}
       </div>
