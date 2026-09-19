@@ -1,16 +1,19 @@
-import type { Profile } from '@sisyphus/profile'
 import { services, type AppPlugin, type Desktop, type Storage } from '@sisyphus/sdk'
-import { panelsPlugin } from '@sisyphus/plugin-panels'
-import { homePlugin } from '@sisyphus/plugin-home'
-import { terminalPlugin } from '@sisyphus/plugin-terminal'
-import { pythonPlugin } from '@sisyphus/plugin-python'
-import { plannerPlugin } from '@sisyphus/plugin-planner'
-import { workspacePlugin } from '@sisyphus/plugin-workspace'
-import { themePlugin } from '@sisyphus/plugin-theme'
-import { settingsPlugin } from '@sisyphus/plugin-settings'
-import { chatPlugin } from '@sisyphus/plugin-chat'
 
-export function profile(runtime: Profile): AppPlugin[] {
+/**
+ * The host's own plugins: the bridge to the native half, and local storage.
+ *
+ * Everything else in this app - every panel, the workspace frame, the chat, the
+ * terminal - is a plugin file the window reads from disk while it starts, so it can
+ * be edited, reloaded, added, or removed without a rebuild. `host.ts` loads them,
+ * and `scripts/build-plugins.mjs` turns `packages/plugin-*` into the files the
+ * distribution ships.
+ *
+ * These two are not files because they are not plugins in that sense: they are what
+ * a plugin file talks to, and a window with no bridge to the native half has
+ * nothing to load anything with.
+ */
+export function profile(): AppPlugin[] {
   return [
     {
       id: 'platform.desktop',
@@ -23,6 +26,7 @@ export function profile(runtime: Profile): AppPlugin[] {
           window.sisyphus ?? {
             call: () => Promise.reject(new Error('Open the desktop app to use native services.')),
             on: () => () => {},
+            dropFiles: () => Promise.reject(new Error('Open the desktop app to drop files.')),
           },
         )
       },
@@ -49,19 +53,5 @@ export function profile(runtime: Profile): AppPlugin[] {
         ctx.provide(services.storage, adapter)
       },
     },
-    panelsPlugin,
-    themePlugin,
-    settingsPlugin,
-    chatPlugin,
-    homePlugin,
-    terminalPlugin,
-    pythonPlugin,
-    plannerPlugin,
-    workspacePlugin(runtime, [
-      { id: 'home' },
-      { id: 'python-host', direction: 'right', reference: 'home', width: 420 },
-      { id: 'terminal', direction: 'below', reference: 'home', height: 235 },
-      { id: 'planner', direction: 'below', reference: 'python-host', height: 415 },
-    ]),
   ]
 }
