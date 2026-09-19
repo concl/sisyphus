@@ -14,6 +14,7 @@
     "test": "npm -w @sisyphus/profile test && npm -w desktop test && npm -w frontend test",
     "lint": "eslint --config apps/frontend/eslint.config.js apps/frontend/src packages plugins",
     "start": "npm -w desktop start",
+    "shortcut": "node scripts/shortcut.mjs",
     "dev:app": "npm run build:plugins && node scripts/dev-app.js",
     "plugins:sync": "node scripts/plugin-sync.js",
     "plugins:watch": "node scripts/plugin-sync.js --watch",

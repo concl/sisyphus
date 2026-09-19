@@ -12,6 +12,35 @@ npm run build
 npm start
 ```
 
+### A button for the app
+
+The app can be opened from a desktop entry instead of a terminal, which is what you
+want on a taskbar, a Dock, or a menu:
+
+```sh
+npm run shortcut                  # the entry, where this system keeps them
+npm run shortcut -- --menu        # Windows: also in the Start menu
+npm run shortcut -- --startup     # also run it when you log in
+npm run shortcut -- --remove      # take the entries away again
+```
+
+The entry points at the Electron binary in this checkout and runs it with
+`apps/desktop` as its working directory - the same thing `npm start` runs - so a click
+needs no terminal, no Node on `PATH`, and no rebuild. Windows gets a `.lnk` on the
+Desktop, macOS an `.app` in `~/Applications` with an alias on the Desktop, and Linux a
+`.desktop` file in the applications menu. Pin it the way the system pins anything:
+_Pin to taskbar_, drag it onto the Dock, or _Add to favorites_. While the app is
+running a second click focuses its window.
+
+An icon is used from `apps/desktop/build/icon.ico` (or `.icns`, `.png`) when that file
+exists; otherwise the system's own icon is drawn. The entries point into this checkout,
+so move the folder and run the script again.
+
+Nothing here starts Python: the app starts its own Python host (`services/python-host`)
+when a Python block asks a service to run, so there is nothing to warm up first. Use
+`--startup` for the app at login, and a second login item for anything else that has to
+be running beforehand.
+
 ## Change the running app
 
 Feature packages live in `plugins/<feature>/`. Each package owns its source,
