@@ -168,6 +168,21 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
             .then((value) => setSavedLayouts(value ?? {}))
             .catch((error) => setMessage(String(error)))
         }, [])
+        // The rail order is read as the window lays out rather than when the dock
+        // reports ready: it is what the rail draws from its first frame, and waiting
+        // for the dock would show the registry's order and then replace it.
+        useEffect(() => {
+          let alive = true
+          void storage
+            .get<string[]>('ui.workspace', 'rail.v1')
+            .then((order) => {
+              if (alive) setArrangement(readRailOrder(order))
+            })
+            .catch((error) => setMessage(String(error)))
+          return () => {
+            alive = false
+          }
+        }, [])
         useEffect(() => {
           let alive = true
           desktop
@@ -278,9 +293,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           }
           try {
             const saved = await storage.get<SerializedDockview>('ui.workspace', 'layout.v1')
-            const order = await storage.get<string[]>('ui.workspace', 'rail.v1')
             if (!alive) return
-            setArrangement(readRailOrder(order))
             if (saved) {
               // This workspace is tiled; ignore unsupported floating/popout state.
               api.fromJSON(migrateLayout(saved))
