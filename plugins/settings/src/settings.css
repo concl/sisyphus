@@ -124,12 +124,12 @@
   box-shadow: inset 0 10px #d0d6e5;
 }
 .theme-preview.dark {
-  background: linear-gradient(90deg, #171b24 20%, #252d3e 20%);
-  box-shadow: inset 0 10px #35415b;
+  background: linear-gradient(90deg, #1a1a1a 20%, #2c2c2c 20%);
+  box-shadow: inset 0 10px #414141;
 }
 .theme-preview.system {
-  background: linear-gradient(90deg, #f8f9fc 50%, #252d3e 50%);
-  box-shadow: inset 0 10px #8291b0;
+  background: linear-gradient(90deg, #f8f9fc 50%, #2c2c2c 50%);
+  box-shadow: inset 0 10px #919191;
 }
 .settings-tools {
   list-style: none;

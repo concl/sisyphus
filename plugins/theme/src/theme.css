@@ -21,16 +21,19 @@
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --app-bg: #12151c;
-  --surface: #171b24;
-  --panel: #1c212c;
-  --subtle: #222837;
-  --hover: #293145;
-  --text: #dce2ef;
-  --muted: #a2adc3;
-  --faint: #818da5;
-  --border: #30394c;
-  --border-strong: #485671;
+  /* Neutral greys: the dark theme is a charcoal, so no surface carries a hue. Each
+     value keeps the luminance of the navy it replaced, so the contrast ratios the
+     light and dark palettes were built around are unchanged. */
+  --app-bg: #141414;
+  --surface: #1a1a1a;
+  --panel: #202020;
+  --subtle: #282828;
+  --hover: #313131;
+  --text: #e2e2e2;
+  --muted: #adadad;
+  --faint: #8d8d8d;
+  --border: #383838;
+  --border-strong: #555555;
   --accent: #94a7ff;
   --accent-hover: #adbcff;
   --accent-soft: #303c60;

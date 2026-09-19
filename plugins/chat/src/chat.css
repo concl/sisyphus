@@ -117,7 +117,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: rgba(15, 20, 32, 0.34);
+  background: rgba(18, 18, 18, 0.34);
   animation: chat-fade 0.18s ease;
 }
 .chat-main {
@@ -840,5 +840,5 @@
   font-size: 11px;
 }
 
-.chat-context { display: flex; align-items: center; gap: 6px; padding: 3px 16px 7px; font-size: 10px; color: var(--text-muted, #88919e); opacity: .7; }
+.chat-context { display: flex; align-items: center; gap: 6px; padding: 3px 16px 7px; font-size: 10px; color: var(--muted); opacity: .7; }
 .chat-context > span { height: 2px; width: 24px; background: currentColor; border-radius: 2px; }

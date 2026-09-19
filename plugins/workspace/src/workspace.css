@@ -471,17 +471,20 @@ i {
   font-style: italic;
   font-size: 11px;
 }
+/* The console and its toolbar are dark whatever the theme is, so they carry the same
+   neutral greys as the dark palette instead of a token: a terminal is its own colours
+   inside, and its chrome should not read as navy next to a neutral window. */
 .terminal-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1f2638;
-  color: #d9e1f0;
+  background: #262626;
+  color: #e1e1e1;
 }
 .panel-toolbar {
   gap: 10px;
   padding: 10px 16px;
-  border-bottom: 1px solid #303a50;
+  border-bottom: 1px solid #3a3a3a;
   font-size: 10px;
 }
 .panel-toolbar select {
@@ -489,7 +492,7 @@ i {
   font-size: 11px;
   background: transparent;
   border: 0;
-  color: #d4d9e8;
+  color: #dadada;
 }
 .panel-toolbar button {
   margin-left: auto;
@@ -610,8 +613,8 @@ summary span {
     monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #d9e0fa;
-  background: #1a2233;
+  color: #e1e1e1;
+  background: #222222;
   padding: 12px;
   border-radius: 5px;
   max-height: 250px;

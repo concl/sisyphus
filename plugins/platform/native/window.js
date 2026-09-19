@@ -6,13 +6,16 @@ module.exports = ({ frontend, smoke, preload }) => ({
   apply(ctx) {
     Menu.setApplicationMenu(null)
     let window
+    // The window's own title bar is native chrome, so it cannot read the theme's
+    // custom properties; these follow --surface, --text, and --app-bg of the dark
+    // palette, or a blue-black bar sits above a neutral window.
     const colors = () =>
       nativeTheme.shouldUseDarkColors
-        ? { color: '#171b24', symbolColor: '#dce2ef', height: 44 }
+        ? { color: '#1a1a1a', symbolColor: '#e2e2e2', height: 44 }
         : { color: '#ffffff', symbolColor: '#293047', height: 44 }
     const updateChrome = () => {
       if (!window || window.isDestroyed()) return
-      window.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#171b24' : '#f3f4f8')
+      window.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#141414' : '#f3f4f8')
       if (process.platform !== 'darwin') window.setTitleBarOverlay(colors())
     }
     nativeTheme.on('updated', updateChrome)
@@ -28,7 +31,7 @@ module.exports = ({ frontend, smoke, preload }) => ({
         minWidth: 850,
         minHeight: 560,
         title: 'Sisyphus',
-        backgroundColor: nativeTheme.shouldUseDarkColors ? '#171b24' : '#f3f4f8',
+        backgroundColor: nativeTheme.shouldUseDarkColors ? '#141414' : '#f3f4f8',
         titleBarStyle: 'hidden',
         ...(process.platform === 'darwin'
           ? { trafficLightPosition: { x: 14, y: 14 } }
