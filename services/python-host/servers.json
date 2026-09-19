@@ -1,0 +1,3 @@
+[
+  { "id": "workspace-api", "name": "Workspace API", "app": "app.main:app", "health": "/health" }
+]

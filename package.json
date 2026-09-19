@@ -1,10 +1,24 @@
 {
   "name": "sisyphus",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "services/*"
-  ]
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm -w frontend run build",
+    "test": "npm -w @sisyphus/profile test && npm -w desktop test && npm -w frontend test",
+    "lint": "eslint --config apps/frontend/eslint.config.js apps/frontend/src packages",
+    "start": "npm -w desktop start",
+    "smoke": "npm run build && npm -w desktop run smoke",
+    "format": "prettier --write apps packages README.md ARCHITECTURE.md package.json"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.8"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.0.2"
+  }
 }

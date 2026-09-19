@@ -1,10 +1,7 @@
 'use strict'
 // Scoped key-value data storage for the app and its extensions. One JSON file
 // per scope under userData/storage/<scope>.json; atomic writes via tmp+rename.
-// Pure Node (no Electron) so it can be unit tested; main.js wires it up.
-//
-// Distinct from lib/extension-store.js (the *installation* store under
-// userData/extensions): this is where the app and extensions keep *data*.
+// Pure Node (no Electron); the storage plugin supplies the directory.
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -23,7 +20,7 @@ class ScopedStore {
   // Returns the stored value for key, or undefined when absent.
   read(key) {
     const data = this._load()
-    return data[key]
+    return Object.hasOwn(data, key) ? data[key] : undefined
   }
 
   write(key, value) {

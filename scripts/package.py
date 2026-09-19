@@ -30,6 +30,8 @@ def main():
     # Stage the frontend bundle inside the desktop app so main.js can find it
     # in the packaged app (see resolveFrontendIndex in main.js).
     if STAGED.exists():
+        if not STAGED.resolve().is_relative_to(DESKTOP.resolve()):
+            raise RuntimeError("Staging path escaped the desktop directory")
         shutil.rmtree(STAGED)
     shutil.copytree(FRONTEND_DIST, STAGED)
     print(f"[package] staged frontend bundle at {STAGED}")

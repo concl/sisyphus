@@ -1,0 +1,13 @@
+{
+  "name": "@sisyphus/plugin-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.tsx",
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8",
+    "@xterm/xterm": "^6.0.0",
+    "@xterm/addon-fit": "^0.11.0"
+  }
+}

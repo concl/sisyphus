@@ -1,8 +1,8 @@
 """Sisyphus python-host: a small FastAPI service managed by the Electron app.
 
-The desktop main process spawns this service (uvicorn) on startup,
-health-checks it, and kills it on quit. The frontend reaches it through the
-`service:*` IPC channels, which the main process proxies to this HTTP API.
+The desktop Python plugin starts this ASGI app on demand through runner.py,
+health-checks it, and stops it when the plugin unloads or the app quits.
+The frontend reaches its API through the plugin's validated IPC proxy.
 """
 
 from __future__ import annotations

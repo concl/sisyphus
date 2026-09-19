@@ -19,7 +19,12 @@ function commandExists(cmd) {
 function findGitBash() {
   const candidates = [
     path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Git', 'bin', 'bash.exe'),
-    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Git', 'bin', 'bash.exe'),
+    path.join(
+      process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)',
+      'Git',
+      'bin',
+      'bash.exe',
+    ),
     path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'bin', 'bash.exe'),
   ]
   return candidates.find((p) => fs.existsSync(p)) || null
@@ -34,9 +39,7 @@ function detectWslDistro() {
       windowsHide: true,
     })
     // Old WSL builds output UTF-16LE; detect it by the NUL bytes.
-    const text = out
-      .toString(out.includes(0) ? 'utf16le' : 'utf8')
-      .replace(/^\uFEFF/, '')
+    const text = out.toString(out.includes(0) ? 'utf16le' : 'utf8').replace(/^\uFEFF/, '')
     const lines = text
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -80,7 +83,12 @@ function detectBackends() {
   } else {
     const shell = process.env.SHELL || (fs.existsSync('/bin/zsh') ? '/bin/zsh' : '/bin/bash')
     const name = path.basename(shell)
-    backends.push({ id: name, name: name[0].toUpperCase() + name.slice(1), command: shell, args: [] })
+    backends.push({
+      id: name,
+      name: name[0].toUpperCase() + name.slice(1),
+      command: shell,
+      args: [],
+    })
     defaultId = name
   }
 

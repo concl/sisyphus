@@ -1,44 +1,36 @@
-# electron-builder configuration for the Sisyphus desktop app.
-# See scripts/package.py for the packaging entry point.
 appId: com.sisyphus.app
 productName: Sisyphus
-# node-pty ships N-API prebuilds (prebuilds/win32-x64) that work in both Node
-# and Electron; rebuilding from source is unnecessary and requires MSVC
-# Spectre libraries that may not be installed.
 npmRebuild: false
 directories:
   output: dist
 files:
   - main.js
   - preload.js
+  - profile.js
+  - plugins/**
   - lib/**
+  - prompts/**
   - smoke/**
   - frontend-dist/**
   - package.json
-# The python-host service (code + venv) is shipped alongside the app so the
-# main process can spawn it; main.js resolves it via process.resourcesPath.
+# The filesystem MCP server is spawned as a child process, so it cannot live
+# inside the asar archive.
+asarUnpack:
+  - node_modules/@modelcontextprotocol/**
 extraResources:
   - from: ../../services/python-host
     to: python-host
     filter:
       - app/**
+      - runner.py
+      - servers.json
       - requirements.txt
-      - pytest.ini
-      - .venv/**
-      - "!**/__pycache__"
-      - "!**/*.pyc"
-  # Bundled runtime extensions, seeded into userData/extensions on first run.
-  - from: ../../packages/runtime-extensions
-    to: runtime-extensions
+      - '!**/__pycache__'
 win:
   target: nsis
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-# Linux targets (built on Linux only — electron-builder cannot cross-build
-# Linux from Windows). AppImage = portable single file; deb = distro package.
 linux:
-  target:
-    - AppImage
-    - deb
+  target: [AppImage, deb]
   category: Utility

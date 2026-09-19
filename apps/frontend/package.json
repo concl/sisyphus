@@ -6,13 +6,33 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "npm --prefix ../.. run lint",
     "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sisyphus/plugin-chat": "*",
+    "@sisyphus/plugin-home": "*",
+    "@sisyphus/plugin-panels": "*",
+    "@sisyphus/plugin-planner": "*",
+    "@sisyphus/plugin-python": "*",
+    "@sisyphus/plugin-settings": "*",
+    "@sisyphus/plugin-terminal": "*",
+    "@sisyphus/plugin-theme": "*",
+    "@sisyphus/plugin-workspace": "*",
+    "@sisyphus/profile": "*",
+    "@sisyphus/sdk": "*",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-mention": "^3.31.3",
+    "@tiptap/extensions": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "@tiptap/suggestion": "^3.31.3",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "streamdown": "^2.6.0",
+    "tippy.js": "^6.3.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -18,3 +18,4 @@ __pycache__/
 # os / misc
 .DS_Store
 *.log
+artifacts/

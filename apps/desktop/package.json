@@ -1,21 +1,26 @@
 {
   "name": "desktop",
   "productName": "Sisyphus",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
-    "test": "node --test \"test/*.test.js\"",
-    "package": "electron-builder",
-    "build:ui": "npm --prefix ../frontend run build"
+    "test": "node --test test/*.test.js",
+    "package": "electron-builder"
   },
   "author": "Sisyphus",
   "license": "ISC",
-  "description": "",
+  "description": "A composable desktop workspace",
   "dependencies": {
-    "@sisyphus/shared": "*",
-    "node-pty": "^1.1.0"
+    "@ai-sdk/openai": "^4.0.70",
+    "@ai-sdk/openai-compatible": "^3.0.52",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/server-filesystem": "^2026.8.31",
+    "@sisyphus/profile": "*",
+    "ai": "^7.0.106",
+    "node-pty": "^1.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "electron": "^43.2.0",

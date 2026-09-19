@@ -1,8 +1,8 @@
 """Bootstrap the monorepo: npm workspace install and the python-host venv.
 
 Usage: python scripts/setup.py
-Run once after cloning; the npm install also builds @sisyphus/shared via its
-`prepare` script.
+Run once after cloning to install the workspace dependencies and Python API.
+
 """
 import subprocess
 import sys
