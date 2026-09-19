@@ -18,6 +18,11 @@
   --success-bg: #e3f4eb;
   --shadow: #1e2d4a26;
   --drag-overlay: #5368bd20;
+  /* Block icons draw the plugin's own line-art SVG as a mask, so their color is a
+     token rather than part of the asset. It is neutral by default - the accent is
+     for focus, selection, and hover - and a plugin that wants a tinted icon sets
+     this for its own subtree. */
+  --icon: var(--muted);
   color-scheme: light;
 }
 :root[data-theme='dark'] {
@@ -45,12 +50,11 @@
   --drag-overlay: #94a7ff28;
   color-scheme: dark;
 }
-/* Block icons draw the plugin's own line-art SVG as a mask, so every block
-   shares one color: the theme accent. The color comes from the token instead
-   of the asset, so dark mode follows the theme without an image filter. */
+/* Block icons draw the plugin's own line-art SVG as a mask, so every block shares one
+   color, and dark mode follows the theme without an image filter. */
 .icon-mask {
   display: block;
-  background-color: var(--accent);
+  background-color: var(--icon);
   mask-size: contain;
   mask-repeat: no-repeat;
   mask-position: center;
