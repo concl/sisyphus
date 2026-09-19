@@ -13,6 +13,7 @@ import { MessageEditor } from './message-editor'
 import { ToolCall } from './tool-activity'
 import { folderLabel } from './format'
 import { messageParts, type LiveTranscript } from './transcript'
+import { Follow } from './follow'
 import { activePath, branchOf, siblings } from './tree'
 
 interface MessageListProps {
@@ -254,16 +255,37 @@ export function MessageList({
   onSubmitEdit,
   onCancelEdit,
 }: MessageListProps) {
-  const bottom = useRef<HTMLDivElement | null>(null)
+  // The transcript is its own scroller, so it owns the follow rather than a
+  // sentinel element somewhere below the last message. Whether the follow is on
+  // is the reader's decision, recorded by `follow.ts` as they scroll.
+  const scroller = useRef<HTMLDivElement | null>(null)
+  const follow = useRef(new Follow())
   // Only the branch on screen is rendered.
   const messages = activePath(thread)
+  const newest = messages.at(-1)
+  const newestId = newest?.id ?? ''
+  const newestRole = newest?.role ?? ''
+  const threadId = thread?.id ?? ''
 
+  // A reply that is being watched is followed to the end; one nobody is watching
+  // is left exactly where it is, so it can be read from the point the reader
+  // left off. A conversation the reader moves to, and a turn they send, always
+  // start following again.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'end' })
-  }, [live, thread])
+    follow.current.watch(threadId, newestId, newestRole)
+    const element = scroller.current
+    if (!element || !follow.current.active) return
+    element.scrollTop = element.scrollHeight
+  }, [threadId, newestId, newestRole, live, thread])
+
+  /** Where the reader is: at the end of the transcript, or somewhere in it. */
+  function trackPosition() {
+    const element = scroller.current
+    if (element) follow.current.observe(element)
+  }
 
   return (
-    <div className="chat-messages" aria-live="polite">
+    <div className="chat-messages" ref={scroller} onScroll={trackPosition} aria-live="polite">
       {!messages.length && !busy && (
         <div className="chat-welcome">
           <span className="icon-mask" style={{ maskImage: `url("${icon}")` }} aria-hidden="true" />
@@ -320,7 +342,6 @@ export function MessageList({
           )}
         </article>
       )}
-      <div ref={bottom} />
     </div>
   )
 }
