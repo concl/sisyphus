@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "sisyphus": {
-    "native": [
+    "backend": [
       {
         "id": "desktop.agent-tools",
-        "entry": "./native/agent-tools.js",
+        "entry": "./backend/agent-tools.js",
         "order": 11
       }
     ]

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict'
-// Puts the build of `packages/plugin-*` into the app's plugins folder.
+// Puts the build of `plugins/*` into the app's plugins folder.
 //
 //   npm run plugins:build    build the artifacts from the packages
 //   npm run plugins:sync     copy that build into the app's plugins folder
@@ -24,11 +24,12 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
-const { PluginArtifacts } = require('../apps/desktop/lib/plugin-artifacts')
+const { PluginArtifacts } = require('../bootstrap/backend/lib/plugin-artifacts')
+const { ignoredPath } = require('../bootstrap/backend/lib/plugin-compiler')
 
 const ROOT = path.join(__dirname, '..')
 const BUILD = path.join(ROOT, 'build', 'plugins')
-const USAGE = `Copy the build of packages/plugin-* into the app's plugins folder.
+const USAGE = `Copy the build of plugins/* into the app's plugins folder.
 
   --source <dir>   where the build is (default: build/plugins)
   --dest <dir>     the app's plugins folder (default: this platform's app data)
@@ -148,12 +149,13 @@ function main() {
   }
   // A change in the packages means the build is stale; a change in the build means
   // the app's folder is stale. Both end in the same copy.
-  fs.watch(path.join(ROOT, 'plugins'), { recursive: true }, () =>
+  fs.watch(path.join(ROOT, 'plugins'), { recursive: true }, (_event, name) => {
+    if (name && ignoredPath(name)) return
     again(() => {
       rebuild()
       copy(parsed)
-    }),
-  )
+    })
+  })
   console.log(`\n  watching plugins/; copying source to ${parsed.destination}`)
   console.log('  save a package and the app marks it changed; Reload all mounts it. Ctrl+C to stop.\n')
 }

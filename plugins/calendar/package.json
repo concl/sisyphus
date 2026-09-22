@@ -8,9 +8,11 @@
     "react": "^19.2.8"
   },
   "sisyphus": {
-    "id": "feature.calendar",
-    "entry": "./src/index.tsx",
-    "export": "calendarPlugin",
-    "order": 30
+    "frontend": {
+      "id": "feature.calendar",
+      "entry": "./frontend/index.tsx",
+      "export": "calendarPlugin",
+      "order": 30
+    }
   }
 }

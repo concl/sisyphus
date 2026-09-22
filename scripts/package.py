@@ -2,7 +2,7 @@
 
 Usage: python scripts/package.py
 Requires the frontend build (scripts/build.py) and npm deps (scripts/setup.py).
-The built installer lands in apps/desktop/dist/.
+The built installer lands in bootstrap/backend/dist/.
 """
 import shutil
 import subprocess
@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 
 BASE = Path(__file__).parent.parent
-DESKTOP = BASE / "apps" / "desktop"
-FRONTEND_DIST = BASE / "apps" / "frontend" / "dist"
+DESKTOP = BASE / "bootstrap" / "backend"
+FRONTEND_DIST = BASE / "bootstrap" / "frontend" / "dist"
 STAGED = DESKTOP / "frontend-dist"
 
 

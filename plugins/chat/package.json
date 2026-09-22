@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.tsx",
+  "exports": "./frontend/index.tsx",
   "dependencies": {
     "@sisyphus/sdk": "*",
     "@sisyphus/ui": "*",
@@ -19,15 +19,17 @@
     "tippy.js": "^6.3.7"
   },
   "sisyphus": {
-    "id": "feature.chat",
-    "entry": "./src/index.tsx",
-    "export": "chatPlugin",
-    "needs": [],
-    "order": 5,
-    "native": [
+    "frontend": {
+      "id": "feature.chat",
+      "entry": "./frontend/index.tsx",
+      "export": "chatPlugin",
+      "needs": [],
+      "order": 5
+    },
+    "backend": [
       {
         "id": "desktop.chat",
-        "entry": "./native/chat.js",
+        "entry": "./backend/chat.js",
         "order": 0
       }
     ]

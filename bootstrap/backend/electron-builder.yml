@@ -1,0 +1,37 @@
+appId: com.sisyphus.app
+productName: Sisyphus
+npmRebuild: false
+directories:
+  output: dist
+files:
+  - main.js
+  - preload.js
+  - profile.js
+  - plugins/**
+  - lib/**
+  - prompts/**
+  - smoke/**
+  - frontend-dist/**
+  - package.json
+# The runtime compiler and child processes need ordinary filesystem paths for
+# plugin dependencies. Native esbuild cannot resolve files inside an asar archive.
+asar: false
+extraResources:
+  - from: ../../build/plugins
+    to: plugins
+  - from: ../../plugins/python/service
+    to: python-host
+    filter:
+      - app/**
+      - runner.py
+      - servers.json
+      - requirements.txt
+      - '!**/__pycache__'
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target: [AppImage, deb]
+  category: Utility

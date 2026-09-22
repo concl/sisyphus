@@ -4,15 +4,11 @@
 //
 //   npm run dev:app
 //
-// Starts Vite for `packages/plugin-*/src` and opens Electron pointed at it, so an
-// edit to a bundled plugin hot reloads in the running window instead of being
-// bundled first. This is the path for changing the app itself.
+// Starts Vite for the frontend bootstrap and a source watcher for plugins/.
+// Plugin edits are staged into app data and marked pending. Reload mounts them;
+// Reload on save optionally makes that automatic. Features stay runtime-loaded.
 //
-// Neither this loop nor a rebuild is needed for a runtime plugin (`plugins/`, or
-// anything in the app's plugins folder): those are loaded, edited, and reloaded
-// while the app runs. See `npm run plugins:watch`.
-//
-// A main-process plugin under `apps/desktop/**` has no hot loop: restart the app.
+// A main-process plugin under `bootstrap/backend/**` has no hot loop: restart the app.
 const { spawn } = require('node:child_process')
 const path = require('node:path')
 

@@ -3,16 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.tsx",
+  "exports": "./frontend/index.tsx",
   "dependencies": {
     "@sisyphus/sdk": "*",
     "react": "^19.2.8"
   },
   "sisyphus": {
-    "id": "feature.settings",
-    "entry": "./src/index.tsx",
-    "export": "settingsPlugin",
-    "needs": [],
-    "order": 3
+    "frontend": {
+      "id": "feature.settings",
+      "entry": "./frontend/index.tsx",
+      "export": "settingsPlugin",
+      "needs": [],
+      "order": 3
+    }
   }
 }

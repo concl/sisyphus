@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "sisyphus": {
-    "native": [
+    "backend": [
       {
         "id": "desktop.shell",
-        "entry": "./native/shell.js",
+        "entry": "./backend/shell.js",
         "order": 8
       }
     ]

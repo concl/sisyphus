@@ -7,10 +7,11 @@ renderer code is compiled on demand and registered with Cordis. Failed compilati
 or activation keeps the prior working version. Reload on save is optional.
 
 The small New Plugin templates use the supported legacy single-file format.
-For a multi-file plugin, add a folder with a `package.json` and a `sisyphus` entry
-manifest; see [ARCHITECTURE.md](../../ARCHITECTURE.md). React and service contracts
+For a multi-file plugin, add a folder with a `package.json` declaring
+`sisyphus.frontend` and/or `sisyphus.backend`; see
+[ARCHITECTURE.md](../../ARCHITECTURE.md). React and service contracts
 are supplied by the host, and other dependencies belong to the plugin.
 
-Restore restores the entire package, including its renderer/native source and
+Restore restores the entire package, including its frontend/backend source and
 assets. The Electron platform bridge requires an app restart; feature entry
 points reload live. Native plugins are trusted code with the app's permissions.

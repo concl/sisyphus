@@ -18,12 +18,12 @@
  * With --startup the same entry also goes where the system starts things at login.
  *
  * The entry points at the Electron binary this checkout installed and runs it with
- * `apps/desktop` as the working directory, which is exactly what `npm start` runs:
+ * `bootstrap/backend` as the working directory, which is exactly what `npm start` runs:
  * a click needs no Node on PATH, no terminal window, and no build each time. It
  * points into this checkout, so move the folder and run this again. A second click
  * while the app is running focuses it, because the app takes a single-instance lock.
  *
- * The app starts its own Python host (services/python-host) when a Python block asks a
+ * The app starts its own Python host (plugins/python/service) when a Python block asks a
  * service to run, so the entry does not need to start one; and nothing here builds the
  * app, except when there is no build to run at all.
  */
@@ -35,7 +35,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const base = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const appDir = path.join(base, 'apps', 'desktop')
+const appDir = path.join(base, 'bootstrap', 'backend')
 const manifest = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'))
 const require = createRequire(path.join(appDir, 'package.json'))
 /** The Electron binary in this checkout's dependency tree, not one from the PATH. */
@@ -64,19 +64,19 @@ const home = os.homedir()
 const label = 'sisyphus.checkout'
 
 /**
- * The icon for the entry: the one you name, one already in `apps/desktop/build`, or the
- * app's own mark drawn from `apps/frontend/public/favicon.svg`. Nothing in this
+ * The icon for the entry: the one you name, one already in `bootstrap/backend/build`, or the
+ * app's own mark drawn from `bootstrap/frontend/public/favicon.svg`. Nothing in this
  * repository renders SVG, so that drawing is done once by the Electron in this
- * checkout and left in `apps/desktop/build`, where a packaged build looks too.
+ * checkout and left in `bootstrap/backend/build`, where a packaged build looks too.
  */
 function renderIcon() {
-  const svg = path.join(base, 'apps', 'frontend', 'public', 'favicon.svg')
+  const svg = path.join(base, 'bootstrap', 'frontend', 'public', 'favicon.svg')
   if (!fs.existsSync(svg)) return ''
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-icon-'))
   const script = path.join(folder, 'render.cjs')
   const png = path.join(appDir, 'build', 'icon.png')
   fs.writeFileSync(script, RENDER_ICON)
-  console.log('Drawing an icon from apps/frontend/public/favicon.svg')
+  console.log('Drawing an icon from bootstrap/frontend/public/favicon.svg')
   const result = spawnSync(electron, [script, svg, png], { stdio: 'inherit' })
   fs.rmSync(folder, { recursive: true, force: true })
   if (result.status !== 0 || !fs.existsSync(png)) return ''
@@ -136,7 +136,7 @@ function resolveIcon() {
   // Nothing drawn: a shortcut can take an executable's own icon, and a Linux entry can
   // take an SVG, which is the one image this repository does have.
   if (process.platform === 'win32') return electron
-  const favicon = path.join(base, 'apps', 'frontend', 'public', 'favicon.svg')
+  const favicon = path.join(base, 'bootstrap', 'frontend', 'public', 'favicon.svg')
   return process.platform === 'linux' && fs.existsSync(favicon) ? favicon : ''
 }
 
@@ -147,7 +147,7 @@ function resolveIcon() {
 function ensureSomethingToRun() {
   const missing = [
     path.join(base, 'build', 'plugins', 'manifest.json'),
-    path.join(base, 'apps', 'frontend', 'dist', 'index.html'),
+    path.join(base, 'bootstrap', 'frontend', 'dist', 'index.html'),
   ].filter((file) => !fs.existsSync(file))
   if (!missing.length) return
   if (dryRun || !mayBuild)

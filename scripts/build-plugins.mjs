@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
-import compiler from '../apps/desktop/lib/plugin-compiler.js'
+import compiler from '../bootstrap/backend/lib/plugin-compiler.js'
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const source = path.join(root, 'plugins')
 const output = path.join(root, 'build', 'plugins')

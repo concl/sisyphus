@@ -3,21 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.tsx",
+  "exports": "./frontend/index.tsx",
   "dependencies": {
     "@sisyphus/sdk": "*",
     "react": "^19.2.8"
   },
   "sisyphus": {
-    "id": "feature.python",
-    "entry": "./src/index.tsx",
-    "export": "pythonPlugin",
-    "needs": [],
-    "order": 9,
-    "native": [
+    "frontend": {
+      "id": "feature.python",
+      "entry": "./frontend/index.tsx",
+      "export": "pythonPlugin",
+      "needs": [],
+      "order": 9
+    },
+    "backend": [
       {
         "id": "desktop.python-host",
-        "entry": "./native/python-host.js",
+        "entry": "./backend/python-host.js",
         "order": 10
       }
     ]

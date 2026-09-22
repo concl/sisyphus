@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts",
+  "exports": "./frontend/index.ts",
   "dependencies": {
     "@sisyphus/sdk": "*"
   },
   "sisyphus": {
-    "id": "feature.theme",
-    "entry": "./src/index.ts",
-    "export": "themePlugin",
-    "needs": [],
-    "order": 2
+    "frontend": {
+      "id": "feature.theme",
+      "entry": "./frontend/index.ts",
+      "export": "themePlugin",
+      "needs": [],
+      "order": 2
+    }
   }
 }

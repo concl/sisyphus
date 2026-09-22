@@ -1,34 +1,82 @@
 # Architecture
 
 Cordis owns activation, injection, scoped service resolution, effects, and disposal.
-`packages/profile` adds IDs, a lifecycle queue, remembered toggles, and rollback for
+`shared/runtime` adds IDs, a lifecycle queue, remembered toggles, and rollback for
 failed replacement; it does not implement a dependency engine.
+
+## Project map
+
+The app is a desktop runtime that can be recomposed while it is running. There is
+one Cordis root in the backend and one in each frontend window; IPC connects the
+processes. Adding a feature does not require changing a host import list.
+
+```text
+bootstrap/
+  backend/             Electron startup, preload, compiler, and protected loader
+  frontend/            Window startup, host module table, and plugin loading
+plugins/
+  <feature>/
+    package.json       Optional frontend and backend entry points
+    frontend/          UI, styles, and frontend services
+    backend/           Desktop services, resources, and workers
+  python/service/      Python server source and its development environment
+shared/
+  runtime/             Cordis lifecycle wrapper and remembered toggles
+  sdk/                 Service contracts and types
+  ui/                  Reusable components
+  backend/             Reusable filesystem and shell helpers
+scripts/               Build, sync, test, and packaging commands
+```
+
+Only create the parts a feature needs. To-dos and Calendar are frontend-only;
+Files and Shell are backend-only. Shared libraries are ordinary imports, not
+independently mounted features. Their existing npm names (`@sisyphus/profile`,
+`@sisyphus/native`, `@sisyphus/sdk`, and `@sisyphus/ui`) remain stable so editable
+plugins can keep their imports. This checkout has no mobile target.
+
+Dynamic composition is an architectural requirement: dependencies use Cordis
+injection, resources belong to disposable effects, and saved data outlives a
+plugin instance. Frontend edits do not invalidate backend jobs; backend edits do
+not invalidate frontend code. Files shared at the feature root invalidate both.
+Explicit reloads carry their requested IDs across IPC, so the frontend can apply
+them immediately while ordinary watcher notifications remain pending. Frontend
+code reads wait for backend compilation to finish.
+The protected loader/bridge still bootstraps this mechanism, and Electron platform
+adapters retain their explicit restart requirement. This restructure does not
+claim to support live replacement of the transport carrying a reload.
 
 ## Source packages
 
-`plugins/<name>/package.json` declares renderer and/or native entry points:
+`plugins/<name>/package.json` declares frontend and/or backend entry points:
 
 ```json
 {
   "name": "@sisyphus/plugin-example",
   "type": "module",
   "sisyphus": {
-    "id": "feature.example",
-    "entry": "./src/index.tsx",
-    "export": "examplePlugin",
-    "native": [
-      { "id": "desktop.example", "entry": "./native/index.js" }
-    ]
+    "frontend": {
+      "id": "feature.example",
+      "entry": "./frontend/index.tsx",
+      "export": "examplePlugin"
+    },
+    "backend": [{ "id": "desktop.example", "entry": "./backend/index.js" }]
   }
 }
 ```
 
-A renderer entry exports a Cordis plugin object. Native entries export an object
+A frontend entry exports a Cordis plugin object. Backend entries export an object
 or a factory receiving host paths (`userData`, `hostDir`, `frontend`, `preload`).
-CommonJS native source has its own `native/package.json` with `type: commonjs`.
-Native implementation, prompts, worker code, and renderer assets stay in the same
-feature package. Shared libraries are `packages/sdk`, `ui`, `profile`, and `native`;
+CommonJS backend source has its own `backend/package.json` with `type: commonjs`.
+Backend implementation, prompts, worker code, and frontend assets stay in the same
+feature package. Shared libraries are `shared/sdk`, `ui`, `runtime`, and `backend`;
 features communicate through injected services rather than importing each other.
+
+Frontend entries map to the existing `renderer` IPC target; backend entries map
+to `main`. Those wire names and plugin IDs remain stable. Legacy `entry`/`native`
+manifests also remain loadable. During the source-layout migration, an edited
+legacy package is retained as a whole, including its old import paths. Restore
+or an explicit forced sync adopts the new shipped layout; untouched packages
+upgrade automatically.
 
 `scripts/build-plugins.mjs` validates entry points and stages original source under
 `build/plugins`, with hashes in a distribution manifest. Packaging ships this tree
@@ -49,11 +97,31 @@ folder. A distribution must include the dependencies its source packages need.
 The packaged host uses ordinary files (`asar: false`) because the native compiler
 and spawned executables need real filesystem paths.
 
-The host has no feature imports. `apps/desktop/profile.js` discovers source
+The host has no feature imports. `bootstrap/backend/profile.js` discovers source
 packages, loads native entry points, and installs the loader and worker factory.
 The frontend boot only provides the desktop/storage bridge, runtime module table,
-and plugin library. `apps/frontend/src/host.ts` loads renderer entries over IPC.
+and plugin library. `bootstrap/frontend/src/host.ts` loads renderer entries over IPC.
 Even Workspace, Theme, and the panel registry are runtime-loaded plugins.
+
+### Source-to-runtime path
+
+The editable source lives in app data; compiled output is an in-memory cache.
+Renderer host modules are shared so runtime-loaded features use one React instance.
+
+```mermaid
+flowchart TD
+    Source["plugins/&lt;name&gt; source package"] --> Build["build-plugins.mjs<br/>Validate entries and hash source"]
+    Build --> Shipped["build/plugins<br/>Shipped resources"]
+    Shipped --> Seed["PluginArtifacts<br/>Seed or update untouched files"]
+    Seed --> Editable["userData/plugins<br/>Editable source and local dependencies"]
+    Shipped -->|Restore complete package| Editable
+    Editable --> Loader["PluginLoader<br/>Discover manifests and entries"]
+    Loader --> Compiler["plugin-compiler.js / esbuild<br/>Compile entries and local imports"]
+    Compiler --> Cache["In-memory compiled code"]
+    Cache --> Native["Electron native entries<br/>bootstrap/backend/profile.js"]
+    Cache -->|IPC loading| Renderer["Renderer entries<br/>bootstrap/frontend/src/host.ts"]
+    Host["Explicit host modules<br/>React, Cordis, SDK, profile, UI"] --> Renderer
+```
 
 ## Reload lifecycle
 
@@ -71,6 +139,23 @@ errors preserve the running version and roll the replacement back. Invalid
 manifests preserve previously known entries until repaired. New/removed entry
 points mount/unmount without host edits. Each renderer stylesheet follows its
 plugin and is replaced on reload.
+
+```mermaid
+flowchart TD
+    Change["Source, CSS, asset, or manifest change"] --> Watcher["Recursive watcher"]
+    Watcher --> Pending["Catalog: pending<br/>Mounted code keeps running"]
+    Pending --> Decision{"Apply change?"}
+    Decision -->|Reload on save off: default| Wait["Wait for explicit reload"]
+    Decision -->|Reload on save on| Reload["Serialized native sync and renderer refresh"]
+    Wait -->|Reload, Reload all, plugin_reload, or named-file write| Reload
+    Reload --> Platform{"Platform adapter<br/>with restart: true?"}
+    Platform -->|Yes| Restart["Apply on host restart"]
+    Platform -->|No| Validate["Validate manifest and compile as needed"]
+    Validate -->|Invalid manifest or compile failure| Keep["Keep known entries / running version"]
+    Validate -->|Valid| Apply["Add, replace, or unmount entry<br/>Cordis owns effects and disposal"]
+    Apply -->|Replacement fails| Rollback["Roll replacement back"]
+    Apply -->|Success| Active["Updated runtime and stylesheets"]
+```
 
 A reload happens under the blocks that are on screen, and it does not disturb them.
 A plugin's panel is withdrawn when its old code is disposed and registered again when
@@ -98,14 +183,14 @@ process-tree cancellation use asynchronous OS calls.
 
 ## Contracts and composition
 
-| Contract | Provider | Consumers |
-| --- | --- | --- |
-| `ui.panels.v1` | panels | workspace, every visual feature |
-| `planner.v1` (renderer) | planner | todo, calendar |
-| `planner.v1` (native) | planner-data | planner-sync, planner tool adapter |
-| `agent.tools.v1` | agent-tools | files, shell, planner, plugin loader, chat |
-| `runtime.workers.v1` | host | chat native adapter |
-| `transport.v1`, `storage.v1` | platform | native feature adapters |
+| Contract                     | Provider     | Consumers                                  |
+| ---------------------------- | ------------ | ------------------------------------------ |
+| `ui.panels.v1`               | panels       | workspace, every visual feature            |
+| `planner.v1` (renderer)      | planner      | todo, calendar                             |
+| `planner.v1` (native)        | planner-data | planner-sync, planner tool adapter         |
+| `agent.tools.v1`             | agent-tools  | files, shell, planner, plugin loader, chat |
+| `runtime.workers.v1`         | host         | chat native adapter                        |
+| `transport.v1`, `storage.v1` | platform     | native feature adapters                    |
 
 Consumers declare `inject`; providers declare `provide`; registrations use
 `ctx.effect` with disposers. Todo and Calendar resolve the same planner service
@@ -114,15 +199,68 @@ Cordis can scope a replacement service with `ctx.isolate`; the default workspace
 uses one shared planner scope. Electron and renderer contexts are separate, joined
 by explicit `call/on` IPC contracts rather than shared objects.
 
+```mermaid
+flowchart LR
+    subgraph RendererContext["Renderer Cordis context"]
+        Panels["panels<br/>provides ui.panels.v1"] -->|injected service| Views["workspace and visual features"]
+        PlannerUI["planner<br/>provides planner.v1"] -->|injected service| Todo["To-dos"]
+        PlannerUI -->|injected service| Calendar["Calendar"]
+    end
+    subgraph NativeContext["Electron Cordis context"]
+        Platform["platform<br/>transport.v1 and storage.v1"] -->|injected services| Adapters["Native feature adapters"]
+        Data["planner-data<br/>provides planner.v1"] -->|injected service| Sync["planner-sync and planner tools"]
+        Tools["agent-tools<br/>provides agent.tools.v1"] -->|injected service| ToolClients["Tool contributors and chat"]
+        Workers["host<br/>provides runtime.workers.v1"] -->|injected service| Chat["Chat native adapter"]
+    end
+    PlannerUI <-->|"Explicit call/on IPC"| Data
+```
+
+Arrows within each context show service provision to consumers. The matching
+`planner.v1` names belong to separate contexts; objects do not cross IPC.
+
 ## Chat
 
-`plugins/chat/native/chat.js` owns Electron integration, encrypted keys, and tool
+`plugins/chat/backend/chat.js` owns Electron integration, encrypted keys, and tool
 access checks. Its `WorkerChat` client starts `native/worker.js` through the worker
 service. The worker owns model streams, the message tree, and per-conversation
 history files. Tool definitions travel as JSON schemas; execution returns through
 RPC to the injected tool registry. Abort signals cross this boundary explicitly.
 Changing tool access is checked again when a tool executes. Worker errors reject
 pending calls; disposal aborts work and terminates the worker after a bounded wait.
+
+```mermaid
+sequenceDiagram
+    participant UI as Chat renderer
+    participant Native as Chat native adapter
+    participant Worker as Chat worker
+    participant Tools as Injected tool registry
+    participant History as Conversation history
+    UI->>Native: Start run (request ID, conversation)
+    Native->>Worker: RPC: start with tool schemas
+    Note over Native,Worker: WorkerChat starts worker through runtime.workers.v1
+    loop Model and tool steps
+        Worker-->>Native: Stream events
+        Native-->>UI: Update matching run
+        opt Model requests a tool
+            Worker->>Native: RPC: execute tool
+            Native->>Native: Recheck current tool access
+            Native->>Tools: Execute if allowed
+            Tools-->>Native: Result
+            Native-->>Worker: Tool result or access error
+        end
+        opt User cancels the active run
+            UI->>Native: Cancel request ID
+            Native->>Native: Validate window owner
+            Native->>Worker: Forward abort signal
+        end
+    end
+    Worker->>History: Atomically save conversation JSON
+    Worker-->>Native: Run completed
+    Native-->>UI: Update conversation without changing selection
+```
+
+The worker owns model streams and history I/O; the native adapter owns host
+integration and permission checks. Cancellation can occur while a run is active.
 
 Runs are keyed by request ID, with at most one run per conversation, not one per
 window. The renderer tracks all runs separately and only shows the selected one's
@@ -161,6 +299,17 @@ The renderer planner plugin owns one subscription and immutable snapshots. Todo
 and Calendar are separate packages and panels, so removing either UI leaves the
 other and its data intact. The workspace migrates saved Planner panels to To-dos.
 File sync remains available in To-dos.
+
+```mermaid
+flowchart TB
+    Todo["To-dos panel<br/>Dated and undated records"] <-->|Read snapshots / edit tasks| Planner["Renderer planner service<br/>One subscription, immutable snapshots"]
+    Calendar["Calendar panel<br/>Dated records only"] <-->|"Edit tasks / unschedule: date = null"| Planner
+    Planner <-->|"call/on IPC"| Repository["Native planner repository<br/>Shared tasks and sync tombstones"]
+    Repository <--> Storage["storage/planner.json"]
+```
+
+Both panels operate on the same records. Unscheduling keeps the task; removing a
+panel leaves the other view and stored data intact.
 
 ## Developer loop
 

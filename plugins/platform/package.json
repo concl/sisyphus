@@ -3,28 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "sisyphus": {
-    "native": [
+    "backend": [
       {
         "id": "desktop.transport",
-        "entry": "./native/transport.js",
+        "entry": "./backend/transport.js",
         "order": 12,
         "restart": true
       },
       {
         "id": "desktop.storage",
-        "entry": "./native/storage.js",
+        "entry": "./backend/storage.js",
         "order": 13,
         "restart": true
       },
       {
         "id": "desktop.preferences",
-        "entry": "./native/preferences.js",
+        "entry": "./backend/preferences.js",
         "order": 14,
         "restart": true
       },
       {
         "id": "desktop.window",
-        "entry": "./native/window.js",
+        "entry": "./backend/window.js",
         "order": 15,
         "restart": true
       }

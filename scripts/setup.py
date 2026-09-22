@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 BASE = Path(__file__).parent.parent
-HOST = BASE / "services" / "python-host"
+HOST = BASE / "plugins" / "python" / "service"
 
 
 def run(args, cwd):

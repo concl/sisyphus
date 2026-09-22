@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.tsx",
-    "./layout": "./src/layout.ts"
+    ".": "./frontend/index.tsx",
+    "./layout": "./frontend/layout.ts"
   },
   "dependencies": {
     "@sisyphus/sdk": "*",
@@ -14,13 +14,15 @@
     "@sisyphus/profile": "*"
   },
   "sisyphus": {
-    "id": "feature.workspace",
-    "entry": "./src/index.tsx",
-    "export": "workspacePlugin",
-    "needs": [
-      "runtime",
-      "layout"
-    ],
-    "order": 11
+    "frontend": {
+      "id": "feature.workspace",
+      "entry": "./frontend/index.tsx",
+      "export": "workspacePlugin",
+      "needs": [
+        "runtime",
+        "layout"
+      ],
+      "order": 11
+    }
   }
 }

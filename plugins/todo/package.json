@@ -8,9 +8,11 @@
     "react": "^19.2.8"
   },
   "sisyphus": {
-    "id": "feature.todo",
-    "entry": "./src/index.tsx",
-    "export": "todoPlugin",
-    "order": 30
+    "frontend": {
+      "id": "feature.todo",
+      "entry": "./frontend/index.tsx",
+      "export": "todoPlugin",
+      "order": 30
+    }
   }
 }

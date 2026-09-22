@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.tsx"
+    ".": "./frontend/index.tsx"
   },
   "dependencies": {
     "@sisyphus/profile": "*",
@@ -12,12 +12,14 @@
     "react": "^19.2.8"
   },
   "sisyphus": {
-    "id": "feature.plugins",
-    "entry": "./src/index.tsx",
-    "export": "pluginsPlugin",
-    "needs": [
-      "runtime"
-    ],
-    "order": 6
+    "frontend": {
+      "id": "feature.plugins",
+      "entry": "./frontend/index.tsx",
+      "export": "pluginsPlugin",
+      "needs": [
+        "runtime"
+      ],
+      "order": 6
+    }
   }
 }

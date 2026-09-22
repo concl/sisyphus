@@ -5,7 +5,7 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent.parent
 if __name__ == '__main__':
     subprocess.run(['npm.cmd' if sys.platform == 'win32' else 'npm', 'test'], cwd=BASE, check=True)
-    host = BASE / 'services/python-host'
+    host = BASE / 'plugins/python/service'
     python = host / '.venv' / ('Scripts/python.exe' if sys.platform == 'win32' else 'bin/python')
     if not python.exists():
         raise SystemExit('Run python scripts/setup.py to create the Python environment first.')

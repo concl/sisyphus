@@ -3,26 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.tsx",
+  "exports": "./frontend/index.tsx",
   "dependencies": {
     "@sisyphus/sdk": "*",
     "react": "^19.2.8"
   },
   "sisyphus": {
-    "id": "feature.planner",
-    "entry": "./src/index.tsx",
-    "export": "plannerPlugin",
-    "needs": [],
-    "order": 10,
-    "native": [
+    "frontend": {
+      "id": "feature.planner",
+      "entry": "./frontend/index.tsx",
+      "export": "plannerPlugin",
+      "needs": [],
+      "order": 10
+    },
+    "backend": [
       {
         "id": "desktop.planner-data",
-        "entry": "./native/planner-data.js",
+        "entry": "./backend/planner-data.js",
         "order": 5
       },
       {
         "id": "desktop.planner-sync",
-        "entry": "./native/planner-sync.js",
+        "entry": "./backend/planner-sync.js",
         "order": 6
       }
     ]
