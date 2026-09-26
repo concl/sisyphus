@@ -74,6 +74,66 @@
   font-size: 11px;
   color: var(--faint);
 }
+/* Conversations are grouped under the folder they work in. The heading names the
+   folder, carries its path when another folder shares that name, and holds the
+   control that makes it the default for new conversations. */
+.chat-folder-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.chat-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 1px 2px 1px 6px;
+  border-radius: 2px;
+}
+.chat-folder-head:hover {
+  background: var(--subtle);
+}
+.chat-folder-label {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+.chat-folder-name {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chat-folder-label small {
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 9.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* The control waits for the group to be hovered or reached by keyboard, and stays
+   in sight on the folder that is already the default. */
+.chat-folder-default {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  opacity: 0;
+}
+.chat-folder-group:hover .chat-folder-default,
+.chat-folder-group:focus-within .chat-folder-default,
+.chat-folder-default[data-selected='true'] {
+  opacity: 1;
+}
+.chat-folder-default[data-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .chat-thread {
   display: flex;
   flex-direction: column;

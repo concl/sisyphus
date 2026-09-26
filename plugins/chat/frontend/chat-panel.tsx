@@ -102,8 +102,10 @@ export function ChatPanel({ panels, desktop }: ChatPanelProps) {
           threads={chat.threads}
           activeId={chat.thread?.id}
           runningIds={chat.runningIds}
+          defaultFolder={chat.defaultFolder}
           onSelect={selectConversation}
           onNew={startConversation}
+          onDefaultFolder={chat.setDefaultFolder}
           onCollapse={() => sidebar.setOpen(false)}
         />
       </ResizableSidebar>

@@ -37,10 +37,13 @@ export function useChat(desktop: Desktop) {
     /** The message being edited, or null. Send saves it as a new branch. */
     editing: session.editing,
     folder: session.thread?.folder ?? session.draftFolder,
+    /** Folder new conversations start in; the sidebar marks it. */
+    defaultFolder: session.defaultFolder,
     openThread: (id: string) => void store.open(id || null),
     removeThread: () => void store.remove(),
     chooseFolder: () => void store.chooseFolder(),
     attachFolder: (folder: string) => store.attachFolder(folder),
+    setDefaultFolder: (folder: string) => store.setDefaultFolder(folder),
     send: (text: string) => store.send(text),
     submitEdit: (text: string) => store.submitEdit(text),
     startEdit: (message: ChatMessage) => store.startEdit(message),

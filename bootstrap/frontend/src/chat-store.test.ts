@@ -192,6 +192,35 @@ describe('chat store', () => {
     expect(store.getSnapshot().error).toBe('')
   })
 
+  it('starts a new conversation in the folder chosen as the default', async () => {
+    const { desktop, calls, finishSend } = bridge()
+    const store = new ChatStore(desktop, () => 'run-1', null)
+    store.setDefaultFolder('C:\\work\\app')
+    expect(store.getSnapshot().defaultFolder).toBe('C:\\work\\app')
+    // The conversation on screen has not begun, so it already works there.
+    expect(store.getSnapshot().draftFolder).toBe('C:\\work\\app')
+
+    const sending = store.send('Plan my day')
+    expect(calls.at(-1)).toEqual({
+      method: 'chat.send',
+      input: {
+        conversationId: null,
+        text: 'Plan my day',
+        runId: 'run-1',
+        folder: 'C:\\work\\app',
+      },
+    })
+    finishSend(CONVERSATION)
+    await sending
+
+    // Choosing the folder that is already the default clears it again.
+    store.setDefaultFolder('C:\\work\\app')
+    expect(store.getSnapshot().defaultFolder).toBeNull()
+    // A stored conversation keeps the folder it has, default or not.
+    await store.open('thread-1')
+    expect(store.getSnapshot().draftFolder).toBeNull()
+  })
+
   it('answers a stop with the running request id, and one reply at a time', async () => {
     const { desktop, calls, finishSend } = bridge()
     const store = new ChatStore(desktop, () => 'run-1')

@@ -4,6 +4,9 @@ A Cordis desktop workspace whose features are editable runtime plugins.
 
 ## Find your way around
 
+New to JavaScript or TypeScript? Follow the [learning roadmap](LEARNING_ROADMAP.md),
+an ordered guide from Python knowledge to the app's UI, services, and plugin runtime.
+
 - `plugins/<feature>/frontend/`: a feature's UI and frontend services.
 - `plugins/<feature>/backend/`: the same feature's desktop services and workers.
 - `plugins/<feature>/package.json`: declares either or both entry points.

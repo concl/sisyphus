@@ -1,5 +1,6 @@
 import type { ChatConfig, ChatContext, ChatMessage, ChatThread, Desktop } from '@sisyphus/sdk'
 import type { ChatEvent, ThreadSummary } from './types'
+import { readDefaultFolder, writeDefaultFolder } from './default-folder'
 import {
   appendReasoning,
   appendText,
@@ -34,6 +35,8 @@ export interface ChatSession {
   config: ChatConfig | null
   /** Folder to bind to the next message of a conversation that has none yet. */
   draftFolder: string | null
+  /** Folder new conversations start in; null starts them with none. */
+  defaultFolder: string | null
   run: ChatRun | null
   runningIds: string[]
   /** Set while a sent message is being edited; sending saves it as a new branch. */
@@ -47,6 +50,7 @@ const EMPTY: ChatSession = {
   threadId: null,
   config: null,
   draftFolder: null,
+  defaultFolder: null,
   run: null,
   runningIds: [],
   editing: null,
@@ -65,7 +69,7 @@ const EMPTY: ChatSession = {
 export class ChatStore {
   private desktop: Desktop
   private newRunId: () => string
-  private session: ChatSession = EMPTY
+  private session: ChatSession
   private listeners = new Set<() => void>()
   private attached = false
   private runs = new Map<string, ChatRun>()
@@ -74,9 +78,14 @@ export class ChatStore {
   private frame: ReturnType<typeof setTimeout> | null = null
   private cleanup: Array<() => void> = []
 
-  constructor(desktop: Desktop, newRunId: () => string = () => crypto.randomUUID()) {
+  constructor(
+    desktop: Desktop,
+    newRunId: () => string = () => crypto.randomUUID(),
+    defaultFolder: string | null = readDefaultFolder(),
+  ) {
     this.desktop = desktop
     this.newRunId = newRunId
+    this.session = { ...EMPTY, defaultFolder }
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -179,8 +188,15 @@ export class ChatStore {
       draftFolder: null, editing: null, error: '' })
     this.publishRuns()
     if (!id) {
-      // A new conversation starts unbound; the folder lives on the thread.
-      this.update({ threadId: null, thread: null, draftFolder: null, editing: null, error: '' })
+      // A new conversation starts unbound, in the chosen default folder; the
+      // folder is only written to the thread once its first message is sent.
+      this.update({
+        threadId: null,
+        thread: null,
+        draftFolder: this.session.defaultFolder,
+        editing: null,
+        error: '',
+      })
       return
     }
     try {
@@ -241,6 +257,19 @@ export class ChatStore {
       this.update({ error: String(problem) })
       return false
     }
+  }
+
+  /**
+   * Chooses the folder new conversations start in, or clears the choice when it
+   * is the folder already chosen.
+   */
+  setDefaultFolder(folder: string) {
+    const next = this.session.defaultFolder === folder ? null : folder
+    writeDefaultFolder(next)
+    // A conversation that has not been sent yet is still a new one, so it moves
+    // with the default; an open conversation keeps the folder it has.
+    const starting = !this.session.thread && !this.session.threadId
+    this.update({ defaultFolder: next, ...(starting ? { draftFolder: next } : {}) })
   }
 
   /** Puts a sent message into the composer for editing; nothing is written yet. */

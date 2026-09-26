@@ -8,10 +8,12 @@
     "plugins/*"
   ],
   "scripts": {
+    "plugin-deps": "node scripts/plugin-deps.mjs",
+    "plugin-deps:check": "node scripts/plugin-deps.mjs --check",
     "build:plugins": "node scripts/build-plugins.mjs",
-    "build": "npm run build:plugins && npm -w frontend run build",
+    "build": "npm run plugin-deps && npm run build:plugins && npm -w frontend run build",
     "typecheck:plugins": "npm -w frontend run typecheck:plugins",
-    "test": "npm -w @sisyphus/profile test && npm -w desktop test && npm -w frontend test",
+    "test": "npm run plugin-deps:check && npm -w @sisyphus/profile test && npm -w desktop test && npm -w frontend test",
     "lint": "eslint --config bootstrap/frontend/eslint.config.js bootstrap/frontend/src shared plugins",
     "start": "npm -w desktop start",
     "shortcut": "node scripts/shortcut.mjs",

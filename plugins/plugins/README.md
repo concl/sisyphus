@@ -6,8 +6,10 @@ use the same loader. Package source lives in `userData/plugins/<package>/`;
 renderer code is compiled on demand and registered with Cordis. Failed compilation
 or activation keeps the prior working version. Reload on save is optional.
 
-The small New Plugin templates use the supported legacy single-file format.
-For a multi-file plugin, add a folder with a `package.json` declaring
+The New Plugin form writes a single file: `<namespace>.<name>.renderer.js` for
+this window, or `.main.js` for the main process (`.main.cjs` is also accepted for
+a CommonJS main-process plugin). That flat single-file form is the supported legacy
+layout. For a multi-file plugin, add a folder with a `package.json` declaring
 `sisyphus.frontend` and/or `sisyphus.backend`; see
 [ARCHITECTURE.md](../../ARCHITECTURE.md). React and service contracts
 are supplied by the host, and other dependencies belong to the plugin.
