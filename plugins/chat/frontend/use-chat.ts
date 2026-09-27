@@ -31,6 +31,7 @@ export function useChat(desktop: Desktop) {
     context,
     thread: session.thread,
     config: session.config,
+    selectModel: (provider: string, model: string) => store.selectModel(provider, model),
     live,
     busy: Boolean(run),
     error: session.error,

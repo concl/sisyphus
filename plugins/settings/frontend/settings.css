@@ -207,3 +207,11 @@
   flex-shrink: 0;
   font-size: 11px;
 }
+.settings-card .settings-provider-json {
+  font-family: Consolas, monospace;
+  tab-size: 2;
+}
+.settings-provider-path {
+  overflow-wrap: anywhere;
+  font-family: Consolas, monospace;
+}

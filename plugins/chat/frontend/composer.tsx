@@ -27,6 +27,7 @@ interface ChatComposerProps {
   /** Resolves files for the @ picker, scoped to the conversation folder. */
   mentionItems(query: string): Promise<FileEntry[]>
   onSubmit(text: string, attachments: ChatAttachmentInput[]): void
+  onSelectModel(provider: string, model: string): Promise<void>
   onStop(): void
   onDropFiles(files: File[]): void
 }
@@ -67,6 +68,7 @@ export function ChatComposer({
   hasFolder,
   mentionItems,
   onSubmit,
+  onSelectModel,
   onStop,
   onDropFiles,
 }: ChatComposerProps) {
@@ -75,6 +77,7 @@ export function ChatComposer({
   const [attachments, setAttachments] = useState<ChatAttachmentInput[]>([])
   const [attachError, setAttachError] = useState('')
   const [reading, setReading] = useState(false)
+  const [changingModel, setChangingModel] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
 
   const editor = useEditor({
@@ -138,6 +141,7 @@ export function ChatComposer({
   }
 
   function send() {
+    if (busy || changingModel || !config?.model) return
     const text = (editor?.getText({ blockSeparator: '\n' }) ?? '').trim()
     if (text.length > MAX_LENGTH) return
     if (!text && !attachments.length) return
@@ -216,6 +220,7 @@ export function ChatComposer({
         // Enter sends, unless the @ popup is open or a line break is wanted.
         if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
         if (!editor || mentionBridge(editor).suggesting) return
+        if (!(event.target instanceof Node) || !editor.view.dom.contains(event.target)) return
         event.preventDefault()
         send()
       }}
@@ -284,8 +289,36 @@ export function ChatComposer({
             void addFiles(files)
           }}
         />
-        <span title={config?.baseURL}>
-          {config?.model || 'No model configured'}
+        <span>
+          <select
+            className="chat-model-select"
+            aria-label="Chat model"
+            title={config?.provider ? `${config.provider} · ${config.baseURL}` : 'Choose a model'}
+            disabled={busy || changingModel}
+            value={config?.model ? JSON.stringify([config.provider, config.model]) : ''}
+            onChange={async (event) => {
+              const [provider, model] = JSON.parse(event.target.value) as [string, string]
+              setChangingModel(true)
+              try {
+                await onSelectModel(provider, model)
+              } finally {
+                setChangingModel(false)
+              }
+            }}
+          >
+            <option value="" disabled>
+              Choose a model
+            </option>
+            {config?.providers?.map((provider) => (
+              <optgroup key={provider.id} label={provider.id}>
+                {provider.models.map((model) => (
+                  <option key={model} value={JSON.stringify([provider.id, model])}>
+                    {model}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <b>·</b>
           {config?.access === 'write'
             ? 'Files and commands on'
@@ -301,7 +334,7 @@ export function ChatComposer({
           <button
             className="primary"
             type="submit"
-            disabled={(empty && !attachments.length) || !config?.model}
+            disabled={(empty && !attachments.length) || !config?.model || changingModel}
           >
             Send
           </button>

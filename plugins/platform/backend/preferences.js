@@ -85,8 +85,14 @@ module.exports = ({ userData }) => ({
         {
           id: 'provider',
           title: 'Chat configuration',
-          description: 'Provider URL, model, system prompt, and app-data permissions.',
+          description: 'Model selection, system prompt, reply limits, and app-data permissions.',
           path: path.join(userData, 'storage', 'chat.config.json'),
+        },
+        {
+          id: 'model-providers',
+          title: 'Model providers',
+          description: 'Editable JSON with provider URLs, optional API keys, and model names.',
+          path: path.join(userData, 'chat.providers.json'),
         },
         {
           id: 'contexts',

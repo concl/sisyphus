@@ -1,0 +1,15 @@
+{
+  "providers": [
+    {
+      "id": "hosted",
+      "baseURL": "https://your-provider.example/v1",
+      "apiKey": "replace-with-your-key",
+      "models": ["your-model", "another-model"]
+    },
+    {
+      "id": "local",
+      "baseURL": "http://localhost:1234/v1",
+      "models": ["your-local-model"]
+    }
+  ]
+}

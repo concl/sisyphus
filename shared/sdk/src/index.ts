@@ -234,6 +234,10 @@ export interface ChatLimits {
   toolSeconds: number
 }
 export interface ChatConfig {
+  provider?: string
+  providers?: Array<{ id: string; baseURL: string; models: string[] }>
+  providerConfigPath?: string
+  providerError?: string
   baseURL: string
   model: string
   systemPrompt: string

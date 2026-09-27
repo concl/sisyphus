@@ -1,6 +1,7 @@
 const { safeStorage, BrowserWindow, dialog } = require('electron')
 const path = require('node:path')
-const { ChatConfig, EncryptedKeyStore } = require('./lib/chat-config.js')
+const { EncryptedKeyStore } = require('./lib/chat-config.js')
+const { ProviderChatConfig } = require('./lib/provider-config.js')
 const { ChatHistory } = require('./lib/chat-history.js')
 const { WorkerChat } = require('./worker-client')
 const { validateFolder } = require('@sisyphus/native/folder')
@@ -14,9 +15,10 @@ module.exports = ({ userData }) => ({
     const transport = ctx.get('transport.v1')
     const registry = ctx.get('agent.tools.v1')
     const storage = ctx.get('storage.v1')
-    const config = new ChatConfig(
+    const config = new ProviderChatConfig(
       storage,
       new EncryptedKeyStore(path.join(userData, 'secrets', 'llm-key.enc'), safeStorage),
+      path.join(userData, 'chat.providers.json'),
     )
     // One file per conversation, under userData/storage/chat.threads. The
     // directory is the only index, so there is nothing to keep in sync.
@@ -41,14 +43,16 @@ module.exports = ({ userData }) => ({
     ctx.provide('chat.v1', chat)
     ctx.effect(() => () => chat.dispose())
     ctx.effect(() => transport.handle('chat.config.get', () => config.get()))
-    ctx.effect(() =>
-      transport.handle('chat.config.save', (input) => {
-        const saved = config.save(input)
-        for (const window of BrowserWindow.getAllWindows())
-          transport.send(window.webContents, 'chat.config.changed', saved)
-        return saved
-      }),
-    )
+    const publishConfig = (saved) => {
+      for (const window of BrowserWindow.getAllWindows())
+        transport.send(window.webContents, 'chat.config.changed', saved)
+      return saved
+    }
+    ctx.effect(() => transport.handle('chat.config.save', input => publishConfig(config.save(input))))
+    ctx.effect(() => transport.handle('chat.config.select', input => publishConfig(config.select(input))))
+    ctx.effect(() => transport.handle('chat.config.reload', () => publishConfig(config.get())))
+    ctx.effect(() => transport.handle('chat.providers.get', () => config.document()))
+    ctx.effect(() => transport.handle('chat.providers.save', input => publishConfig(config.saveProviders(input))))
     ctx.effect(() =>
       transport.handle('chat.tools', () =>
         registry.list().map(({ name, description, access }) => ({ name, description, access })),

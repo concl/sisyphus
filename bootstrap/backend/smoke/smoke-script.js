@@ -242,12 +242,22 @@
     'Built-in integrations should register',
   )
   const settings = await bridge.call('chat.config.get')
+  ;[...document.querySelectorAll('.settings-sections button')]
+    .find(button => button.textContent === 'Chat').click()
+  await waitFor(() => document.querySelector('[aria-label="Provider JSON"]'))
+  const providerEditor = document.querySelector('[aria-label="Provider JSON"]')
+  pagesSetter.call(providerEditor, JSON.stringify({ providers: [
+    { id: 'smoke', baseURL: window.__smokeModelURL, apiKey: 'smoke-only-key', models: ['test-model'] },
+    { id: 'local', baseURL: window.__smokeModelURL, models: ['test-model', 'another-model'] },
+  ] }, null, 2))
+  providerEditor.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise(resolve => setTimeout(resolve, 100))
+  ;[...document.querySelectorAll('.settings-card button')]
+    .find(button => button.textContent === 'Save providers').click()
+  await waitFor(async () => (await bridge.call('chat.config.get')).providers.length === 2)
   const saved = await bridge.call('chat.config.save', {
-    baseURL: window.__smokeModelURL,
-    model: 'test-model',
     systemPrompt: settings.defaultSystemPrompt,
     access: 'write',
-    apiKey: 'smoke-only-key',
   })
   assert(
     saved.hasApiKey && !JSON.stringify(saved).includes('smoke-only-key'),
@@ -270,6 +280,16 @@
   )
   document.querySelector('[aria-label="Open Chat"]').click()
   await waitFor(() => document.querySelector('.chat-composer .chat-editor'))
+  const modelPicker = document.querySelector('.chat-composer-footer [aria-label="Chat model"]')
+  assert(modelPicker.querySelectorAll('optgroup').length === 2, 'Models should be grouped by provider')
+  modelPicker.value = JSON.stringify(['local', 'test-model'])
+  modelPicker.dispatchEvent(new Event('change', { bubbles: true }))
+  await waitFor(async () => (await bridge.call('chat.config.get')).provider === 'local')
+  await waitFor(() => !modelPicker.disabled)
+  modelPicker.value = JSON.stringify(['smoke', 'test-model'])
+  modelPicker.dispatchEvent(new Event('change', { bubbles: true }))
+  await waitFor(async () => (await bridge.call('chat.config.get')).provider === 'smoke')
+  await waitFor(() => !modelPicker.disabled)
   // The composer is a TipTap editor, so type the way a user would.
   const chatEditor = document.querySelector('.chat-composer .chat-editor')
   chatEditor.focus()
@@ -519,6 +539,8 @@
     separateLaunchers: true,
     browserEntryEditing: true,
     shipIcon: true,
-    encryptedCredential: true,
+    providerJsonEditing: true,
+    providerModelSelection: true,
+    credentialRedaction: true,
   }
 })()

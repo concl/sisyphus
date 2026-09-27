@@ -153,4 +153,5 @@ module.exports = {
   readLimits,
   DEFAULT_PROMPT,
   DEFAULT_LIMITS,
+  settingsSchema,
 }

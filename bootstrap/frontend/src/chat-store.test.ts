@@ -64,6 +64,29 @@ function runEvent(runId: string, event: Omit<ChatEvent, 'runId'>): ChatEvent {
 }
 
 describe('chat store', () => {
+  it('selects a provider and model together and keeps the previous selection on failure', async () => {
+    const { desktop, emit } = bridge()
+    const store = new ChatStore(desktop)
+    const unsubscribe = store.subscribe(() => {})
+    const selected = { provider: 'local', model: 'shared-name' }
+    desktop.call = async <T>(method: string, input?: unknown): Promise<T> => {
+      expect(method).toBe('chat.config.select')
+      expect(input).toEqual(selected)
+      return selected as T
+    }
+    await store.selectModel('local', 'shared-name')
+    expect(store.getSnapshot().config).toEqual(selected)
+    desktop.call = async () => { throw new Error('Model removed') }
+    await store.selectModel('hosted', 'shared-name')
+    expect(store.getSnapshot().config).toEqual(selected)
+    expect(store.getSnapshot().error).toContain('Model removed')
+    // Other windows' choices arrive through the same configuration event.
+    emit('chat.config.changed', { provider: 'hosted', model: 'shared-name' })
+    expect(store.getSnapshot().config?.provider).toBe('hosted')
+    unsubscribe()
+    store.dispose()
+  })
+
   it('runs two conversations independently and does not switch views when a background reply finishes', async () => {
     const { desktop, emit, finishRun, calls } = bridge()
     let id = 0

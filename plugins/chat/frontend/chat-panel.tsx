@@ -197,6 +197,7 @@ export function ChatPanel({ panels, desktop }: ChatPanelProps) {
           </div>
         )}
         {dropError && <p className="chat-drop-error">{dropError}</p>}
+        {chat.config?.providerError && <p className="chat-error" role="alert">{chat.config.providerError}</p>}
         <ChatComposer
           key={chat.thread?.id ?? 'new'}
           ref={composer}
@@ -205,6 +206,7 @@ export function ChatPanel({ panels, desktop }: ChatPanelProps) {
           hasFolder={Boolean(chat.folder)}
           mentionItems={mentionItems}
           onSubmit={(text, attachments) => void submit(text, attachments)}
+          onSelectModel={chat.selectModel}
           onStop={chat.stop}
           onDropFiles={(files) => void dropFiles(files)}
         />

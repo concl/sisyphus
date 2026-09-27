@@ -187,6 +187,13 @@ export class ChatStore {
     await Promise.all([refreshing, listed, configured])
   }
 
+  async selectModel(provider: string, model: string) {
+    try {
+      const config = await this.desktop.call<ChatConfig>('chat.config.select', { provider, model })
+      this.update({ config, error: '' })
+    } catch (problem) { this.update({ error: String(problem) }) }
+  }
+
   /** Opens a stored conversation, or the empty composer when `id` is null. */
   async open(id: string | null) {
     this.attach()

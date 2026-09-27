@@ -537,6 +537,30 @@
   font-size: 11px;
   padding: 7px 12px;
 }
+.chat-model-select {
+  field-sizing: content;
+  max-width: min(220px, 40vw);
+  padding: 2px 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+.chat-model-select:hover:not(:disabled) {
+  color: var(--text);
+}
+.chat-model-select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.chat-model-select option,
+.chat-model-select optgroup {
+  background: var(--panel);
+  color: var(--text);
+}
 /* Attachments in the composer and in a sent message: a row of small tiles above
    the text. A picture shows itself and anything else shows its kind, and the name
    is read on hover. The remove control sits in the corner and appears only when

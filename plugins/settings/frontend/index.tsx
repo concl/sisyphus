@@ -38,8 +38,9 @@ export const settingsPlugin: AppPlugin = {
       const appearance = useSyncExternalStore(theme.subscribe, theme.getSnapshot)
       const [section, setSection] = useState('appearance')
       const [config, setConfig] = useState<ChatConfig | null>(null)
-      const [key, setKey] = useState('')
-      const [clearKey, setClearKey] = useState(false)
+      const [providerText, setProviderText] = useState('')
+      const [providerMessage, setProviderMessage] = useState('')
+      const [savingProviders, setSavingProviders] = useState(false)
       const [locations, setLocations] = useState<Location[]>([])
       const [tools, setTools] = useState<Tool[]>([])
       const [message, setMessage] = useState('')
@@ -50,10 +51,12 @@ export const settingsPlugin: AppPlugin = {
           desktop.call<ChatConfig>('chat.config.get'),
           desktop.call<Location[]>('data.locations'),
           desktop.call<Tool[]>('chat.tools'),
+          desktop.call<{ text: string }>('chat.providers.get'),
         ])
-          .then(([settings, files, available]) => {
+          .then(([settings, files, available, providers]) => {
             if (alive) {
               setConfig(settings)
+              setProviderText(providers.text)
               setLocations(files)
               setTools(available)
             }
@@ -87,22 +90,50 @@ export const settingsPlugin: AppPlugin = {
         setMessage('')
         try {
           const saved = await desktop.call<ChatConfig>('chat.config.save', {
-            baseURL: config.baseURL,
-            model: config.model,
             systemPrompt: config.systemPrompt,
             access: config.access,
             limits: config.limits,
-            ...(key ? { apiKey: key } : {}),
-            clearApiKey: clearKey,
           })
           setConfig(saved)
-          setKey('')
-          setClearKey(false)
           setMessage('Chat settings saved.')
         } catch (error) {
           setMessage(String(error))
         } finally {
           setSaving(false)
+        }
+      }
+      async function saveProviders() {
+        setSavingProviders(true)
+        setProviderMessage('')
+        try {
+          const saved = await desktop.call<ChatConfig>('chat.providers.save', {
+            text: providerText,
+          })
+          setConfig((current) =>
+            current
+              ? {
+                  ...saved,
+                  systemPrompt: current.systemPrompt,
+                  access: current.access,
+                  limits: current.limits,
+                }
+              : saved,
+          )
+          setProviderMessage('Providers saved. Choose a model in Chat.')
+        } catch (error) {
+          setProviderMessage(String(error))
+        } finally {
+          setSavingProviders(false)
+        }
+      }
+      async function reloadProviders() {
+        try {
+          const document = await desktop.call<{ text: string }>('chat.providers.get')
+          setProviderText(document.text)
+          setProviderMessage('Loaded provider file.')
+          await desktop.call('chat.config.reload')
+        } catch (error) {
+          setProviderMessage(String(error))
         }
       }
       async function reveal(id: string) {
@@ -171,63 +202,47 @@ export const settingsPlugin: AppPlugin = {
               }}
             >
               <section className="settings-card">
-                <h2>Model connection</h2>
+                <h2>Model providers</h2>
                 <p>
-                  Connect to OpenAI or an OpenAI-compatible server. Custom servers use the Chat
-                  Completions API.
+                  Add providers with an id, baseURL, optional apiKey, and a list of model names.
+                  Choose a model in Chat. OpenAI-compatible servers use Chat Completions.
                 </p>
+                <p className="settings-provider-path">{config.providerConfigPath}</p>
                 <label>
-                  API base URL
-                  <input
-                    aria-label="API base URL"
-                    type="url"
-                    value={config.baseURL}
-                    onChange={(event) => setConfig({ ...config, baseURL: event.target.value })}
-                    required
-                  />
-                </label>
-                <p className="settings-hint">
-                  Include the API prefix, for example https://api.openai.com/v1 or
-                  http://localhost:1234/v1.
-                </p>
-                <label>
-                  Model ID
-                  <input
-                    aria-label="Model ID"
-                    placeholder="Enter a model provided by your server"
-                    value={config.model}
-                    onChange={(event) => setConfig({ ...config, model: event.target.value })}
-                  />
-                </label>
-                <label>
-                  API key
-                  <input
-                    aria-label="API key"
-                    type="password"
+                  Provider JSON
+                  <textarea
+                    aria-label="Provider JSON"
+                    className="settings-provider-json"
+                    rows={18}
+                    spellCheck={false}
                     autoComplete="off"
-                    value={key}
-                    placeholder={
-                      config.hasApiKey
-                        ? 'A key is saved. Leave blank to keep it.'
-                        : 'Optional for local servers'
-                    }
-                    onChange={(event) => setKey(event.target.value)}
+                    value={providerText}
+                    onChange={(event) => setProviderText(event.target.value)}
                   />
                 </label>
                 <p className="settings-hint">
-                  Stored with OS encryption. Changing the URL clears the old key unless you enter a
-                  replacement.
+                  Keys entered here are stored in this JSON file. Omit apiKey for servers that need
+                  no key. Your migrated provider keeps its existing encrypted key; set apiKey to an
+                  empty string to stop using it. After editing the file externally, use Reload
+                  from file below.
                 </p>
-                {config.hasApiKey && (
-                  <label className="settings-check">
-                    <input
-                      type="checkbox"
-                      checked={clearKey}
-                      onChange={(event) => setClearKey(event.target.checked)}
-                    />
-                    Remove the saved API key
-                  </label>
-                )}
+                <div className="settings-save">
+                  <button
+                    type="button"
+                    disabled={savingProviders}
+                    onClick={() => void saveProviders()}
+                  >
+                    {savingProviders ? 'Saving…' : 'Save providers'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingProviders}
+                    onClick={() => void reloadProviders()}
+                  >
+                    Reload from file
+                  </button>
+                </div>
+                {providerMessage && <p role="status">{providerMessage}</p>}
               </section>
               <section className="settings-card">
                 <h2>Assistant behavior</h2>
