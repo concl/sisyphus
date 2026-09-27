@@ -35,6 +35,8 @@ module.exports = ({ userData }) => ({
         })
     }
     const chat = new WorkerChat({ directory: history.directory, config, registry,
+      // Attachment payloads live beside the conversations, not inside them.
+      attachments: path.join(userData, 'storage', 'chat.attachments'),
       workers: ctx.get('runtime.workers.v1') })
     ctx.provide('chat.v1', chat)
     ctx.effect(() => () => chat.dispose())

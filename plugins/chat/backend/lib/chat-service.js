@@ -1,7 +1,9 @@
 const { randomUUID } = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
 const { validateFolder } = require('@sisyphus/native/folder')
 const { DEFAULT_LIMITS } = require('./chat-config.js')
-const { leafOf, modelContext, toolActivity } = require('./chat-tree.js')
+const { leafOf, modelContext, normalizeMessages, pathTo, toolActivity } = require('./chat-tree.js')
 const { appendText, appendReasoning, addTool } = require('./transcript.js')
 
 function allowed(access, required) {
@@ -154,12 +156,105 @@ function usableFolder(value) {
 function noticePart(parts, text) {
   return text ? [...parts, { type: 'notice', text }] : parts
 }
+// Attachments: a picture or file the user put in the composer. The bytes live
+// beside the conversation (`storage/chat.attachments/<thread>/<id>`) rather than
+// inside it, so a conversation file stays small enough to rewrite on every turn
+// and can still be moved or deleted on its own.
+const ATTACHMENT_ID = /^[\w-]{1,80}$/
+const MAX_ATTACHMENTS = 10
+/** Ceiling for one payload, generous enough for a resized screenshot. */
+const MAX_ATTACHMENT_BYTES = 12_000_000
+/** A text attachment larger than this is named rather than pasted into the prompt. */
+const TEXT_INLINE_LIMIT = 128 * 1024
+const TEXTUAL_MIME = /^(text\/|application\/(json|xml|javascript|ecmascript|yaml|x-yaml|toml|sql|x-sh|x-python|x-httpd-php|graphql))|[+](json|xml)$/
+function humanSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+// A file the picker labels `application/octet-stream` - a `.env`, a script with
+// no registered type - is still worth showing as text, so the bytes decide.
+function looksTextual(bytes) {
+  const sample = bytes.subarray(0, 4096)
+  return !sample.includes(0) && !sample.toString('utf8').includes('\uFFFD')
+}
+// The shape a window may send, checked here because it crossed a boundary.
+function acceptAttachments(input) {
+  if (input === undefined || input === null) return []
+  if (!Array.isArray(input)) throw new Error('Invalid attachments')
+  if (input.length > MAX_ATTACHMENTS)
+    throw new Error(`A message can carry up to ${MAX_ATTACHMENTS} attachments.`)
+  const seen = new Set()
+  return input.map((entry) => {
+    if (!entry || typeof entry !== 'object') throw new Error('Invalid attachment')
+    const { id, name, mime, size, kind, preview, data } = entry
+    if (typeof id !== 'string' || !ATTACHMENT_ID.test(id) || seen.has(id))
+      throw new Error('Invalid attachment')
+    seen.add(id)
+    if (typeof name !== 'string' || !name.trim() || name.length > 255)
+      throw new Error('Invalid attachment name')
+    if (kind !== 'image' && kind !== 'file') throw new Error('Invalid attachment kind')
+    if (typeof data !== 'string' || !data) throw new Error(`${name} arrived without its contents.`)
+    const bytes = Buffer.from(data, 'base64')
+    if (!bytes.length) throw new Error(`${name} arrived empty.`)
+    if (bytes.length > MAX_ATTACHMENT_BYTES) throw new Error(`${name} is too large to attach.`)
+    return {
+      id,
+      name: name.trim(),
+      mime: typeof mime === 'string' && mime ? mime.slice(0, 120) : 'application/octet-stream',
+      size: Number.isFinite(size) && size > 0 ? Math.round(size) : bytes.length,
+      kind,
+      // A thumbnail the window drew; anything else is not worth carrying.
+      preview:
+        typeof preview === 'string' && preview.startsWith('data:image/') && preview.length <= 400_000
+          ? preview
+          : undefined,
+      bytes,
+    }
+  })
+}
+// What the provider is sent for one user message: the words, then each file as
+// text (or by name when it cannot be read as text), then the pictures. A message
+// with a picture therefore becomes content parts, and a plain one stays a string.
+function userContent(text, attachments, payloads) {
+  if (!attachments.length) return text
+  const images = attachments.filter((attachment) => attachment.kind === 'image')
+  let body = text
+  for (const file of attachments) {
+    if (file.kind === 'image') continue
+    const bytes = payloads.get(file.id)
+    const readable =
+      bytes && bytes.length <= TEXT_INLINE_LIMIT && (TEXTUAL_MIME.test(file.mime) || looksTextual(bytes))
+    body += readable
+      ? `\n\nAttached file ${file.name}:\n\n${bytes.toString('utf8')}`
+      : `\n\nAttached file ${file.name} (${file.mime}, ${humanSize(file.size)}) could not be read as text.`
+  }
+  const parts = images.flatMap((image) => {
+    const bytes = payloads.get(image.id)
+    return bytes ? [{ type: 'image', image: bytes, mediaType: image.mime }] : []
+  })
+  if (!parts.length) return body
+  return [...(body.trim() ? [{ type: 'text', text: body }] : []), ...parts]
+}
+// The fallback context size, used only when the provider reports no usage. An
+// image counts as a placeholder: its bytes are not tokens, and measuring the
+// encoding would size the prompt by how well it compressed.
+function estimatedTokens(value) {
+  return Math.ceil(
+    JSON.stringify(value, (key, item) =>
+      item && typeof item === 'object' && item.type === 'image' ? '[image]' : item,
+    ).length / 4,
+  )
+}
 
 class ChatService {
-  constructor({ history, config, registry, fetch: fetchOverride, timeouts }) {
+  constructor({ history, config, registry, attachments, fetch: fetchOverride, timeouts }) {
     this.history = history
     this.config = config
     this.registry = registry
+    // Where attachment payloads live, beside the conversations. Optional, so a
+    // caller that only reads history needs no directory.
+    this.attachments = attachments ?? null
     this.fetchOverride = fetchOverride
     // Production derives these from the configured limits; tests shorten them.
     this.timeouts = { ...timeouts }
@@ -197,6 +292,36 @@ class ChatService {
   delete(id) {
     this.assertIdle(id, 'Stop the reply before deleting this conversation.')
     this.history.delete(id)
+    this.deleteAttachments(id)
+  }
+  attachmentFolder(threadId) {
+    if (!this.attachments || !ATTACHMENT_ID.test(threadId)) return null
+    return path.join(this.attachments, threadId)
+  }
+  // Payloads are read back by attachment id for every message being replayed,
+  // so a picture sent five turns ago reaches the model the same way as this one.
+  loadPayloads(threadId, messages, into = new Map()) {
+    const folder = this.attachmentFolder(threadId)
+    if (!folder) return into
+    for (const message of messages)
+      for (const attachment of message.attachments ?? []) {
+        try {
+          into.set(attachment.id, fs.readFileSync(path.join(folder, attachment.id)))
+        } catch {
+          // A payload that is gone is simply not replayed.
+        }
+      }
+    return into
+  }
+  saveAttachments(threadId, files) {
+    const folder = this.attachmentFolder(threadId)
+    if (!folder || !files.length) return
+    fs.mkdirSync(folder, { recursive: true })
+    for (const file of files) fs.writeFileSync(path.join(folder, file.id), file.bytes)
+  }
+  deleteAttachments(threadId) {
+    const folder = this.attachmentFolder(threadId)
+    if (folder) fs.rmSync(folder, { recursive: true, force: true })
   }
   // Switching branches picks a message and follows its newest replies, so the
   // turn that was edited lands on the finished answer rather than on itself.
@@ -230,9 +355,11 @@ class ChatService {
     if (!editMessageId) throw new Error('Choose the message to edit.')
     return this.reply({ ...input, editMessageId }, owner, emit)
   }
-  async reply({ conversationId, editMessageId, text, runId, folder }, owner, emit) {
-    if (typeof text !== 'string' || !text.trim() || text.length > 20000)
-      throw new Error('Enter a message of 1-20,000 characters.')
+  async reply({ conversationId, editMessageId, text, runId, folder, attachments }, owner, emit) {
+    if (typeof text !== 'string' || text.length > 20000)
+      throw new Error('A message can be up to 20,000 characters.')
+    const files = acceptAttachments(attachments)
+    if (!text.trim() && !files.length) throw new Error('Write a message or attach a file.')
     if (typeof runId !== 'string' || !/^[\w-]{1,80}$/.test(runId) || this.active.has(runId))
       throw new Error('Invalid request ID')
     if (conversationId) this.assertIdle(conversationId, 'A reply is already running in this conversation.')
@@ -260,7 +387,9 @@ class ChatService {
       if (editMessageId) throw new Error('Conversation not found')
       thread = {
         id: randomUUID(),
-        title: text.trim().slice(0, 60),
+        // A message that is only a picture still names the conversation.
+        title:
+          text.trim().slice(0, 60) || (files[0]?.name ?? '').slice(0, 60) || 'New conversation',
         messages: [],
         activeLeafId: null,
         updatedAt: new Date().toISOString(),
@@ -279,10 +408,20 @@ class ChatService {
     }
     if (parentId && !thread.messages.some((message) => message.id === parentId)) parentId = null
     // The provider only ever sees the branch this message continues, ending with
-    // the message being sent.
+    // the message being sent. Payloads are on disk before anything is saved, so
+    // the picture sent this turn and the one sent five turns ago are read back
+    // the same way and the branch can be replayed after a reload.
+    const user = { id: randomUUID(), role: 'user', text: text.trim(), parentId }
+    if (files.length) user.attachments = files.map(({ bytes, ...record }) => record)
+    this.saveAttachments(thread.id, files)
+    const replaying = [...pathTo(normalizeMessages(thread.messages), parentId), user]
+    const payloads = this.loadPayloads(thread.id, replaying)
+    for (const file of files) payloads.set(file.id, file.bytes)
+    const contentOf = (message) =>
+      userContent(message.text, message.attachments ?? [], payloads)
     const context = [
-      ...modelContext(thread.messages, parentId),
-      { role: 'user', content: text.trim() },
+      ...modelContext(thread.messages, parentId, contentOf),
+      { role: 'user', content: contentOf(user) },
     ]
     const controller = new AbortController()
     const run = { owner, controller, threadId: thread.id }
@@ -291,7 +430,6 @@ class ChatService {
       finish = resolve
     })
     this.active.set(runId, run)
-    const user = { id: randomUUID(), role: 'user', text: text.trim(), parentId }
     thread.messages.push(user)
     // The branch on screen follows the message being written.
     thread.activeLeafId = user.id
@@ -527,7 +665,7 @@ class ChatService {
           },
         ]
       if (!assistant.context) assistant.context = {
-        tokens: Math.ceil(JSON.stringify([settings.systemPrompt, ...context, ...(assistant.model ?? [])]).length / 4),
+        tokens: estimatedTokens([settings.systemPrompt, ...context, ...(assistant.model ?? [])]),
         estimated: true,
       }
       // Models that never reason keep the older message shape.

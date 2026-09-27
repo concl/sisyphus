@@ -56,13 +56,16 @@ function fixture(baseURL, access = 'write', toolOverride = null, timeouts) {
   // the app does.
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-history-'))
   const history = new ChatHistory(directory)
+  // Attachment payloads live beside the conversations, as they do in the app.
+  const attachments = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-attachments-'))
   return {
     storage,
     config,
     planner,
     history,
     directory,
-    chat: new ChatService({ history, config, registry, timeouts }),
+    attachments,
+    chat: new ChatService({ history, config, registry, attachments, timeouts }),
   }
 }
 
@@ -113,6 +116,136 @@ test('worker permits concurrent conversations from one window, scopes cancellati
     await chat.cancel('worker-slow', 1)
     assert.equal((await first).messages.at(-1).status, 'stopped')
   } finally { await chat.dispose(); await server.close() }
+})
+
+test('attachments reach the provider, live beside the conversation, and are replayed', async () => {
+  const server = await mockModel()
+  try {
+    const { chat, attachments } = fixture(server.baseURL, 'none')
+    const sent = await chat.send(
+      {
+        runId: 'attach-1',
+        text: 'What is in these?',
+        attachments: [
+          {
+            id: 'img-1',
+            name: 'shot.png',
+            mime: 'image/png',
+            size: 8,
+            kind: 'image',
+            preview: 'data:image/png;base64,iVBORw0KGgo=',
+            data: Buffer.from('89504e470d0a1a0a', 'hex').toString('base64'),
+          },
+          {
+            id: 'doc-1',
+            name: 'notes.txt',
+            mime: 'text/plain',
+            size: 5,
+            kind: 'file',
+            data: Buffer.from('hello').toString('base64'),
+          },
+        ],
+      },
+      1,
+      () => {},
+    )
+
+    // The message keeps the record: what it is, and the thumbnail to draw it.
+    const user = sent.messages[0]
+    assert.deepEqual(user.attachments.map((attachment) => attachment.id), ['img-1', 'doc-1'])
+    assert.equal(user.attachments[0].preview.startsWith('data:image/png'), true)
+    assert.equal('data' in user.attachments[0], false, 'the payload is not part of the record')
+    assert.equal(user.attachments[1].kind, 'file')
+
+    // The model is given the picture itself and the file's text.
+    const body = server.requests[0].body.messages.at(-1)
+    assert.equal(body.role, 'user')
+    const text = body.content.find((part) => part.type === 'text')
+    assert.match(text.text, /What is in these\?/)
+    assert.match(text.text, /Attached file notes\.txt/)
+    assert.match(text.text, /hello/)
+    const image = body.content.find((part) => part.type === 'image_url')
+    assert.match(image.image_url.url, /^data:image\/png;base64,/, 'the picture is sent as data')
+
+    // The bytes are kept beside the conversation, not inside it.
+    assert.deepEqual(
+      fs.readdirSync(path.join(attachments, sent.id)).sort(),
+      ['doc-1', 'img-1'],
+      'each payload is its own file',
+    )
+    assert.equal(
+      fs.readFileSync(path.join(attachments, sent.id, 'img-1')).toString('hex'),
+      '89504e470d0a1a0a',
+    )
+  } finally {
+    await server.close()
+  }
+})
+
+test('a picture sent earlier is replayed on the next turn, and deleting the chat removes it', async () => {
+  const server = await mockModel()
+  try {
+    const { chat, attachments } = fixture(server.baseURL, 'none')
+    const image = {
+      id: 'img-2',
+      name: 'diagram.png',
+      mime: 'image/png',
+      size: 8,
+      kind: 'image',
+      data: Buffer.from('89504e470d0a1a0a', 'hex').toString('base64'),
+    }
+    const first = await chat.send({ runId: 'r-1', text: 'Look at this', attachments: [image] }, 1, () => {})
+    const before = server.requests.length
+    await chat.send({ conversationId: first.id, runId: 'r-2', text: 'And now?' }, 1, () => {})
+    const replayed = server.requests[before].body.messages
+      .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
+      .filter((part) => part.type === 'image_url')
+    assert.equal(replayed.length, 1, 'the earlier picture is replayed without being re-sent')
+
+    chat.delete(first.id)
+    assert.equal(fs.existsSync(path.join(attachments, first.id)), false, 'payloads go with the chat')
+  } finally {
+    await server.close()
+  }
+})
+
+test('an attachment that is not an image is named when it cannot be read as text', async () => {
+  const server = await mockModel()
+  try {
+    const { chat } = fixture(server.baseURL, 'none')
+    await chat.send(
+      {
+        runId: 'bin-1',
+        text: 'Archive',
+        attachments: [
+          { id: 'bin-1', name: 'bundle.zip', mime: 'application/zip', size: 4, kind: 'file', data: Buffer.from([0, 1, 2, 3]).toString('base64') },
+        ],
+      },
+      1,
+      () => {},
+    )
+    const body = server.requests[0].body.messages.at(-1)
+    assert.equal(typeof body.content, 'string', 'no picture means the message stays a string')
+    assert.match(body.content, /Attached file bundle\.zip \(application\/zip, 4 B\) could not be read as text\./)
+  } finally {
+    await server.close()
+  }
+})
+
+test('an attachment from the window is checked before it is written', async () => {
+  const { chat } = fixture('https://example.com/v1')
+  const bad = [
+    [{}, /Invalid attachments/],
+    [[{ id: '../escape', name: 'x', kind: 'file', data: 'AAAA' }], /Invalid attachment/],
+    [[{ id: 'ok', name: 'x', kind: 'image', data: '' }], /arrived without its contents/],
+    [[{ id: 'ok', name: 'x', kind: 'image', data: '!!!!' }], /arrived empty/],
+    [[{ id: 'ok', name: 'x', kind: 'nope', data: 'AAAA' }], /Invalid attachment kind/],
+  ]
+  for (const [attachments, expected] of bad)
+    await assert.rejects(
+      chat.send({ runId: 'bad-1', text: 'x', attachments }, 1, () => {}),
+      expected,
+    )
 })
 
 test('a task can be scheduled, completed, and unscheduled without changing identity', () => {

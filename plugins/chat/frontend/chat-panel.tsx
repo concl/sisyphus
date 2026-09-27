@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ChevronRightIcon, FolderIcon, PanelLeftIcon, ResizableSidebar } from '@sisyphus/ui'
-import type { Desktop, Panels } from '@sisyphus/sdk'
+import type { ChatAttachmentInput, Desktop, Panels } from '@sisyphus/sdk'
 import { ChatComposer, type ChatComposerHandle } from './composer'
 import { ConversationSidebar } from './conversation-sidebar'
 import { MessageList } from './message-list'
@@ -51,9 +51,9 @@ export function ChatPanel({ panels, desktop }: ChatPanelProps) {
   }
 
   // The draft stays in the composer unless the message actually went out.
-  async function submit(text: string) {
+  async function submit(text: string, attachments: ChatAttachmentInput[]) {
     const submitted = composer.current
-    if (await chat.send(text)) submitted?.clear()
+    if (await chat.send(text, attachments)) submitted?.clear()
   }
 
   async function dropFiles(files: File[], folder = chat.folder) {
@@ -204,7 +204,7 @@ export function ChatPanel({ panels, desktop }: ChatPanelProps) {
           busy={chat.busy}
           hasFolder={Boolean(chat.folder)}
           mentionItems={mentionItems}
-          onSubmit={(text) => void submit(text)}
+          onSubmit={(text, attachments) => void submit(text, attachments)}
           onStop={chat.stop}
           onDropFiles={(files) => void dropFiles(files)}
         />

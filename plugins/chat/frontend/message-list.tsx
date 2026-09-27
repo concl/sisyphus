@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react'
 import { Streamdown } from 'streamdown'
-import { FolderIcon } from '@sisyphus/ui'
+import { code } from './code-highlight'
+import { FileIcon, FolderIcon } from '@sisyphus/ui'
 import type {
   ChatConfig,
   ChatMessage,
@@ -9,6 +10,7 @@ import type {
   ChatToolActivity,
 } from '@sisyphus/sdk'
 import icon from './icon.svg'
+import { extensionOf } from './attachments'
 import { MessageEditor } from './message-editor'
 import { ToolCall } from './tool-activity'
 import { folderLabel } from './format'
@@ -37,16 +39,21 @@ interface MessageListProps {
 const SUGGESTIONS = ['Help me plan my day', 'What can you help me with?']
 
 // Streamdown renders semantic HTML; the module chrome comes from chat.css, so
-// only the controls it should show are enabled here.
+// only the controls it should show are enabled here. The code plugin adds Shiki
+// syntax highlighting to fenced blocks; chat.css turns its token variables into
+// colors, since the app does not use the Tailwind utilities it otherwise emits.
 const CONTROLS = {
   code: { copy: true, download: false },
   table: { copy: true, download: false, fullscreen: false },
 }
+const PLUGINS = { code }
 
 const Markdown = memo(function Markdown({ text }: { text: string }) {
   return (
     <div className="chat-markdown">
-      <Streamdown controls={CONTROLS}>{text}</Streamdown>
+      <Streamdown controls={CONTROLS} plugins={PLUGINS}>
+        {text}
+      </Streamdown>
     </div>
   )
 })
@@ -62,6 +69,31 @@ function Reasoning({ text, open }: { text: string; open: boolean }) {
       <summary>Reasoning</summary>
       <div className="chat-reasoning-text">{text}</div>
     </details>
+  )
+}
+
+/**
+ * What the user attached to their message: their own picture or file, drawn the
+ * way the composer drew it before it was sent, so a reply always says what it
+ * was answering. There is no remove control here - the message has been sent.
+ */
+function SentAttachments({ attachments }: { attachments: ChatMessage['attachments'] }) {
+  if (!attachments?.length) return null
+  return (
+    <ul className="chat-attachments" aria-label="Attachments">
+      {attachments.map((attachment) => (
+        <li className="chat-attachment" key={attachment.id} title={attachment.name}>
+          {attachment.kind === 'image' && attachment.preview ? (
+            <img className="chat-attachment-image" src={attachment.preview} alt={attachment.name} />
+          ) : (
+            <span className="chat-attachment-file">
+              <FileIcon size={15} />
+              <span>{extensionOf(attachment.name)}</span>
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -211,6 +243,7 @@ function Message({
         )}
       </div>
       {/* Your own words open into a box in place; the model's answer renders. */}
+      <SentAttachments attachments={message.attachments} />
       {message.role === 'assistant' ? (
         <Parts parts={parts} tools={message.tools ?? []} />
       ) : editing ? (

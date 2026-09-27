@@ -316,6 +316,28 @@ i {
 .dockview-theme-dark .dv-tab.dv-active-tab {
   box-shadow: inset 0 2px var(--accent);
 }
+/* A block's tab carries its plugin's own line-art icon, drawn with the same mask as the
+   rail and the Add block menu so one asset names a block everywhere it appears. The
+   default tab keeps its title, close button, and drag behaviour; the icon sits in front
+   of it, and both are centred on the tab's row. */
+.block-tab {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.block-tab > .dv-default-tab {
+  flex: 1;
+  min-width: 0;
+}
+.block-tab-icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin-right: 7px;
+}
 .dockview-theme-dark .dv-sash {
   background: var(--app-bg);
 }

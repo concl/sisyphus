@@ -102,11 +102,13 @@ function toolActivity(tools = []) {
 
 // What the model is shown for the branch that is on screen: each stored answer
 // replays the provider messages it produced (so tool calls survive a reload),
-// and anything without them falls back to plain text.
-function modelContext(messages, id) {
+// and anything without them falls back to plain text. A user message is turned
+// into provider content by the caller, because an attached picture is only a
+// record here - its bytes are read from the disk when the request is built.
+function modelContext(messages, id, contentOf = (message) => message.text) {
   const context = []
   for (const message of pathTo(normalizeMessages(messages), id)) {
-    if (message.role === 'user') context.push({ role: 'user', content: message.text })
+    if (message.role === 'user') context.push({ role: 'user', content: contentOf(message) })
     else if (message.model?.length) context.push(...message.model)
     else {
       const content = message.text || (message.tools?.length ? toolActivity(message.tools) : '')

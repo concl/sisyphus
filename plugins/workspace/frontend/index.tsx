@@ -8,9 +8,11 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  DockviewDefaultTab,
   DockviewReact,
   type DockviewApi,
   type DockviewReadyEvent,
+  type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
   type SerializedDockview,
 } from 'dockview-react'
@@ -43,7 +45,7 @@ type StoredLayout = SerializedDockview | SavedLayout<SerializedDockview>
 function migrateLayout(layout: SerializedDockview): SerializedDockview {
   return { ...layout, floatingGroups: [], popoutGroups: [],
     panels: Object.fromEntries(Object.entries(layout.panels).map(([id, panel]) =>
-      [id, panel.params?.type === 'planner' ? { ...panel, title: 'To-dos', params: { ...panel.params, type: 'todo' } } : panel])),
+      [id, ['planner', 'todo'].includes(panel.params?.type) ? { ...panel, title: 'Calendar', params: { ...panel.params, type: 'calendar' } } : panel])),
   }
 }
 
@@ -141,6 +143,31 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
             </PanelBoundary>
           )
         },
+      }
+      /**
+       * A block's tab: the plugin's own line-art icon, then dockview's default tab.
+       *
+       * The default tab is kept rather than re-drawn so the title, its change
+       * subscription, the close button, and tab dragging stay dockview's, and the
+       * block's identity is added in front of it. `params.type` is the panel id the
+       * plugin registered, so the icon the rail and Add block menu already draw is
+       * found in the same registry the block's content comes from.
+       */
+      function BlockTab(props: IDockviewPanelHeaderProps<{ type?: string }>) {
+        const available = useSyncExternalStore(panels.subscribe, panels.list)
+        const definition = available.find((panel) => panel.id === props.params?.type)
+        return (
+          <div className="block-tab">
+            {definition && (
+              <span
+                className="block-tab-icon icon-mask"
+                style={{ maskImage: `url("${definition.icon}")` }}
+                aria-hidden="true"
+              />
+            )}
+            <DockviewDefaultTab {...props} />
+          </div>
+        )
       }
       function Workspace() {
         const available = useSyncExternalStore(panels.subscribe, panels.list)
@@ -575,6 +602,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                 <DockviewReact
                   className="dockview-theme-dark"
                   components={components}
+                  defaultTabComponent={BlockTab}
                   onReady={(event) => {
                     void ready(event)
                   }}

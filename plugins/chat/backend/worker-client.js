@@ -4,7 +4,7 @@ const path = require('node:path')
 // Electron owns keys, dialogs, and tool capabilities. Model and history work runs
 // in a worker, communicating only through requests, stream events, and tool RPC.
 class WorkerChat {
-  constructor({ workers, directory, registry, config }) {
+  constructor({ workers, directory, attachments, registry, config }) {
     this.pending = new Map()
     this.tools = new Map()
     this.next = 0
@@ -13,7 +13,7 @@ class WorkerChat {
       worker.on('message', message => this.receive(message))
       worker.on('error', error => this.fail(error))
       worker.on('exit', code => this.fail(new Error(`Chat worker stopped (${code})`)))
-      worker.postMessage({ type: 'init', directory })
+      worker.postMessage({ type: 'init', directory, attachments })
       return worker
     })
     this.registry = registry

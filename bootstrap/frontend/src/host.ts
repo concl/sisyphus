@@ -49,7 +49,7 @@ export const DEFAULT_LAYOUT: unknown[] = [
   { id: 'home' },
   { id: 'python-host', direction: 'right', reference: 'home', width: 420 },
   { id: 'terminal', direction: 'below', reference: 'home', height: 235 },
-  { id: 'todo', direction: 'below', reference: 'python-host', height: 415 },
+  { id: 'calendar', direction: 'below', reference: 'python-host', height: 415 },
 ]
 
 /** What a plugin file can reach. Files are plain scripts with no imports. */

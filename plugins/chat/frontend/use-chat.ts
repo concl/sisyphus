@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import type { ChatMessage, Desktop } from '@sisyphus/sdk'
+import type { ChatAttachmentInput, ChatMessage, Desktop } from '@sisyphus/sdk'
 import { chatStore } from './chat-store'
 import { EMPTY_TRANSCRIPT } from './transcript'
 import { activePath } from './tree'
@@ -44,7 +44,7 @@ export function useChat(desktop: Desktop) {
     chooseFolder: () => void store.chooseFolder(),
     attachFolder: (folder: string) => store.attachFolder(folder),
     setDefaultFolder: (folder: string) => store.setDefaultFolder(folder),
-    send: (text: string) => store.send(text),
+    send: (text: string, attachments: ChatAttachmentInput[] = []) => store.send(text, attachments),
     submitEdit: (text: string) => store.submitEdit(text),
     startEdit: (message: ChatMessage) => store.startEdit(message),
     cancelEdit: () => store.cancelEdit(),

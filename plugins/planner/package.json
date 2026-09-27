@@ -6,7 +6,9 @@
   "exports": "./frontend/index.tsx",
   "dependencies": {
     "@sisyphus/sdk": "*",
-    "react": "^19.2.8"
+    "ical.js": "^2.2.1",
+    "react": "^19.2.8",
+    "@sisyphus/ui": "*"
   },
   "sisyphus": {
     "frontend": {

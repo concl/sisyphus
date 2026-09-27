@@ -25,7 +25,6 @@
     "zod": "^4.6.5",
     "@sisyphus/native": "*",
     "@sisyphus/plugin-agent-tools": "*",
-    "@sisyphus/plugin-calendar": "*",
     "@sisyphus/plugin-chat": "*",
     "@sisyphus/plugin-contexts": "*",
     "@sisyphus/plugin-files": "*",
@@ -39,7 +38,6 @@
     "@sisyphus/plugin-shell": "*",
     "@sisyphus/plugin-terminal": "*",
     "@sisyphus/plugin-theme": "*",
-    "@sisyphus/plugin-todo": "*",
     "@sisyphus/plugin-workspace": "*"
   },
   "devDependencies": {

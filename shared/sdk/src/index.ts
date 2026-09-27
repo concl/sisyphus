@@ -16,12 +16,29 @@ export const services = {
    */
   plugins: 'app.plugins.v1',
 } as const
-export interface PlannerItem {
+/** Provider-neutral fields; timed instants use UTC ISO strings, all-day dates are local dates. */
+export interface PlannerChanges {
+  kind?: 'todo' | 'event'
+  title?: string
+  date?: string | null
+  /** Exclusive end for all-day events, per RFC 5545. */
+  endDate?: string | null
+  start?: string | null
+  end?: string | null
+  description?: string
+  location?: string
+  list?: string
+  starred?: boolean
+  done?: boolean
+}
+export interface PlannerItem extends Omit<PlannerChanges, 'kind' | 'title' | 'date'> {
   id: string
+  uid?: string
   kind: 'todo' | 'event'
   title: string
   date?: string
-  done?: boolean
+  /** Original VCALENDAR for imported schedules. Preserve unknown properties. */
+  ical?: string
   deleted?: boolean
   updatedAt: string
   actor: string
@@ -34,11 +51,27 @@ export interface PlannerSnapshot {
 export interface Planner {
   getSnapshot(): PlannerSnapshot
   subscribe(listener: () => void): () => void
-  create(input: { title: string; date?: string }): Promise<unknown>
-  update(id: string, changes: { title?: string; date?: string | null; done?: boolean }): Promise<unknown>
+  create(input: PlannerChanges & { title: string }): Promise<unknown>
+  update(id: string, changes: PlannerChanges): Promise<unknown>
   remove(id: string): Promise<unknown>
+  importICS(text: string): Promise<{ added: number; skipped: number }>
+  exportICS(): Promise<string>
   chooseFolder(): Promise<void>
   sync(): Promise<void>
+}
+/** Future account adapters live in the backend, independently of UI and storage.
+ * Credentials never belong in PlannerItem or ICS. Remote IDs are account-scoped.
+ * A provider must report unsupported capabilities instead of silently dropping data.
+ */
+export interface CalendarProvider {
+  id: string
+  capabilities: { events: boolean; tasks: boolean; recurrence: boolean; write: boolean }
+  pull(input: { accountId: string; calendarId: string; cursor?: string }): Promise<{
+    changes: Array<{ remoteId: string; etag?: string; deleted?: boolean; ics?: string }>
+    cursor: string
+  }>
+  push(input: { accountId: string; calendarId: string; operationId: string;
+    remoteId?: string; etag?: string; deleted?: boolean; ics?: string }): Promise<{ remoteId: string; etag?: string }>
 }
 export interface PanelProps {
   instanceId: string
@@ -259,12 +292,42 @@ export interface ChatMessage {
   status?: string
   error?: string
   context?: ChatContext
+  /** Files the user attached when they wrote this message. */
+  attachments?: ChatAttachment[]
 }
 export interface ChatContext {
   tokens: number
   inputTokens?: number
   outputTokens?: number
   estimated: boolean
+}
+/**
+ * A file the user attached to a message.
+ *
+ * The bytes are kept beside the conversation on disk; this is the record stored
+ * with the message and drawn in the transcript, so a conversation file stays
+ * small enough to rewrite on every turn and can be moved on its own.
+ */
+export interface ChatAttachment {
+  id: string
+  name: string
+  mime: string
+  size: number
+  /**
+   * An image is sent to the model as image content; anything else is offered to
+   * it as text, so a screenshot can be looked at and a config file can be read.
+   */
+  kind: 'image' | 'file'
+  /** A small data URL the transcript draws as the thumbnail. Images only. */
+  preview?: string
+}
+/**
+ * An attachment on its way to the desktop service: the record plus base64
+ * payload. The backend writes the payload beside the conversation and keeps the
+ * record, so only the send crosses with the bytes.
+ */
+export interface ChatAttachmentInput extends ChatAttachment {
+  data: string
 }
 export interface ChatThread {
   id: string

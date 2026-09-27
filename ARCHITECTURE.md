@@ -28,7 +28,7 @@ shared/
 scripts/               Build, sync, test, and packaging commands
 ```
 
-Only create the parts a feature needs. To-dos and Calendar are frontend-only;
+Only create the parts a feature needs. Calendar owns its frontend and backend;
 Files and Shell are backend-only. Shared libraries are ordinary imports, not
 independently mounted features. Their existing npm names (`@sisyphus/profile`,
 `@sisyphus/native`, `@sisyphus/sdk`, and `@sisyphus/ui`) remain stable so editable
@@ -186,14 +186,14 @@ process-tree cancellation use asynchronous OS calls.
 | Contract                     | Provider     | Consumers                                  |
 | ---------------------------- | ------------ | ------------------------------------------ |
 | `ui.panels.v1`               | panels       | workspace, every visual feature            |
-| `planner.v1` (renderer)      | planner      | todo, calendar                             |
+| `planner.v1` (renderer)      | planner      | unified Calendar views                             |
 | `planner.v1` (native)        | planner-data | planner-sync, planner tool adapter         |
 | `agent.tools.v1`             | agent-tools  | files, shell, planner, plugin loader, chat |
 | `runtime.workers.v1`         | host         | chat native adapter                        |
 | `transport.v1`, `storage.v1` | platform     | native feature adapters                    |
 
 Consumers declare `inject`; providers declare `provide`; registrations use
-`ctx.effect` with disposers. Todo and Calendar resolve the same planner service
+`ctx.effect` with disposers. Calendar views resolve the same planner service
 from their Cordis context. Neither imports the other or a concrete repository.
 Cordis can scope a replacement service with `ctx.isolate`; the default workspace
 uses one shared planner scope. Electron and renderer contexts are separate, joined
@@ -203,7 +203,7 @@ by explicit `call/on` IPC contracts rather than shared objects.
 flowchart LR
     subgraph RendererContext["Renderer Cordis context"]
         Panels["panels<br/>provides ui.panels.v1"] -->|injected service| Views["workspace and visual features"]
-        PlannerUI["planner<br/>provides planner.v1"] -->|injected service| Todo["To-dos"]
+        PlannerUI["planner<br/>provides planner.v1"] -->|injected service| Todo["Task view"]
         PlannerUI -->|injected service| Calendar["Calendar"]
     end
     subgraph NativeContext["Electron Cordis context"]
@@ -286,30 +286,33 @@ History is one JSON document per conversation under `storage/chat.threads`, with
 atomic replacement and a one-time legacy import. Folder permissions remain bound
 to each conversation; file tools and commands validate their scope.
 
-## Planner
+## Calendar / Planner
 
-The native repository keeps the existing `storage/planner.json` document and sync
-tombstones. Tasks have optional dates; `date: null` clears a date. Existing `todo`
-and `event` kinds remain readable, and both views operate on the same records.
-New items created from either view are tasks. Calendar selects dated records;
-To-dos includes dated and undated records. Either view can change completion and
-dates. Calendar's unschedule action clears the date without deleting the task.
+The plugins/planner package now owns the unified Calendar panel and the existing
+planner.v1 service. The old calendar/todo packages are removed. Saved To-dos or
+Planner layouts migrate to the stable calendar panel ID. Storage remains in
+storage/planner.json; existing items and deletion tombstones survive unchanged.
 
-The renderer planner plugin owns one subscription and immutable snapshots. Todo
-and Calendar are separate packages and panels, so removing either UI leaves the
-other and its data intact. The workspace migrates saved Planner panels to To-dos.
-File sync remains available in To-dos.
+The UI offers month, agenda, and task views. Native timed events store UTC instants;
+all-day ranges use date-only values and an exclusive end. Tasks have optional due
+dates, lists, completion, and stars. Backend schemas validate each mutation.
 
-```mermaid
-flowchart TB
-    Todo["To-dos panel<br/>Dated and undated records"] <-->|Read snapshots / edit tasks| Planner["Renderer planner service<br/>One subscription, immutable snapshots"]
-    Calendar["Calendar panel<br/>Dated records only"] <-->|"Edit tasks / unschedule: date = null"| Planner
-    Planner <-->|"call/on IPC"| Repository["Native planner repository<br/>Shared tasks and sync tombstones"]
-    Repository <--> Storage["storage/planner.json"]
-```
+ICS import/export uses ical.js and preserves the complete imported VCALENDAR
+components alongside their UI projection. Stable UIDs make re-import idempotent;
+existing local changes and tombstones take precedence. Imported schedules stay
+read-only, with text/completion edits projected during export. Recurrence and
+exceptions are expanded for display with a bounded iterator. Missing zone data
+and display limits are surfaced in the UI. ICS interchange does not replace the
+JSON replication document needed for deletion metadata and app-specific fields.
 
-Both panels operate on the same records. Unscheduling keeps the task; removing a
-panel leaves the other view and stored data intact.
+The SDK's CalendarProvider contract separates account-scoped remote IDs, ETags,
+incremental cursors, and provider capabilities from local item identities. It is
+an extension contract, not an implemented account-sync engine. A future backend
+plugin supplies credentials, mapping storage, an outbox, conditional writes,
+conflict handling, and retries. The frontend continues using only Planner.
+Manual cloud-folder sync remains available under Import & export.
+
+See [Calendar design notes](plugins/planner/README.md) for limitations and next steps.
 
 ## Developer loop
 

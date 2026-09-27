@@ -7,6 +7,7 @@ const pending = new Map()
 parentPort.on('message', async message => {
   if (message.type === 'init') {
     chat = new ChatService({ history: new ChatHistory(message.directory),
+      attachments: message.attachments,
       config: { resolve: () => settings, get: () => settings }, registry: { list: () => definitions } })
     return
   }

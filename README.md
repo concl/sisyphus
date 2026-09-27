@@ -14,7 +14,7 @@ an ordered guide from Python knowledge to the app's UI, services, and plugin run
 - `shared/`: reusable UI, contracts, backend helpers, and the Cordis runtime wrapper.
 - `scripts/`: development, build, and packaging commands.
 
-Start with a feature folder. To-dos and Calendar use the same Planner service;
+Start with a feature folder. Calendar combines events and tasks through the Planner service;
 Chat keeps its frontend, backend, and worker code together. Cordis composes each
 process at runtime, and explicit messages connect frontend and backend. Mobile
 is out of scope for this version.
@@ -109,10 +109,12 @@ service contracts in Electron.
   step are replayed on the next turn, including supported reasoning metadata.
   The small context indicator uses provider usage when available and labels
   estimates with `~`. No compaction or automatic context limit is applied.
-- **To-dos and Calendar:** separate dockable plugins sharing the `planner.v1`
-  service. A task with a date appears in Calendar; clearing its date keeps it in
-  To-dos. Completion and edits affect the same record in either view. Existing
-  planner data and file sync are retained; old Planner layouts open To-dos.
+- **Calendar:** one Google Calendar-inspired plugin with month, agenda, and task
+  views. Create timed or all-day events, organize tasks into lists, and import or
+  export standard ICS files. Existing planner data, completed tasks, and folder
+  sync are retained. Old To-dos/Planner layouts open Calendar. See the
+  [Calendar guide](plugins/planner/README.md) for supported ICS features and the
+  provider adapter boundary for future cloud integrations.
 - **Terminal, Python Host, VS Code, Browser Tabs, Home, Settings, Theme, and
   Workspace:** independently composed plugins. Drag blocks to stack or split them,
   and drag the rail icons to arrange the sidebar; a saved layout keeps both orders,

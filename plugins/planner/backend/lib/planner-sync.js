@@ -17,7 +17,28 @@ function validate(document) {
       typeof item.title !== 'string' ||
       item.title.length > 500 ||
       typeof item.updatedAt !== 'string' ||
-      typeof item.actor !== 'string'
+      typeof item.actor !== 'string' ||
+      !Number.isFinite(Date.parse(item.updatedAt)) ||
+      ['done', 'deleted', 'starred'].some(
+        (key) => item[key] !== undefined && typeof item[key] !== 'boolean',
+      ) ||
+      ['date', 'endDate'].some(
+        (key) =>
+          item[key] != null &&
+          (typeof item[key] !== 'string' ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(item[key]) ||
+            !Number.isFinite(Date.parse(item[key] + 'T00:00:00Z')) ||
+            new Date(item[key] + 'T00:00:00Z').toISOString().slice(0, 10) !== item[key]),
+      ) ||
+      ['start', 'end'].some(
+        (key) =>
+          item[key] != null &&
+          (typeof item[key] !== 'string' || !Number.isFinite(Date.parse(item[key]))),
+      ) ||
+      ['uid', 'description', 'location', 'list', 'ical'].some(
+        (key) => item[key] !== undefined && typeof item[key] !== 'string',
+      ) ||
+      (item.ical && Buffer.byteLength(item.ical) > 5 * 1024 * 1024)
     )
       throw new Error('Invalid planner record')
   }

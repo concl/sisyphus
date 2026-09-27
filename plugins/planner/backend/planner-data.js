@@ -46,6 +46,16 @@ module.exports = () => ({
     ]
     for (const [name, description, access, inputSchema, execute] of definitions)
       ctx.effect(() => tools.register(name, { description, access, inputSchema, execute }))
+    ctx.effect(() =>
+      transport.handle('planner.importICS', (input) => {
+        const { text } = z
+          .object({ text: z.string().max(5 * 1024 * 1024) })
+          .strict()
+          .parse(input)
+        return repository.importICS(text)
+      }),
+    )
+    ctx.effect(() => transport.handle('planner.exportICS', () => repository.exportICS()))
     ctx.effect(() => transport.handle('planner.get', () => repository.document()))
     for (const method of ['create', 'update', 'remove'])
       ctx.effect(() => transport.handle(`planner.${method}`, (input) => repository[method](input)))

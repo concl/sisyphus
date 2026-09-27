@@ -1,4 +1,11 @@
-import type { ChatConfig, ChatContext, ChatMessage, ChatThread, Desktop } from '@sisyphus/sdk'
+import type {
+  ChatAttachmentInput,
+  ChatConfig,
+  ChatContext,
+  ChatMessage,
+  ChatThread,
+  Desktop,
+} from '@sisyphus/sdk'
 import type { ChatEvent, ThreadSummary } from './types'
 import { readDefaultFolder, writeDefaultFolder } from './default-folder'
 import {
@@ -303,9 +310,9 @@ export class ChatStore {
   }
 
   /** Sends a message and keeps the streaming reply in `run` until it settles. */
-  async send(text: string): Promise<boolean> {
+  async send(text: string, attachments: ChatAttachmentInput[] = []): Promise<boolean> {
     this.update({ editing: null })
-    return this.submit('chat.send', text)
+    return this.submit('chat.send', text, attachments.length ? { attachments } : {})
   }
 
   /**
@@ -323,7 +330,9 @@ export class ChatStore {
     text: string,
     extra: Record<string, unknown> = {},
   ): Promise<boolean> {
-    if (!text.trim() || this.session.run) return false
+    // A message with only an attachment on it is still a message.
+    if (this.session.run) return false
+    if (!text.trim() && !extra.attachments) return false
     const runId = this.newRunId()
     this.attach()
     const threadId = this.session.thread?.id ?? this.session.threadId

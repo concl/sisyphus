@@ -15,7 +15,7 @@
       document.querySelector('.home-panel') &&
       document.querySelector('.terminal-host') &&
       document.querySelector('.python-panel') &&
-      document.querySelector('.todo-panel'),
+      document.querySelector('.cal-app'),
   )
   const bridge = window.sisyphus
   // Each plugin's stylesheet is a file beside its code, tied to the plugin's
@@ -70,11 +70,24 @@
   assert(info.service === 'python-host', JSON.stringify(info))
   await bridge.call('python.stop', { id: 'workspace-api' })
   try {
-    const title = document.querySelector('.todo-add [aria-label="Title"]')
+    const calendar = document.querySelector('.cal-app')
+    ;(
+      calendar.querySelector('.cal-create') || calendar.querySelector('[aria-label="Create item"]')
+    ).click()
+    await waitFor(() => document.querySelector('.cal-surface[role="dialog"]'))
+    const title = document.querySelector('.cal-surface [aria-label="Title"]')
     const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
     nativeSetter.call(title, 'Smoke task')
     title.dispatchEvent(new Event('input', { bubbles: true }))
-    document.querySelector('.todo-add button[type="submit"]').click()
+    await waitFor(
+      () =>
+        ![...document.querySelectorAll('.cal-surface button')].find(
+          (button) => button.textContent === 'Save',
+        )?.disabled,
+    )
+    ;[...document.querySelectorAll('.cal-surface button')]
+      .find((button) => button.textContent === 'Save')
+      .click()
     await waitFor(async () =>
       (await bridge.call('storage.get', { scope: 'planner', key: 'document.v1' }))?.records?.some(
         (item) => item.title === 'Smoke task',
