@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type FormEvent } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { writeState } from '@sisyphus/profile/preferences'
 import {
   readable,
@@ -15,18 +15,16 @@ import icon from './icon.svg'
 import './plugins.css'
 
 /**
- * Plugin studio: the panel that lists, edits, and reloads the plugins this app is
- * running.
+ * Manage the plugins this app is running.
  *
  * Loading them is the window's job, not a plugin's (`bootstrap/frontend/src/host.ts`
  * owns the library and provides it), so this plugin only draws what the library
- * reports. That is what keeps the plugins the distribution shipped and the ones
- * written here on one list, with the same buttons.
+ * reports. Shipped and user plugins share the same controls.
  */
 export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
   return {
     id: 'feature.plugins',
-    name: 'Plugin studio',
+    name: 'Plugins',
     inject: [services.panels, services.desktop, services.storage, services.plugins],
     apply(ctx) {
       const panels = ctx.get(services.panels) as Panels
@@ -47,35 +45,19 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
         await host.refresh()
       }
 
-      function Studio() {
+      function Plugins() {
         const snapshot = useSyncExternalStore(host.subscribe, host.getSnapshot)
         const waiting = snapshot.plugins.filter((entry) => entry.pending).length
         const [open, setOpen] = useState<PluginLibraryEntry | null>(null)
         const [draft, setDraft] = useState('')
         const [original, setOriginal] = useState('')
-        const [adding, setAdding] = useState('')
-        const [target, setTarget] = useState<'main' | 'renderer'>('main')
+        const [search, setSearch] = useState('')
         const [busy, setBusy] = useState(false)
         const [notice, setNotice] = useState('')
 
-        useEffect(() => {
-          if (!open) return
-          let alive = true
-          setNotice('')
-          host
-            .read(open.id, open.target ?? 'main')
-            .then((file) => {
-              if (!alive) return
-              setDraft(file.source)
-              setOriginal(file.source)
-            })
-            .catch((error) => {
-              if (alive) setNotice(readable(error))
-            })
-          return () => {
-            alive = false
-          }
-        }, [open])
+        const entries = snapshot.plugins.filter((entry) =>
+          entry.id.toLowerCase().includes(search.trim().toLowerCase()),
+        )
 
         async function attempt(work: () => Promise<unknown>) {
           setBusy(true)
@@ -89,41 +71,26 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
           }
         }
 
-        async function create(event: FormEvent) {
-          event.preventDefault()
-          const id = adding.trim()
-          if (!id) return
+        async function edit(entry: PluginLibraryEntry) {
           await attempt(async () => {
-            await host.create(id, target)
-            setAdding('')
-            setOpen({ id, target, file: '' })
+            const file = await host.read(entry.id, entry.target ?? 'main')
+            setDraft(file.source)
+            setOriginal(file.source)
+            setOpen(entry)
           })
         }
 
         return (
-          <div className="studio-panel">
-            <div className="eyebrow">LOADED WHILE THE APP RUNS</div>
-            <h2>
-              Plugin studio
-              <span className="studio-mark">
-                <span
-                  className="icon-mask"
-                  style={{ maskImage: `url("${icon}")` }}
-                  aria-hidden="true"
-                />
-              </span>
-            </h2>
-            <p className="studio-quiet">
-              Edit a plugin’s source and reload it here. Open its folder to edit components,
-              styles, or native code: a file changed there waits, marked changed, until it is
-              reloaded. Failed edits keep the working version running.
-            </p>
+          <div className="plugins-panel">
+            <h2>Plugins</h2>
+            <p className="plugins-quiet">Manage what’s running in your workspace.</p>
 
-            <div className="studio-tools">
-              <code className="studio-path" title={snapshot.folder}>
-                {snapshot.folder || 'plugins folder unavailable'}
-              </code>
-              <button disabled={busy || !snapshot.folder} onClick={() => void host.reveal()}>
+            <div className="plugins-tools">
+              <button
+                disabled={busy || !snapshot.folder}
+                title={snapshot.folder}
+                onClick={() => void attempt(() => host.reveal())}
+              >
                 Open folder
               </button>
               <button
@@ -134,23 +101,22 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
               >
                 Reload all
               </button>
-              <label
-                className="studio-switch"
-                title="Notice edits made outside the app and report them on their rows"
-              >
+              <label className="plugins-switch" title="Show when plugin files have changed">
                 <input
                   type="checkbox"
+                  disabled={busy}
                   checked={snapshot.watching}
                   onChange={(event) => void attempt(() => host.setWatching(event.target.checked))}
                 />
                 Watch for changes
               </label>
               <label
-                className="studio-switch"
+                className="plugins-switch"
                 title="Apply a noticed change on the spot instead of waiting for Reload"
               >
                 <input
                   type="checkbox"
+                  disabled={busy}
                   checked={snapshot.reloadOnSave}
                   onChange={(event) =>
                     void attempt(() => host.setReloadOnSave(event.target.checked))
@@ -161,116 +127,117 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
             </div>
 
             {(notice || snapshot.error) && (
-              <p role="alert" className="studio-error">
+              <p role="alert" className="plugins-error">
                 {notice || snapshot.error}
               </p>
             )}
-            {snapshot.loading && <p className="studio-quiet">Reading plugin files…</p>}
+            {snapshot.loading && <p className="plugins-quiet">Reading plugin files…</p>}
 
-            <div className="section-label">
-              PLUGINS <span>{snapshot.plugins.length}</span>
+            <div className="plugins-browse">
+              <p className="plugins-summary" role="status">
+                {entries.length} {entries.length === 1 ? 'plugin' : 'plugins'}
+                {waiting > 0 && <span> · {waiting} awaiting reload</span>}
+              </p>
+              <input
+                type="search"
+                aria-label="Search plugins"
+                placeholder="Search plugins…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </div>
-            {!snapshot.loading && snapshot.plugins.length === 0 && (
-              <p className="studio-quiet">No plugin files yet. Create the first one below.</p>
+            {!snapshot.loading && entries.length === 0 && (
+              <p className="plugins-empty">
+                {snapshot.plugins.length ? 'No plugins match your search.' : 'No plugins found.'}
+              </p>
             )}
-            {snapshot.plugins.map((entry) => (
-              <div
-                className={`studio-row ${
-                  open && open.id === entry.id && open.target === entry.target ? 'selected' : ''
-                }`}
-                key={`${entry.id}:${entry.target}`}
-              >
-                <div className="studio-meta">
-                  <strong>{entry.id}</strong>
-                  <small>
-                    {entry.target === 'renderer'
-                      ? 'frontend'
-                      : entry.target === 'main'
-                        ? 'backend'
-                        : 'unusable file name'}
-                    {entry.shipped ? (entry.edited ? ' · shipped, edited' : ' · shipped') : ''}
-                    {entry.pending ? <b className="studio-pending"> · file changed</b> : ''}
-                    {entry.error ? ` · ${entry.error}` : entry.state ? ` · ${entry.state}` : ''}
-                  </small>
-                </div>
-                <div className="studio-row-actions">
-                  {entry.target && (
-                    <button
-                      role="switch"
-                      aria-checked={Boolean(entry.enabled)}
-                      aria-label={`Enable ${entry.id}`}
-                      className={`toggle ${entry.enabled ? 'on' : ''}`}
-                      disabled={busy}
-                      onClick={() => void attempt(() => toggle(entry))}
-                    >
-                      <span />
-                    </button>
-                  )}
-                  {entry.target && (
-                    <button disabled={busy} onClick={() => setOpen(entry)}>
-                      Edit
-                    </button>
-                  )}
-                  <button
-                    disabled={busy}
-                    className={entry.pending ? 'primary' : undefined}
-                    title={entry.pending ? 'Mount this file as it is now' : 'Load this file again'}
-                    onClick={() =>
-                      void attempt(() => host.reload(entry.id, entry.target ?? 'main'))
-                    }
-                  >
-                    Reload
-                  </button>
-                  {entry.shipped && (
+            <div className="plugins-grid" role="list" aria-label="Plugins">
+              {entries.map((entry) => (
+                <article
+                  role="listitem"
+                  className={`plugins-card ${
+                    open && open.id === entry.id && open.target === entry.target ? 'selected' : ''
+                  }`}
+                  key={`${entry.id}:${entry.target}`}
+                >
+                  <div className="plugins-card-heading">
+                    <div className="plugins-meta">
+                      <strong>{entry.id}</strong>
+                      <small>
+                        {entry.target === 'renderer'
+                          ? 'frontend'
+                          : entry.target === 'main'
+                            ? 'backend'
+                            : 'unusable file name'}
+                        {entry.shipped ? ' · Built-in' : ' · Custom'}
+                        {entry.edited ? ' · Modified' : ''}
+                      </small>
+                    </div>
+                    {entry.target && (
+                      <button
+                        role="switch"
+                        aria-checked={Boolean(entry.enabled)}
+                        aria-label={`Enable ${entry.id}`}
+                        className={`toggle ${entry.enabled ? 'on' : ''}`}
+                        disabled={busy}
+                        onClick={() => void attempt(() => toggle(entry))}
+                      >
+                        <span />
+                      </button>
+                    )}
+                  </div>
+                  <div className="plugins-card-status">
+                    <span>{entry.state || (entry.enabled ? 'Enabled' : 'Disabled')}</span>
+                    {entry.pending && <span className="plugins-pending">Awaiting reload</span>}
+                  </div>
+                  {entry.error && <p className="plugins-card-error">{entry.error}</p>}
+                  <div className="plugins-card-actions">
+                    {entry.target && (
+                      <button disabled={busy} onClick={() => void edit(entry)}>
+                        Edit
+                      </button>
+                    )}
                     <button
                       disabled={busy}
-                      title="Put the copy this build shipped back"
+                      className={entry.pending ? 'primary' : undefined}
+                      title={
+                        entry.pending ? 'Mount this file as it is now' : 'Load this file again'
+                      }
                       onClick={() =>
-                        void attempt(() => host.restore(entry.id, entry.target ?? 'renderer'))
+                        void attempt(() => host.reload(entry.id, entry.target ?? 'main'))
                       }
                     >
-                      Restore
+                      Reload
                     </button>
-                  )}
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      void attempt(async () => {
-                        await host.remove(entry.id, entry.target ?? 'main')
-                        if (open && open.id === entry.id) setOpen(null)
-                      })
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <form className="studio-form" onSubmit={(event) => void create(event)}>
-              <div className="section-label">NEW PLUGIN</div>
-              <input
-                aria-label="Plugin id"
-                placeholder="user.notes"
-                maxLength={60}
-                value={adding}
-                onChange={(event) => setAdding(event.target.value)}
-              />
-              <select
-                aria-label="Where the plugin runs"
-                value={target}
-                onChange={(event) => setTarget(event.target.value as 'main' | 'renderer')}
-              >
-                <option value="main">Backend</option>
-                <option value="renderer">Frontend</option>
-              </select>
-              <button className="primary" type="submit" disabled={busy || !adding.trim()}>
-                Create
-              </button>
-            </form>
+                    {entry.shipped && (
+                      <button
+                        disabled={busy}
+                        title="Put the copy this build shipped back"
+                        onClick={() =>
+                          void attempt(() => host.restore(entry.id, entry.target ?? 'renderer'))
+                        }
+                      >
+                        Restore
+                      </button>
+                    )}
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        void attempt(async () => {
+                          await host.remove(entry.id, entry.target ?? 'main')
+                          if (open && open.id === entry.id) setOpen(null)
+                        })
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
 
             {open && (
-              <section className="studio-editor">
+              <section className="plugins-editor">
                 <header>
                   <strong>{open.id}</strong>
                   <span>{open.target === 'renderer' ? 'frontend' : 'backend'}</span>
@@ -279,13 +246,14 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
                   </button>
                 </header>
                 <textarea
+                  autoFocus
                   aria-label={`Code for ${open.id}`}
-                  className="studio-textarea"
+                  className="plugins-textarea"
                   spellCheck={false}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                 />
-                <div className="studio-editor-actions">
+                <div className="plugins-editor-actions">
                   <button
                     className="primary"
                     disabled={busy || draft === original}
@@ -302,21 +270,13 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
                     Revert
                   </button>
                 </div>
-                <p className="studio-note">
+                <p className="plugins-note">
                   A plugin is trusted code: it shares this window's reach and the services it asks
                   for. Saving here mounts the new code at once, so keep a copy of anything you may
                   want back.
                 </p>
               </section>
             )}
-
-            <p className="studio-note">
-              Every plugin this app runs is a file in this folder, including the ones this build
-              shipped: those are marked <code>shipped</code>, editing one is allowed, and{' '}
-              <strong>Restore</strong> puts the built copy back. Files are named{' '}
-              <code>feature.name.renderer.js</code> for this window or{' '}
-              <code>user.name.main.js</code> for the main process.
-            </p>
           </div>
         )
       }
@@ -324,10 +284,10 @@ export function pluginsPlugin(runtime: RuntimeControl): AppPlugin {
       ctx.effect(() =>
         panels.register({
           id: 'plugins',
-          title: 'Plugin studio',
+          title: 'Plugins',
           icon,
-          description: 'Add, edit, and reload plugins while the app runs.',
-          component: Studio,
+          description: 'Manage and reload the plugins in your workspace.',
+          component: Plugins,
         }),
       )
     },

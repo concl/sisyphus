@@ -672,8 +672,8 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                     ))}
                   <p className="drawer-note">
                     Turning off a feature removes its blocks. Turning off a desktop provider stops
-                    its processes. Reopen blocks after enabling a provider. Add or edit plugins of
-                    your own in Plugin studio.
+                    its processes. Reopen blocks after enabling a provider. Manage installed
+                    plugins in Plugins.
                   </p>
                   <button className="reset-button" onClick={restoreDefaultLayout}>
                     Restore default layout ↗
@@ -705,4 +705,3 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
     },
   }
 }
-

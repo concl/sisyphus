@@ -68,7 +68,7 @@ The build stages these **source folders** under `build/plugins`. On startup the
 app copies them to `userData/plugins`, preserving local edits. Electron discovers
 package manifests there and compiles their entry points on demand. The renderer
 loads the resulting code through Cordis. Editing a component or CSS file in app
-data and pressing **Plugin studio → Reload** changes the running feature without
+data and pressing **Plugins → Reload** changes the running feature without
 rebuilding or restarting the app. A file that changed is noticed and marked
 changed; it is mounted when **Reload** (or the chat agent's `plugin_reload`) asks
 for it, and on its own only when **Reload on save** is switched on. Compilation or
@@ -94,7 +94,7 @@ Existing plugin IDs and npm imports are unchanged. Legacy manifests still load;
 edited app-data packages keep their old source layout until explicitly restored
 or force-synced. Untouched packages migrate to `frontend/` and `backend/` automatically.
 
-**Plugin studio** edits entry points, reveals source folders, reloads plugins, and
+**Plugins** edits entry points, reveals source folders, reloads plugins, and
 restores shipped source. Native Electron platform adapters (window, transport,
 storage, and preferences) are bootstrap infrastructure and require a restart;
 feature adapters and UI plugins reload live. Plugins are trusted code, not security

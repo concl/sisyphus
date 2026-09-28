@@ -85,7 +85,7 @@ advance to a new shipped version, local edits survive, and Restore copies shippe
 source back. Restoring an entry restores its complete package, including shared
 native and renderer files. Removed entry points stay removed in the package's
 locally edited manifest. Legacy flat `.renderer.js` / `.main.js` / `.main.cjs`
-plugins remain supported, including Plugin studio's small script templates.
+plugins remain supported, including the script templates available through agent tools.
 
 `PluginLoader` discovers package manifests at runtime. `plugin-compiler.js` uses
 esbuild asynchronously to compile the app-data entry point and its local imports.
@@ -128,8 +128,8 @@ flowchart TD
 Noticing a change and applying it are separate. The recursive watcher detects
 changes to source, CSS, assets, and manifests and reports the affected entries as
 `pending` in the catalog; the code that is already mounted keeps running.
-Mounting happens on an explicit reload: Plugin studio's **Reload** or **Reload
-all**, the agent's `plugin_reload`, or a write that names the file. Reload on save
+Mounting happens on an explicit reload: **Reload** or **Reload all** in Plugins,
+the agent's `plugin_reload`, or a write that names the file. Reload on save
 is the opt-in that hands the decision to the watcher, and it is off by default. A
 reload mounts the file that is on disk now, in place: a mounted id is replaced, a
 file that appeared is added, a file that is gone is unmounted, and a manual reload
@@ -319,7 +319,7 @@ See [Calendar design notes](plugins/planner/README.md) for limitations and next 
 `npm run plugins:watch` rebuilds the staging manifest and copies source changes to
 app data. The app's source watcher then compiles them and reports the changed
 entries as pending; with Reload on save off, which is the default, each copy waits
-for **Reload** or **Reload all** in Plugin studio before it is mounted.
+for **Reload** or **Reload all** in Plugins before it is mounted.
 `npm run dev:app` combines this watcher with Vite and Electron. `plugins:sync`
 performs a one-time stage/copy, preserving app-data edits unless `--force` is given.
 Use `--dest` or `SISYPHUS_USER_DATA` to select an isolated installation. Shared host
