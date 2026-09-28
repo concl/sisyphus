@@ -153,8 +153,8 @@ class ProviderChatConfig extends ChatConfig {
     // General settings cannot overwrite provider selection or credentials.
     const previous = super.get()
     const settings = settingsSchema
-      .pick({ systemPrompt: true, access: true, limits: true })
-      .parse({ ...input, limits: input?.limits ?? previous.limits })
+      .pick({ systemPrompt: true, access: true, limits: true, compaction: true })
+      .parse({ ...input, limits: input?.limits ?? previous.limits, compaction: input?.compaction ?? previous.compaction })
     this.storage.set('chat.config', 'provider.v1', {
       baseURL: previous.baseURL,
       model: previous.model,

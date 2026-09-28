@@ -1,6 +1,15 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { z } = require('zod')
+const { DEFAULT_COMPACTION } = require('./compaction')
+const compactionSchema = z.object({
+  enabled: z.boolean(),
+  contextTokens: z.number().int().min(8000).max(2000000),
+}).strict()
+function readCompaction(value) {
+  const result = compactionSchema.safeParse(value)
+  return result.success ? result.data : { ...DEFAULT_COMPACTION }
+}
 const DEFAULT_PROMPT = fs
   .readFileSync(path.join(__dirname, '..', 'prompts', 'chat-system.md'), 'utf8')
   .trim()
@@ -60,6 +69,7 @@ const settingsSchema = z
     systemPrompt: z.string().trim().min(1).max(20000),
     access: z.enum(['none', 'read', 'write']),
     limits: limitsSchema,
+    compaction: compactionSchema,
     // `get()` reports the defaults next to the saved values so a form can offer
     // a restore button; saving that object back must not fail on it.
     defaultLimits: z.unknown().optional(),
@@ -83,6 +93,7 @@ class ChatConfig {
       access: 'none',
       ...rest,
       limits: readLimits(limits),
+      compaction: readCompaction(saved.compaction),
       hasApiKey: this.secrets.has(),
       defaultSystemPrompt: DEFAULT_PROMPT,
       defaultLimits: { ...DEFAULT_LIMITS },
@@ -96,6 +107,7 @@ class ChatConfig {
     const { apiKey, clearApiKey, defaultLimits, ...settings } = settingsSchema.parse({
       ...input,
       limits,
+      compaction: input?.compaction ?? previous.compaction,
     })
     if (apiKey?.trim()) this.secrets.write(apiKey.trim())
     else if (clearApiKey || settings.baseURL !== previous.baseURL) this.secrets.clear()

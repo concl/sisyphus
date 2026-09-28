@@ -11,6 +11,29 @@ per-conversation history files, and the default system prompt
 
 Multiple conversations may run concurrently; one conversation has one active run.
 
+Automatic context compaction is configured under **Settings → Chat → Context
+memory**. It is on by default with an estimated 32,000-token budget; providers
+do not declare their context windows, so set this at or below the selected
+model's supported window (and adjust it when switching to a smaller model).
+At approximately 75% of the budget, before any model/tool-loop step, Chat drops
+older reasoning, shortens long tool outputs, and summarizes earlier conversation
+data using the selected model when needed. The target is about 55%, though the
+protected messages may take more space. The system prompt, latest actual user
+message including attachments, and recent complete tool exchanges are preserved.
+Obsolete computer screenshots are removed from the model context as soon as a
+new one is available, independent of the compaction toggle.
+
+Compaction adds model requests and can lose detail. Keep exact constraints in
+the latest message, and use files for large reference material. It is best left
+on for long chats and computer tasks; disable it for short experiments requiring
+verbatim replay. The visible transcript and original provider messages stay on
+disk. A private checkpoint on each compacted reply supplies future context only
+on that branch; editing an ancestor never imports another branch's memory.
+Progress appears in the transcript. A failed summary stops the reply with an
+error and preserves original history. If the protected content itself exceeds
+the budget, Chat asks for a larger budget or smaller input instead of silently
+truncating the latest request.
+
 Providers live in `chat.providers.json` in the app data folder. Settings > Chat
 shows the full path and an editable JSON document; Settings > Local data can
 reveal the file. See [providers.example.json](./providers.example.json) for the
@@ -42,7 +65,7 @@ the default for new conversations, and chooses it again to clear the default; th
 folder is remembered per window and is written to a conversation only when its
 first message is sent.
 
-Edit the installed source folder and reload from Plugin studio, or use
+Edit the installed source folder and reload from Plugins, or use
 `npm run plugins:watch` to sync repository edits. Reloading the backend adapter
 cancels its runs; ordinary UI navigation does not. See the repository's
 [architecture](../../ARCHITECTURE.md) for lifecycle and persistence contracts.

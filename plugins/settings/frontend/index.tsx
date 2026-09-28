@@ -93,6 +93,7 @@ export const settingsPlugin: AppPlugin = {
             systemPrompt: config.systemPrompt,
             access: config.access,
             limits: config.limits,
+            compaction: config.compaction,
           })
           setConfig(saved)
           setMessage('Chat settings saved.')
@@ -116,6 +117,7 @@ export const settingsPlugin: AppPlugin = {
                   systemPrompt: current.systemPrompt,
                   access: current.access,
                   limits: current.limits,
+                  compaction: current.compaction,
                 }
               : saved,
           )
@@ -267,8 +269,8 @@ export const settingsPlugin: AppPlugin = {
                 <h2>Tools and access</h2>
                 <p>
                   Tool results are sent to your configured model provider as part of the
-                  conversation. Credentials and anything outside the conversation folder are never
-                  exposed as tools.
+                  conversation, including screenshots from computer tools. File tools are scoped to
+                  the conversation folder; computer tools can see and control the Windows desktop.
                 </p>
                 <label>
                   Access level
@@ -281,13 +283,14 @@ export const settingsPlugin: AppPlugin = {
                   >
                     <option value="none">No tools</option>
                     <option value="read">Read files and app data</option>
-                    <option value="write">Read and change files and app data</option>
+                    <option value="write">Read, change, and control the computer</option>
                   </select>
                 </label>
                 <p className="settings-hint">
                   Read covers planner records and file reads. Read and change also allows file edits
-                  and shell commands. Files and commands stay inside the folder chosen for each
-                  conversation in the Chat block.
+                  and shell commands, plus desktop control when the Computer plugin is enabled.
+                  File paths are scoped to the folder chosen for each conversation. Computer tasks
+                  need a model that can understand images. Stop ends the active reply.
                 </p>
                 <ul className="settings-tools">
                   {tools.map((tool) => (
@@ -402,6 +405,26 @@ export const settingsPlugin: AppPlugin = {
                 >
                   Restore default limits
                 </button>
+              </section>
+              <section className="settings-card">
+                <h2>Context memory</h2>
+                <label>
+                  <input type="checkbox" checked={config.compaction?.enabled ?? true}
+                    onChange={event => setConfig({ ...config, compaction: { contextTokens: config.compaction?.contextTokens ?? 32000, enabled: event.target.checked } })} />
+                  Automatically compact earlier context
+                </label>
+                <label>
+                  Context budget (tokens)
+                  <input aria-label="Context budget (tokens)" type="number" min={8000} max={2000000} step={1000}
+                    value={config.compaction?.contextTokens ?? 32000}
+                    onChange={event => setConfig({ ...config, compaction: { enabled: config.compaction?.enabled ?? true,
+                      contextTokens: Math.max(8000, Math.min(2000000, Number(event.target.value) || 32000)) } })} />
+                </label>
+                <p className="settings-hint">Compacts at approximately 75% of this budget, including room for tools.
+                  Set it at or below your model’s context window. The default is a conservative estimate, not automatic model detection.
+                  The system prompt, latest user message, and recent tool exchanges stay intact. Earlier reasoning and long outputs
+                  are shortened, then older work is summarized using your selected model. Full chat history stays on disk.
+                  Summarization adds a model request and may lose details; keep critical requirements in your latest message.</p>
               </section>
               <div className="settings-save">
                 <button className="primary" type="submit" disabled={saving}>

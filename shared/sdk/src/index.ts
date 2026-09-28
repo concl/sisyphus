@@ -247,6 +247,8 @@ export interface ChatConfig {
   limits: ChatLimits
   /** Values a "restore defaults" control writes back. */
   defaultLimits: ChatLimits
+  /** Automatic memory compaction; budget is an estimate, not model discovery. */
+  compaction?: { enabled: boolean; contextTokens: number }
   hasApiKey: boolean
 }
 export interface ChatToolActivity {

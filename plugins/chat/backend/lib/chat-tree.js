@@ -105,10 +105,14 @@ function toolActivity(tools = []) {
 // and anything without them falls back to plain text. A user message is turned
 // into provider content by the caller, because an attached picture is only a
 // record here - its bytes are read from the disk when the request is built.
-function modelContext(messages, id, contentOf = (message) => message.text) {
+function modelContext(messages, id, contentOf = (message) => message.text, useCompaction = true) {
   const context = []
   for (const message of pathTo(normalizeMessages(messages), id)) {
     if (message.role === 'user') context.push({ role: 'user', content: contentOf(message) })
+    else if (useCompaction && message.compactedContext?.length) {
+      context.length = 0
+      context.push(...message.compactedContext)
+    }
     else if (message.model?.length) context.push(...message.model)
     else {
       const content = message.text || (message.tools?.length ? toolActivity(message.tools) : '')

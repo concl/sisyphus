@@ -26,6 +26,7 @@
     "@sisyphus/native": "*",
     "@sisyphus/plugin-agent-tools": "*",
     "@sisyphus/plugin-chat": "*",
+    "@sisyphus/plugin-computer": "*",
     "@sisyphus/plugin-contexts": "*",
     "@sisyphus/plugin-files": "*",
     "@sisyphus/plugin-home": "*",

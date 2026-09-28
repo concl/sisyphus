@@ -8,7 +8,10 @@ parentPort.on('message', async message => {
   if (message.type === 'init') {
     chat = new ChatService({ history: new ChatHistory(message.directory),
       attachments: message.attachments,
-      config: { resolve: () => settings, get: () => settings }, registry: { list: () => definitions } })
+      config: { resolve: () => settings, get: () => settings }, registry: {
+        list: () => definitions,
+        endRun: context => parentPort.postMessage({ type: 'tool-run-end', context }),
+      } })
     return
   }
   if (message.type === 'tool-result') {

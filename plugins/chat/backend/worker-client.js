@@ -7,6 +7,7 @@ class WorkerChat {
   constructor({ workers, directory, attachments, registry, config }) {
     this.pending = new Map()
     this.tools = new Map()
+    this.toolRuns = new Set()
     this.next = 0
     this.closed = false
     this.worker = workers.create(path.join(__dirname, 'worker.js')).then(worker => {
@@ -24,10 +25,19 @@ class WorkerChat {
     this.pending.clear()
     for (const tool of this.tools.values()) tool.abort()
     this.tools.clear()
+    for (const runId of this.toolRuns)
+      for (const definition of this.registry.list()) definition.endRun?.({ runId })
+    this.toolRuns.clear()
   }
   async receive(message) {
+    if (message.type === 'tool-run-end') {
+      this.toolRuns.delete(message.context.runId)
+      for (const definition of this.registry.list()) definition.endRun?.(message.context)
+      return
+    }
     if (message.type === 'tool-cancel') return this.tools.get(message.id)?.abort()
     if (message.type === 'tool') {
+      this.toolRuns.add(message.context.runId)
       const controller = new AbortController()
       this.tools.set(message.id, controller)
       const worker = await this.worker

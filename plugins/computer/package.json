@@ -1,0 +1,8 @@
+{
+  "name": "@sisyphus/plugin-computer",
+  "version": "0.1.0",
+  "private": true,
+  "sisyphus": {
+    "backend": [{ "id": "desktop.computer", "entry": "./backend/computer.js", "order": 8 }]
+  }
+}
