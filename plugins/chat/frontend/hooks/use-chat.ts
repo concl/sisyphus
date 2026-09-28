@@ -1,8 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import type { ChatAttachmentInput, ChatMessage, Desktop } from '@sisyphus/sdk'
-import { chatStore } from './chat-store'
-import { EMPTY_TRANSCRIPT } from './transcript'
-import { activePath } from './tree'
+import { chatStore } from '../state/chat-store'
+import { EMPTY_TRANSCRIPT } from '../lib/transcript'
+import { activePath } from '../lib/tree'
 
 /**
  * Binds the chat block to the shared chat store (`chat-store.ts`). Nothing that

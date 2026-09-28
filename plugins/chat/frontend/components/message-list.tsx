@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react'
 import { Streamdown } from 'streamdown'
-import { code } from './code-highlight'
+import { code } from '../lib/code-highlight'
 import { FileIcon, FolderIcon } from '@sisyphus/ui'
 import type {
   ChatConfig,
@@ -9,14 +9,14 @@ import type {
   ChatThread,
   ChatToolActivity,
 } from '@sisyphus/sdk'
-import icon from './icon.svg'
-import { extensionOf } from './attachments'
+import icon from '../icon.svg'
+import { extensionOf } from '../lib/attachments'
 import { MessageEditor } from './message-editor'
 import { ToolCall } from './tool-activity'
-import { folderLabel } from './format'
-import { messageParts, type LiveTranscript } from './transcript'
-import { Follow } from './follow'
-import { activePath, branchOf, siblings } from './tree'
+import { folderLabel } from '../lib/format'
+import { messageParts, type LiveTranscript } from '../lib/transcript'
+import { Follow } from '../lib/follow'
+import { activePath, branchOf, siblings } from '../lib/tree'
 
 interface MessageListProps {
   thread: ChatThread | null
@@ -322,8 +322,8 @@ export function MessageList({
       {!messages.length && !busy && (
         <div className="chat-welcome">
           <span className="icon-mask" style={{ maskImage: `url("${icon}")` }} aria-hidden="true" />
-          <h2>A little help, right here.</h2>
-          <p>Talk through an idea, plan your day, or work with your to-dos.</p>
+          <h2>Chat</h2>
+          <p>A configurable assistant.</p>
           {config?.model ? (
             <>
               <div className="chat-suggestions">

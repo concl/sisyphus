@@ -6,15 +6,15 @@ import type {
   ChatThread,
   Desktop,
 } from '@sisyphus/sdk'
-import type { ChatEvent, ThreadSummary } from './types'
-import { readDefaultFolder, writeDefaultFolder } from './default-folder'
+import type { ChatEvent, ThreadSummary } from '../types'
+import { readDefaultFolder, writeDefaultFolder } from '../lib/default-folder'
 import {
   appendReasoning,
   appendText,
   updateTool,
   EMPTY_TRANSCRIPT,
   type LiveTranscript,
-} from './transcript'
+} from '../lib/transcript'
 
 /** A reply that is still streaming from the desktop service. */
 export interface ChatRun {
@@ -163,6 +163,8 @@ export class ChatStore {
       this.runs.set(run.runId, { ...run, live: { ...run.live, parts: appendReasoning(run.live.parts, event.text) } })
     if (event.type === 'text' && event.text)
       this.runs.set(run.runId, { ...run, live: { ...run.live, parts: appendText(run.live.parts, event.text) } })
+    if (event.type === 'notice' && event.text)
+      this.runs.set(run.runId, { ...run, live: { ...run.live, parts: [...run.live.parts, { type: 'notice', text: event.text }] } })
     if (event.type === 'tool' && event.tool) {
       const tool = event.tool
       this.runs.set(run.runId, { ...run, live: updateTool(run.live, tool) })

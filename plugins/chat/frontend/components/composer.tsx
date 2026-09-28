@@ -5,8 +5,8 @@ import Mention from '@tiptap/extension-mention'
 import { Placeholder } from '@tiptap/extensions/placeholder'
 import { FileIcon } from '@sisyphus/ui'
 import { readable, type ChatAttachmentInput, type ChatConfig, type FileEntry } from '@sisyphus/sdk'
-import { MAX_ATTACHMENTS, extensionOf, readAttachments } from './attachments'
-import { mentionBridge } from './mention-bridge'
+import { MAX_ATTACHMENTS, extensionOf, readAttachments } from '../lib/attachments'
+import { mentionBridge } from '../lib/mention-bridge'
 import { mentionSuggestion } from './mention-suggestion'
 
 const MAX_LENGTH = 20000

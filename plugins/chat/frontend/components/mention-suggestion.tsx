@@ -2,7 +2,7 @@ import { ReactRenderer } from '@tiptap/react'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
 import tippy, { type Instance } from 'tippy.js'
 import type { FileEntry } from '@sisyphus/sdk'
-import { mentionBridge, type MentionBridge } from './mention-bridge'
+import { mentionBridge, type MentionBridge } from '../lib/mention-bridge'
 import { MentionList, type MentionListHandle, type MentionPick } from './mention-list'
 
 /**

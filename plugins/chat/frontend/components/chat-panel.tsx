@@ -4,13 +4,13 @@ import type { ChatAttachmentInput, Desktop, Panels } from '@sisyphus/sdk'
 import { ChatComposer, type ChatComposerHandle } from './composer'
 import { ConversationSidebar } from './conversation-sidebar'
 import { MessageList } from './message-list'
-import { folderLabel } from './format'
-import { useChat } from './use-chat'
-import { useChatSidebar } from './use-chat-sidebar'
-import { useFileMentions } from './use-file-mentions'
+import { folderLabel } from '../lib/format'
+import { useChat } from '../hooks/use-chat'
+import { useChatSidebar } from '../hooks/use-chat-sidebar'
+import { useFileMentions } from '../hooks/use-file-mentions'
 import 'tippy.js/dist/tippy.css'
 import 'streamdown/styles.css'
-import './chat.css'
+import '../chat.css'
 
 export interface ChatPanelProps {
   panels: Panels

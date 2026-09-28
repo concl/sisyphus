@@ -1,7 +1,7 @@
 import { services, type AppPlugin, type Desktop, type Panels } from '@sisyphus/sdk'
 import icon from './icon.svg'
-import { ChatPanel } from './chat-panel'
-import { releaseChatStore } from './chat-store'
+import { ChatPanel } from './components/chat-panel'
+import { releaseChatStore } from './state/chat-store'
 
 export const chatPlugin: AppPlugin = {
   id: 'feature.chat',

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSidebarSize } from '@sisyphus/ui'
-import { readSidebarState, writeSidebarState } from './sidebar-state'
+import { readSidebarState, writeSidebarState } from '../state/sidebar-state'
 
 /** Below this panel width the sidebar overlays the conversation instead of pushing it. */
 const COMPACT_WIDTH = 620

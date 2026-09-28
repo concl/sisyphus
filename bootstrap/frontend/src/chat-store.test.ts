@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatThread, Desktop } from '@sisyphus/sdk'
-import { ChatStore } from '../../../plugins/chat/frontend/chat-store'
+import { ChatStore } from '../../../plugins/chat/frontend/state/chat-store'
 import type { ChatEvent } from '../../../plugins/chat/frontend/types'
 
 const CONVERSATION: ChatThread = {

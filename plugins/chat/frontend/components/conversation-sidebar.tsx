@@ -1,7 +1,7 @@
 import { ChevronLeftIcon, PlusIcon, type IconProps } from '@sisyphus/ui'
-import type { ThreadSummary } from './types'
-import { formatDay } from './format'
-import { threadGroups } from './thread-groups'
+import type { ThreadSummary } from '../types'
+import { formatDay } from '../lib/format'
+import { threadGroups } from '../lib/thread-groups'
 
 interface ConversationSidebarProps {
   threads: ThreadSummary[]

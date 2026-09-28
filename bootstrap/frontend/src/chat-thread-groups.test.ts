@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { threadGroups, UNBOUND_LABEL } from '../../../plugins/chat/frontend/thread-groups'
+import { threadGroups, UNBOUND_LABEL } from '../../../plugins/chat/frontend/lib/thread-groups'
 import type { ThreadSummary } from '../../../plugins/chat/frontend/types'
 
 function thread(

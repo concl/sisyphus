@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Follow, atEnd } from '../../../plugins/chat/frontend/follow'
+import { Follow, atEnd } from '../../../plugins/chat/frontend/lib/follow'
 
 /** A scroller holding `height` of content in a window of `visible`, scrolled to `top`. */
 function scroller(height: number, visible: number, top: number) {

@@ -1,4 +1,4 @@
-import type { ThreadSummary } from './types'
+import type { ThreadSummary } from '../types'
 import { folderLabel } from './format'
 
 /** Heading for conversations that are not bound to a folder yet. */
