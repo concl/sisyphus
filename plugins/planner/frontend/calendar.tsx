@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { Planner, PlannerItem } from '@sisyphus/sdk'
+import { ResizableSidebar } from '@sisyphus/ui'
 import { Editor } from './editor'
 import { Icon } from './icons'
 import { MoreActions } from './more-actions'
@@ -48,7 +49,7 @@ export function Calendar({ planner }: { planner: Planner }) {
     [selected, setSelected] = useState(today)
   const [view, setView] = useState<View>('month'),
     [taskFilter, setTaskFilter] = useState<TaskFilter>({ type: 'all' })
-  const [sidebarPreference, setSidebarPreference] = useState<boolean | null>(readSidebar),
+  const [sidebarOpen, setSidebarOpen] = useState(() => readSidebar() ?? true),
     [compact, setCompact] = useState(false)
   const [hiddenLists, setHiddenLists] = useState<Set<string>>(() => new Set())
   const allListsCheckbox = useRef<HTMLInputElement>(null)
@@ -70,14 +71,21 @@ export function Calendar({ planner }: { planner: Planner }) {
   const [notice, setNotice] = useState(''),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false)
-  const sidebarOpen = sidebarPreference ?? !compact
   useEffect(() => {
-    const observer = new ResizeObserver((entries) => setCompact(entries[0].contentRect.width < 720))
-    observer.observe(root.current!)
+    const element = root.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0].contentRect.width
+      // Dockview can briefly report zero while mounting or switching panels.
+      // Layout changes must not change the user's open/collapsed state.
+      if (width <= 0) return
+      setCompact(width < 720)
+    })
+    observer.observe(element)
     return () => observer.disconnect()
   }, [])
   const toggleSidebar = (next: boolean) => {
-    setSidebarPreference(next)
+    setSidebarOpen(next)
     try {
       localStorage.setItem('sisyphus.calendar.sidebar', next ? 'open' : 'closed')
     } catch {
@@ -358,11 +366,16 @@ export function Calendar({ planner }: { planner: Planner }) {
               onClick={() => toggleSidebar(false)}
             />
           )}
-          <div className="cal-sidebar-shell" data-open={sidebarOpen}>
-            <aside
+          <ResizableSidebar
+            className="cal-sidebar-shell"
+            label="Calendar sidebar"
+            width={206}
+            open={sidebarOpen}
+            overlay={compact}
+          >
+            <div
               id={sidebarId}
               className="cal-sidebar"
-              aria-label="Calendar sidebar"
               inert={!sidebarOpen}
               aria-hidden={!sidebarOpen}
             >
@@ -501,8 +514,8 @@ export function Calendar({ planner }: { planner: Planner }) {
                     ?.replaceAll('_', ' ')}
                 </span>
               </div>
-            </aside>
-          </div>
+            </div>
+          </ResizableSidebar>
           <main className="cal-content" inert={compact && sidebarOpen}>
             {!query && (
               <div className="cal-viewbar">

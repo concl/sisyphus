@@ -170,29 +170,13 @@
   position: relative;
 }
 .cal-sidebar-shell {
-  flex: 0 0 auto;
-  width: 206px;
   min-height: 0;
-  overflow: hidden;
-  transition:
-    width 200ms ease,
-    visibility 0s;
-}
-.cal-sidebar-shell[data-open='false'] {
-  width: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition:
-    width 200ms ease,
-    visibility 0s 200ms;
 }
 .cal-sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
-  transform: translateX(0);
-  transition: transform 200ms ease;
-  width: 206px;
+  width: 100%;
   min-height: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -318,30 +302,8 @@
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
-.cal-sidebar-shell[data-open='false'] .cal-sidebar {
-  transform: translateX(-100%);
-}
-.cal-app[data-compact='true'] .cal-sidebar-shell {
-  position: absolute;
-  inset: 0 auto 0 0;
+.cal-sidebar-shell[data-overlay='true'] {
   z-index: 5;
-  width: 224px;
-  overflow: visible;
-  transform: translateX(0);
-  transition:
-    transform 200ms ease,
-    visibility 0s;
-}
-.cal-app[data-compact='true'] .cal-sidebar-shell[data-open='false'] {
-  transform: translateX(-100%);
-  transition:
-    transform 200ms ease,
-    visibility 0s 200ms;
-}
-.cal-app[data-compact='true'] .cal-sidebar {
-  width: 224px;
-  transform: none;
-  box-shadow: 8px 0 20px var(--shadow);
 }
 .cal-sidebar-scrim {
   position: absolute;
@@ -352,7 +314,7 @@
   background: #0002 !important;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 200ms ease;
+  transition: opacity 0.18s ease;
 }
 .cal-sidebar-scrim[data-open='true'] {
   opacity: 1;
