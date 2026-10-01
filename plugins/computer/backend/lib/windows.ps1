@@ -13,6 +13,11 @@ using System.Windows.Forms;
 public static class DesktopInput {
   public static string CancelFile;
   public static void Check() { if (File.Exists(CancelFile)) throw new Exception("Request stopped"); }
+  public static void Wait(int milliseconds) {
+    var timer=System.Diagnostics.Stopwatch.StartNew();
+    while(timer.ElapsedMilliseconds < milliseconds) { Check(); System.Threading.Thread.Sleep((int)Math.Max(1, Math.Min(20, milliseconds-timer.ElapsedMilliseconds))); }
+    Check();
+  }
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll")] static extern uint SendInput(uint n, INPUT[] inputs, int size);
   [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
@@ -38,7 +43,7 @@ public static class DesktopInput {
     if (name.Length==1 && char.IsLetterOrDigit(name[0]) && name[0]<128) return name[0];
     int f; if (name.StartsWith("F") && int.TryParse(name.Substring(1),out f) && f>=1 && f<=12) return (ushort)(111+f);
     switch(name) {
-      case "CTRL": return 17; case "SHIFT": return 16; case "ALT": return 18; case "WIN": return 91;
+      case "CTRL": return 17; case "SHIFT": return 16; case "ALT": return 18; case "WIN": case "CMD": return 91;
       case "ENTER": return 13; case "TAB": return 9; case "ESC": return 27; case "SPACE": return 32;
       case "BACKSPACE": return 8; case "DELETE": return 46; case "HOME": return 36; case "END": return 35;
       case "PAGEUP": return 33; case "PAGEDOWN": return 34;
@@ -84,7 +89,14 @@ while ($null -ne ($line = [Console]::ReadLine())) {
           $point = Point $frame $request.x $request.y
           [DesktopInput]::Move($point[0],$point[1])
           $down,$up = switch ($request.button) { 'right' {8;16} 'middle' {32;64} default {2;4} }
-          for ($i=0; $i -lt $request.count; $i++) { [DesktopInput]::Check(); try { [DesktopInput]::Mouse($down,0) } finally { [DesktopInput]::Mouse($up,0) }; Start-Sleep -Milliseconds 70 }
+          $duration = if ($null -eq $request.durationMs) { 50 } else { [int]$request.durationMs }
+          if ($duration -lt 0 -or $duration -gt 10000) { throw 'durationMs must be between 0 and 10000.' }
+          for ($i=0; $i -lt $request.count; $i++) {
+            [DesktopInput]::Check()
+            try { [DesktopInput]::Mouse($down,0); [DesktopInput]::Wait($duration) }
+            finally { [DesktopInput]::Mouse($up,0) }
+            if ($i+1 -lt $request.count) { [DesktopInput]::Wait(70) }
+          }
         }
         'type' { [DesktopInput]::Text($request.text) }
         'key' { [DesktopInput]::Chord([string[]]$request.keys) }
@@ -97,7 +109,7 @@ while ($null -ne ($line = [Console]::ReadLine())) {
         }
         default { throw 'Unknown desktop action.' }
       }
-      Start-Sleep -Milliseconds 200
+      if ($request.capture -eq $false) { [Console]::WriteLine('{"inputSent":true}'); continue }
     }
     [DesktopInput]::Check()
     $ratio=[Math]::Min(1.0,1600 / [double]$bounds.Width)

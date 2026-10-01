@@ -270,7 +270,7 @@ export const settingsPlugin: AppPlugin = {
                 <p>
                   Tool results are sent to your configured model provider as part of the
                   conversation, including screenshots from computer tools. File tools are scoped to
-                  the conversation folder; computer tools can see and control the Windows desktop.
+                  the conversation folder; computer tools can see and control the host desktop.
                 </p>
                 <label>
                   Access level
