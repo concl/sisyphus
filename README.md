@@ -58,6 +58,25 @@ when a Python block asks a service to run, so there is nothing to warm up first.
 `--startup` for the app at login, and a second login item for anything else that has to
 be running beforehand.
 
+### A button for the development build
+
+The entry above opens the build that is already there. When you are working on the app
+itself and want a click to rebuild first, make the other entry with
+`scripts/build_and_run_desktop.py` as its target:
+
+```sh
+python scripts/dev_shortcut.py                # the entry, on the Desktop
+python scripts/dev_shortcut.py --menu         # also in the Start menu
+python scripts/dev_shortcut.py --startup      # also run it when you log in
+python scripts/dev_shortcut.py --remove       # take the entries away again
+python scripts/dev_shortcut.py --print        # say what would be written, write nothing
+```
+
+Windows only, since it writes `.lnk` files. The entry is named after the app with a
+`Dev` suffix so it sits beside the `npm run shortcut` one instead of overwriting it, and
+it runs the Python that made it, so a venv interpreter survives. A console window stays
+open with the build log while the app runs.
+
 ## Change the running app
 
 Feature packages live in `plugins/<feature>/`. Each package owns its source,
