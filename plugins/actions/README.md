@@ -44,12 +44,15 @@ ctx.effect(() =>
     input: ({ value, change, disabled }) => (
       <ItemPicker value={value} onChange={change} disabled={disabled} />
     ),
+    summary: ({ value }) => <ItemLabel item={value} />,
     result: ({ value }) => <ItemSummary item={value} />,
   }),
 )
 ```
 
 The UI observes these registrations and disposes them with their components.
+Structured card inputs use `summary` for a compact preview and open `input` in a
+modal dialog. The selected step always keeps its settings editable in place.
 Missing custom editors fall back to the field's generic control. Calendar's
 adapter demonstrates reusable scheduling controls, an observable domain change,
 and a result that can open the existing Calendar panel. The catalog publishes

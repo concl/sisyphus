@@ -41,6 +41,49 @@ function normalizeInputs(inputs = []) {
     if (!label || label.length > 80) throw new Error('Give every input a label of 1–80 characters')
     if (!inputKinds.includes(input.kind)) throw new Error(`Unknown input type: ${input.kind}`)
     const definition = { key: input.key, label, kind: input.kind === 'urls' ? 'lines' : input.kind }
+    if (input.field !== undefined) {
+      const field = jsonValue(input.field)
+      if (
+        !field ||
+        Array.isArray(field) ||
+        ![
+          'text',
+          'file',
+          'folder',
+          'select',
+          'number',
+          'boolean',
+          'targets',
+          'lines',
+          'json',
+        ].includes(field.kind) ||
+        Object.keys(field).some((key) => !['kind', 'hint', 'min', 'max', 'options'].includes(key))
+      )
+        throw new Error('Invalid input control')
+      if (
+        (field.hint !== undefined &&
+          (typeof field.hint !== 'string' || field.hint.length > 4096)) ||
+        ['min', 'max'].some(
+          (key) =>
+            field[key] !== undefined &&
+            (typeof field[key] !== 'number' || !Number.isFinite(field[key])),
+        )
+      )
+        throw new Error('Invalid input control')
+      if (
+        field.options !== undefined &&
+        (!Array.isArray(field.options) ||
+          field.options.length > 100 ||
+          field.options.some(
+            (option) =>
+              !option || typeof option.value !== 'string' || typeof option.label !== 'string',
+          ))
+      )
+        throw new Error('Invalid input choices')
+      if (!compatible(field.kind, definition.kind))
+        throw new Error('Input control does not match its value type')
+      definition.field = field
+    }
     if (input.editor !== undefined) {
       if (typeof input.editor !== 'string' || !/^[a-zA-Z0-9_.-]{1,120}$/.test(input.editor))
         throw new Error('Invalid input editor')

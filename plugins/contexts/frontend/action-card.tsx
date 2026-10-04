@@ -17,6 +17,7 @@ export function ActionCard({
   dragStart,
   dragEnd,
   drop,
+  reportError,
 }: {
   flow: Flow
   run?: Run
@@ -30,6 +31,7 @@ export function ActionCard({
   dragStart: (event: DragEvent<HTMLButtonElement>) => void
   dragEnd: () => void
   drop: () => void
+  reportError: (error: string) => void
 }) {
   useSyncExternalStore(presentations.subscribe, presentations.getSnapshot)
   const [inputs, setInputs] = useState(flow.inputs ?? [])
@@ -41,17 +43,29 @@ export function ActionCard({
   const pending = useRef(Promise.resolve())
   const current = useRef(inputs)
   const [dirty, setDirty] = useState(false)
+  const dirtyRef = useRef(false)
+  const alive = useRef(true)
   const [previous, setPrevious] = useState(flow.inputs)
   if (previous !== flow.inputs) {
     setPrevious(flow.inputs)
     if (!dirty) setInputs(flow.inputs ?? [])
   }
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
       if (timer.current) clearTimeout(timer.current)
-    },
-    [],
-  )
+      if (dirtyRef.current) {
+        const inputValues = Object.fromEntries(
+          current.current.map((input) => [input.key, input.value]),
+        )
+        void pending.current
+          .catch(() => {})
+          .then(() => desktop.call('automations.inputs.set', { id: flow.id, inputValues }))
+          .catch((problem) => reportError(`${flow.title}: ${String(problem)}`))
+      }
+    }
+  }, [desktop, flow.id, flow.title, reportError])
   useEffect(() => {
     current.current = inputs
   }, [inputs])
@@ -62,19 +76,26 @@ export function ActionCard({
     if (root.current?.querySelector('[aria-invalid="true"]'))
       throw new Error('Check the highlighted input.')
     const captured = current.current
+    if (!dirtyRef.current) {
+      await pending.current
+      return
+    }
     setSaving(true)
     const task = pending.current
       .catch(() => {})
       .then(async () => {
         await desktop.call('automations.inputs.set', { id: flow.id, inputValues: values(captured) })
-        if (current.current === captured) setDirty(false)
+        if (current.current === captured) {
+          dirtyRef.current = false
+          if (alive.current) setDirty(false)
+        }
       })
     pending.current = task
     try {
       await task
-      setError('')
+      if (alive.current) setError('')
     } finally {
-      setSaving(false)
+      if (alive.current && pending.current === task) setSaving(false)
     }
   }
   async function launch() {
@@ -104,40 +125,37 @@ export function ActionCard({
     >
       <header className="action-card-header">
         <h2>{flow.title}</h2>
-        <button
-          className="action-drag-handle"
-          draggable
-          aria-label={`Move ${flow.title}`}
-          title="Drag to reorder"
-          onDragStart={dragStart}
-          onDragEnd={dragEnd}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
-            {[4, 8, 12].flatMap((y) =>
-              [5, 11].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1" />),
-            )}
-          </svg>
-        </button>
+        {running ? (
+          <button onClick={() => cancel(flow.id)}>Stop</button>
+        ) : (
+          <button
+            className="primary action-card-run"
+            aria-label={`Run ${flow.title}`}
+            disabled={starting || missing.length > 0}
+            onClick={() => void launch()}
+          >
+            {starting ? 'Starting…' : 'Run'}
+          </button>
+        )}
       </header>
-      <p className="action-card-description">
-        {flow.description ||
-          [
-            ...new Set(flow.nodes.map((node) => findType(types, node.type)?.name ?? node.title)),
-          ].join(' · ')}
-      </p>
+      {flow.description && <p className="action-card-description">{flow.description}</p>}
       <div className="action-card-inputs">
         <CardInputValues
+          compact
           inputs={inputs}
           desktop={desktop}
           presentations={presentations}
           change={(key, value) => {
             const next = inputs.map((input) => (input.key === key ? { ...input, value } : input))
             current.current = next
+            dirtyRef.current = true
             setDirty(true)
             setInputs(next)
             if (timer.current) clearTimeout(timer.current)
             timer.current = setTimeout(() => {
-              void persist().catch((problem) => setError(String(problem)))
+              void persist().catch((problem) => {
+                if (alive.current) setError(String(problem))
+              })
             }, 400)
           }}
         />
@@ -153,32 +171,52 @@ export function ActionCard({
         </p>
       )}
       <div className="action-card-controls">
-        {running ? (
-          <button onClick={() => cancel(flow.id)}>Stop</button>
-        ) : (
-          <button
-            className="primary"
-            aria-label={`Run ${flow.title}`}
-            disabled={starting || missing.length > 0}
-            onClick={() => void launch()}
-          >
-            {starting ? 'Starting…' : 'Run'}
-          </button>
-        )}
-        <span role="status">{saving ? 'Saving…' : dirty ? 'Unsaved' : 'Saved settings'}</span>
+        <span role="status">
+          {saving
+            ? 'Saving…'
+            : dirty
+              ? 'Unsaved changes'
+              : run
+                ? run.status === 'succeeded'
+                  ? 'Complete'
+                  : run.status === 'cancelled'
+                    ? 'Stopped'
+                    : run.status === 'running'
+                      ? 'Running…'
+                      : 'Failed'
+                : `${flow.nodes.length} ${flow.nodes.length === 1 ? 'step' : 'steps'}`}
+        </span>
+        <button
+          className="action-drag-handle"
+          draggable
+          aria-label={`Move ${flow.title}`}
+          title="Drag to reorder"
+          onDragStart={dragStart}
+          onDragEnd={dragEnd}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+            {[4, 8, 12].flatMap((y) =>
+              [5, 11].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1" />),
+            )}
+          </svg>
+        </button>
         <button
           aria-label={`Edit ${flow.title}`}
-          disabled={running || saving || starting}
+          disabled={running || starting}
           onClick={() => {
-            void persist()
-              .then(() => edit({ ...flow, inputs: current.current }))
-              .catch((problem) => setError(String(problem)))
+            edit({ ...flow, inputs: current.current })
           }}
         >
           Edit
         </button>
         <details className="action-card-menu">
-          <summary aria-label={`Options for ${flow.title}`}>Options</summary>
+          <summary aria-label={`Options for ${flow.title}`}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="3" cy="8" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="13" cy="8" r="1.5" />
+            </svg>
+          </summary>
           <div>
             <button
               disabled={running || saving}
@@ -198,15 +236,6 @@ export function ActionCard({
       </div>
       {run && (
         <div className="action-card-results">
-          <span className="action-card-status" role="status">
-            {run.status === 'succeeded'
-              ? 'Complete'
-              : run.status === 'cancelled'
-                ? 'Stopped'
-                : run.status === 'running'
-                  ? 'Running…'
-                  : 'Failed'}
-          </span>
           {flow.nodes.map((node) => {
             const state = run.nodes[node.id]
             if (!state) return null

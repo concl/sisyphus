@@ -116,9 +116,6 @@ module.exports = async function captureLaunchers(window, directory) {
   })()`)
   window.setSize(900, 700)
   await delay(200)
-  await wc.executeJavaScript(
-    `document.querySelector('.action-inspector').scrollIntoView({block: 'start'})`,
-  )
   await capture('actions-inspector-dark-narrow')
   window.setSize(1320, 900)
   await wc.executeJavaScript(`(async () => {
@@ -146,4 +143,5 @@ module.exports = async function captureLaunchers(window, directory) {
     search.dispatchEvent(new Event('input', {bubbles: true}));
   })()`)
   await capture('calendar-action-card')
+  await require('./actions-usability')(window, capture)
 }

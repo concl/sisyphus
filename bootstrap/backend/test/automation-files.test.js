@@ -25,6 +25,7 @@ test('inline input saves merge into the current graph and preserve provider edit
   const { automations } = setup(t)
   const flow = browserTabsFlow('tabs')
   flow.inputs[0].editor = 'example.websites'
+  flow.inputs[0].field = { kind: 'lines', hint: 'One address per line' }
   const saved = automations.save(flow)
   const edited = automations.save({
     ...saved,
@@ -34,8 +35,44 @@ test('inline input saves merge into the current graph and preserve provider edit
   assert.equal(inputs.programId, edited.programId)
   assert.equal(inputs.nodes[0].x, 700)
   assert.equal(inputs.inputs[0].editor, 'example.websites')
+  assert.deepEqual(inputs.inputs[0].field, flow.inputs[0].field)
   assert.deepEqual(inputs.inputs[0].value, ['https://example.org/'])
   assert.throws(() => automations.setInputs('tabs', { missing: true }), /Unknown card input/)
+})
+
+test('exposed input controls survive duplication and reopening with independent values', (t) => {
+  const { files, automations } = setup(t)
+  const flow = browserTabsFlow('tabs')
+  flow.inputs.push({
+    key: 'window',
+    label: 'Window',
+    kind: 'text',
+    value: 'new',
+    field: {
+      kind: 'select',
+      options: [
+        { value: 'new', label: 'New window' },
+        { value: 'reuse', label: 'Reuse window' },
+      ],
+    },
+  })
+  const saved = automations.save(flow)
+  const copy = automations.save({ ...saved, id: 'copy' })
+  automations.setInputs(copy.id, { window: 'reuse' })
+  const reopened = new Automations({ files })
+  assert.deepEqual(reopened.list().find((card) => card.id === 'copy').inputs[1], {
+    ...flow.inputs[1],
+    value: 'reuse',
+  })
+  assert.equal(reopened.list().find((card) => card.id === 'tabs').inputs[1].value, 'new')
+  assert.throws(
+    () =>
+      automations.save({
+        ...saved,
+        inputs: [{ ...flow.inputs[1], field: { kind: 'number' } }],
+      }),
+    /does not match/,
+  )
 })
 
 test('runCard waits for results, propagates cancellation and rejects overlapping recursion', async (t) => {

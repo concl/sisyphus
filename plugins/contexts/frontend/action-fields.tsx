@@ -24,6 +24,9 @@ export function ConfigField({
   bind,
   sources = [],
   presentations,
+  changeInput,
+  expose,
+  compact = false,
 }: {
   field: Field
   config: Record<string, unknown>
@@ -34,18 +37,26 @@ export function ConfigField({
   bind?: (key: Binding | null) => void
   sources?: SourceOption[]
   presentations?: ActionPresentations
+  changeInput?: (key: string, value: unknown) => void
+  expose?: (show: boolean) => void
+  compact?: boolean
 }) {
   useSyncExternalStore(
     presentations?.subscribe ?? noSubscribe,
     presentations?.getSnapshot ?? noSnapshot,
   )
   const Input = presentations?.get(field.editor)?.input
-  const Label = Input && !binding ? 'div' : 'label'
+  const wholeInput =
+    binding && inputKey(binding) && !(typeof binding === 'object' && binding.path?.length)
+  const inlineInput = Boolean(wholeInput && changeInput)
+  const linked = Boolean(binding && !inlineInput)
+  const Label = Input && !linked ? 'div' : 'label'
   const [problem, setProblem] = useState('')
   const [lines, setLines] = useState(() =>
     Array.isArray(config[field.key]) ? (config[field.key] as string[]).join('\n') : '',
   )
   const [json, setJson] = useState(() => JSON.stringify(config[field.key] ?? null, null, 2))
+  const [number, setNumber] = useState(() => String(config[field.key] ?? ''))
   const [propertyPath, setPropertyPath] = useState(() =>
     typeof binding === 'object'
       ? (binding.path?.slice('step' in binding ? 1 : 0).join('.') ?? '')
@@ -58,6 +69,7 @@ export function ConfigField({
     setPreviousValue(encoded)
     setLines(Array.isArray(value) ? value.join('\n') : '')
     setJson(JSON.stringify(value ?? null, null, 2))
+    setNumber(String(value ?? ''))
     setProblem('')
   }
   const available: SourceOption[] = [
@@ -70,9 +82,17 @@ export function ConfigField({
     ...sources,
   ]
   const source = binding
-    ? available.find((item) => bindingId(item.reference) === bindingId(binding))
+    ? available.find(
+        (item) =>
+          bindingId(item.reference) === bindingId(binding) ||
+          (wholeInput && inputKey(item.reference) === inputKey(binding)),
+      )
     : undefined
   if (field.when && config[field.when.key] !== field.when.value) return null
+  const update = (value: unknown) => {
+    if (inlineInput && binding) changeInput?.(inputKey(binding)!, value)
+    else change(field.key, value)
+  }
   async function choose(kind: string) {
     try {
       setProblem('')
@@ -82,8 +102,8 @@ export function ConfigField({
         const next = [...((value as string[] | undefined) ?? []), result.path]
         setLines(next.join('\n'))
         setPreviousValue(JSON.stringify(next))
-        change(field.key, next)
-      } else change(field.key, result.path)
+        update(next)
+      } else update(result.path)
     } catch (error) {
       setProblem(String(error))
     }
@@ -92,29 +112,7 @@ export function ConfigField({
     <div className="action-field">
       <Label>
         <span>{field.label}</span>
-        {bind && (available.length > 0 || binding) && (
-          <select
-            aria-label={`Source for ${field.label}`}
-            value={bindingId(binding)}
-            onChange={(event) =>
-              bind(
-                available.find((item) => bindingId(item.reference) === event.target.value)
-                  ?.reference ?? null,
-              )
-            }
-          >
-            <option value="">Custom value</option>
-            {binding && !source && (
-              <option value={bindingId(binding)}>Unavailable or incompatible source</option>
-            )}
-            {available.map((item) => (
-              <option key={bindingId(item.reference)} value={bindingId(item.reference)}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        )}
-        {binding ? (
+        {linked && binding ? (
           <div className="action-bound-value">
             <span>
               Uses{' '}
@@ -133,7 +131,7 @@ export function ConfigField({
             </small>
           </div>
         ) : Input ? (
-          <Input value={value} change={(value) => change(field.key, value)} />
+          <Input value={value} change={update} />
         ) : field.kind === 'json' ? (
           <textarea
             rows={5}
@@ -146,7 +144,7 @@ export function ConfigField({
                 const parsed: unknown = JSON.parse(event.target.value)
                 setPreviousValue(JSON.stringify(parsed))
                 setProblem('')
-                change(field.key, parsed)
+                update(parsed)
               } catch {
                 setProblem('Enter valid JSON before saving or running.')
               }
@@ -155,7 +153,8 @@ export function ConfigField({
         ) : field.kind === 'select' ? (
           <select
             value={String(value ?? '')}
-            onChange={(event) => change(field.key, event.target.value)}
+            aria-label={field.label}
+            onChange={(event) => update(event.target.value)}
           >
             {field.options?.map((option) => (
               <option key={option.value} value={option.value}>
@@ -167,11 +166,13 @@ export function ConfigField({
           <input
             type="checkbox"
             checked={Boolean(value)}
-            onChange={(event) => change(field.key, event.target.checked)}
+            aria-label={field.label}
+            onChange={(event) => update(event.target.checked)}
           />
         ) : field.kind === 'targets' || field.kind === 'lines' ? (
           <textarea
-            rows={4}
+            rows={compact ? 2 : 3}
+            aria-label={field.label}
             value={lines}
             onChange={(event) => {
               setLines(event.target.value)
@@ -180,46 +181,95 @@ export function ConfigField({
                 .map((line) => line.trim())
                 .filter(Boolean)
               setPreviousValue(JSON.stringify(next))
-              change(field.key, next)
+              update(next)
             }}
           />
         ) : (
           <input
             type={field.kind === 'number' ? 'number' : 'text'}
-            value={String(value ?? '')}
+            aria-label={field.label}
+            value={field.kind === 'number' ? number : String(value ?? '')}
             min={field.min}
             max={field.max}
-            onChange={(event) =>
-              change(
-                field.key,
-                field.kind === 'number' ? Number(event.target.value) : event.target.value,
-              )
-            }
+            required={field.kind === 'number'}
+            aria-invalid={Boolean(problem)}
+            onChange={(event) => {
+              if (field.kind !== 'number') {
+                update(event.target.value)
+                return
+              }
+              setNumber(event.target.value)
+              if (!event.target.validity.valid || !Number.isFinite(Number(event.target.value))) {
+                setProblem(event.target.validationMessage || 'Enter a valid number.')
+                return
+              }
+              const next = Number(event.target.value)
+              setPreviousValue(JSON.stringify(next))
+              setProblem('')
+              update(next)
+            }}
           />
         )}
       </Label>
-      {binding && typeof binding === 'object' && bind && (
-        <label className="action-result-path">
-          <span>Property inside this value (optional)</span>
+      {expose && !linked && (
+        <label className="action-expose">
           <input
-            aria-label={`Property path for ${field.label}`}
-            placeholder="e.g. items.0.url"
-            value={propertyPath}
-            onChange={(event) => {
-              setPropertyPath(event.target.value)
-              bind({
-                ...binding,
-                path: [
-                  ...('step' in binding ? (binding.path?.slice(0, 1) ?? []) : []),
-                  ...event.target.value.split('.').filter(Boolean),
-                ],
-              })
-            }}
+            type="checkbox"
+            aria-label={`Show ${field.label} on card`}
+            checked={inlineInput}
+            onChange={(event) => expose(event.target.checked)}
           />
+          Show on card
         </label>
       )}
-      {field.hint && <small>{field.hint}</small>}
-      {!binding && ['file', 'folder', 'targets'].includes(field.kind) && (
+      {bind && (available.length > 0 || binding) && (
+        <details className="action-field-source" open={linked}>
+          <summary>{linked ? 'Change source' : 'Use another value'}</summary>
+          <label>
+            <span>Value from</span>
+            <select
+              aria-label={`Source for ${field.label}`}
+              value={source ? bindingId(source.reference) : bindingId(binding)}
+              onChange={(event) =>
+                bind(
+                  available.find((item) => bindingId(item.reference) === event.target.value)
+                    ?.reference ?? null,
+                )
+              }
+            >
+              <option value="">This step</option>
+              {binding && !source && <option value={bindingId(binding)}>Unavailable source</option>}
+              {available.map((item) => (
+                <option key={bindingId(item.reference)} value={bindingId(item.reference)}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {binding && typeof binding === 'object' && bind && !inlineInput && (
+            <label className="action-result-path">
+              <span>Property inside this value (optional)</span>
+              <input
+                aria-label={`Property path for ${field.label}`}
+                placeholder="e.g. items.0.url"
+                value={propertyPath}
+                onChange={(event) => {
+                  setPropertyPath(event.target.value)
+                  bind({
+                    ...binding,
+                    path: [
+                      ...('step' in binding ? (binding.path?.slice(0, 1) ?? []) : []),
+                      ...event.target.value.split('.').filter(Boolean),
+                    ],
+                  })
+                }}
+              />
+            </label>
+          )}
+        </details>
+      )}
+      {field.hint && !compact && <small>{field.hint}</small>}
+      {!linked && ['file', 'folder', 'targets'].includes(field.kind) && (
         <div className="action-browse">
           <button
             type="button"

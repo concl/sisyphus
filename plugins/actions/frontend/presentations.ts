@@ -9,6 +9,7 @@ export interface ActionResultProps {
   value: unknown
 }
 export interface ActionPresentation {
+  summary?: ComponentType<ActionResultProps>
   input?: ComponentType<ActionInputProps>
   result?: ComponentType<ActionResultProps>
 }

@@ -11,6 +11,7 @@ import {
   inputKey,
   stepKey,
   compatibleInput,
+  cardInputFor,
   start,
   WIDTH,
   type Edge,
@@ -18,7 +19,6 @@ import {
   type Run,
   type Step,
   type StepType,
-  type CardInput,
 } from './action-model'
 import { ConfigField } from './action-fields'
 import { CardInputsEditor } from './card-inputs'
@@ -72,6 +72,7 @@ export function Actions({
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [inspecting, setInspecting] = useState(true)
   const [stepQuery, setStepQuery] = useState('')
   const [dragging, setDragging] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -90,6 +91,17 @@ export function Actions({
     clientY: number
   } | null>(null)
   const original = useRef('')
+
+  useEffect(() => {
+    if (!adding) return
+    panel.current?.querySelector<HTMLInputElement>('[aria-label="Find an action"]')?.focus()
+    const outside = (event: globalThis.PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.action-add-wrap'))
+        setAdding(false)
+    }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [adding])
 
   useEffect(() => {
     let alive = true
@@ -136,12 +148,13 @@ export function Actions({
   function edit(flow: Flow) {
     original.current = JSON.stringify(flow)
     setDraft(clone(flow))
-    setSelected('start')
+    setSelected(flow.nodes[0]?.id ?? 'start')
     setSelectedEdge(null)
     setConnecting(null)
     setError('')
     setMessage('')
     setAdding(false)
+    setInspecting(flow.nodes.length > 0)
     setZoom(1)
   }
   function close() {
@@ -170,15 +183,7 @@ export function Actions({
     const id = crypto.randomUUID()
     const inputs = type.fields
       .filter((field) => field.expose)
-      .map((field) => ({
-        key: crypto.randomUUID(),
-        label: field.label,
-        editor: field.editor,
-        kind: (['number', 'boolean', 'lines', 'json'].includes(field.kind)
-          ? field.kind
-          : 'text') as CardInput['kind'],
-        value: clone(type.defaults[field.key] ?? ''),
-      }))
+      .map((field) => cardInputFor(field, clone(type.defaults[field.key] ?? '')))
     const exposed = type.fields.filter((field) => field.expose)
     const node = {
       bindings: Object.fromEntries(exposed.map((field, index) => [field.key, inputs[index].key])),
@@ -196,6 +201,7 @@ export function Actions({
       edges: [...draft.edges, { from: last?.id ?? 'start', to: id }],
     })
     setSelected(id)
+    setInspecting(true)
     setSelectedEdge(null)
     setAdding(false)
     requestAnimationFrame(() =>
@@ -205,6 +211,42 @@ export function Actions({
         behavior: 'smooth',
       }),
     )
+  }
+  function exposeField(field: import('./action-model').Field, show: boolean) {
+    if (!draft || !currentNode) return
+    const bindings = { ...currentNode.bindings }
+    if (show) {
+      const input = cardInputFor(field, clone(currentConfig[field.key] ?? ''))
+      bindings[field.key] = input.key
+      setDraft({
+        ...draft,
+        inputs: [...(draft.inputs ?? []), input],
+        nodes: draft.nodes.map((node) =>
+          node.id === currentNode.id ? { ...node, bindings } : node,
+        ),
+      })
+    } else {
+      const reference = bindings[field.key]
+      const key = reference ? inputKey(reference) : undefined
+      delete bindings[field.key]
+      const nodes = draft.nodes.map((node) =>
+        node.id === currentNode.id
+          ? {
+              ...node,
+              bindings,
+              config: { ...node.config, [field.key]: clone(currentConfig[field.key] ?? '') },
+            }
+          : node,
+      )
+      const stillUsed = nodes.some((node) =>
+        Object.values(node.bindings ?? {}).some((ref) => inputKey(ref) === key),
+      )
+      setDraft({
+        ...draft,
+        nodes,
+        inputs: stillUsed ? draft.inputs : draft.inputs?.filter((input) => input.key !== key),
+      })
+    }
   }
   function connect(to: string) {
     if (!draft || !connecting) return
@@ -385,11 +427,6 @@ export function Actions({
       <header className="actions-heading">
         <div>
           <h1>{draft ? 'Edit action' : 'Actions'}</h1>
-          <p>
-            {draft
-              ? 'Connect actions and pass results from one step to the next.'
-              : 'Run with saved settings. Inputs are saved as you edit.'}
-          </p>
         </div>
         <div className="actions-heading-buttons">
           {draft ? (
@@ -457,14 +494,17 @@ export function Actions({
                 values belong to this card.
               </p>
             )}
-          <div className="action-builder">
+          <div className={`action-builder ${inspecting ? 'inspecting' : ''}`}>
             <div className="action-graph-shell">
               <div className="action-graph-toolbar">
                 <div className="action-add-wrap">
                   <button
                     className="action-add-button"
                     aria-expanded={adding}
-                    onClick={() => setAdding(!adding)}
+                    onClick={() => {
+                      setAdding(!adding)
+                      if (!adding) setStepQuery('')
+                    }}
                   >
                     + Add step
                   </button>
@@ -476,24 +516,45 @@ export function Actions({
                         placeholder="Find an action…"
                         value={stepQuery}
                         onChange={(event) => setStepQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter') return
+                          const match = types.find((type) =>
+                            `${type.name} ${type.description} ${type.service?.name ?? ''}`
+                              .toLowerCase()
+                              .includes(stepQuery.toLowerCase()),
+                          )
+                          if (match) addNode(match)
+                        }}
                       />
-                      {types
-                        .filter((type) =>
-                          `${type.name} ${type.description} ${type.service?.name ?? ''}`
-                            .toLowerCase()
-                            .includes(stepQuery.toLowerCase()),
-                        )
-                        .map((type) => (
-                          <button key={type.type} onClick={() => addNode(type)}>
-                            <span>
-                              <strong>{type.name}</strong>
-                              {type.service && (
-                                <small className="action-service-name">{type.service.name}</small>
-                              )}
-                              <small>{type.description}</small>
-                            </span>
-                          </button>
-                        ))}
+                      {[...new Set(types.map((type) => type.service?.name ?? 'Other'))].map(
+                        (service) => {
+                          const matches = types.filter(
+                            (type) =>
+                              (type.service?.name ?? 'Other') === service &&
+                              `${type.name} ${type.description} ${service}`
+                                .toLowerCase()
+                                .includes(stepQuery.toLowerCase()),
+                          )
+                          return matches.length ? (
+                            <section className="action-service-group" key={service}>
+                              <h3>{service}</h3>
+                              {matches.map((type) => (
+                                <button key={type.type} onClick={() => addNode(type)}>
+                                  <span>
+                                    <strong>{type.name}</strong>
+                                    <small>{type.description}</small>
+                                  </span>
+                                </button>
+                              ))}
+                            </section>
+                          ) : null
+                        },
+                      )}
+                      {!types.some((type) =>
+                        `${type.name} ${type.description} ${type.service?.name ?? ''}`
+                          .toLowerCase()
+                          .includes(stepQuery.toLowerCase()),
+                      ) && <p>No matching actions</p>}
                     </div>
                   )}
                 </div>
@@ -503,6 +564,16 @@ export function Actions({
                     : 'Drag steps to arrange · connect the dots'}
                 </span>
                 <div className="action-zoom" aria-label="Graph zoom">
+                  <button
+                    aria-label="Card settings"
+                    onClick={() => {
+                      setSelected('start')
+                      setSelectedEdge(null)
+                      setInspecting(true)
+                    }}
+                  >
+                    Settings
+                  </button>
                   <button
                     aria-label="Zoom out"
                     onClick={() => setZoom(Math.max(0.25, zoom - 0.15))}
@@ -573,11 +644,14 @@ export function Actions({
                             tabIndex={0}
                             aria-label={`Connection from ${edge.from === 'start' ? 'Start' : draft.nodes.find((node) => node.id === edge.from)?.title} to ${draft.nodes.find((node) => node.id === edge.to)?.title}`}
                             onClick={() => {
+                              setInspecting(true)
                               setSelectedEdge(edge)
                               setSelected('')
                             }}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                setInspecting(true)
                                 setSelectedEdge(edge)
                                 setSelected('')
                               }
@@ -599,13 +673,14 @@ export function Actions({
                       <button
                         className="action-node-body"
                         onClick={() => {
+                          setInspecting(true)
                           setSelected('start')
                           setSelectedEdge(null)
                         }}
                       >
-                        <span className="action-node-kind">MANUAL START</span>
+                        <span className="action-node-kind">Start</span>
                         <strong>Run card</strong>
-                        <small>One click starts this flow</small>
+                        <small>Saved card inputs</small>
                       </button>
                       {port('start', true, 'Start')}
                     </div>
@@ -619,6 +694,7 @@ export function Actions({
                         <button
                           className="action-node-body"
                           onClick={() => {
+                            setInspecting(true)
                             setSelected(node.id)
                             setSelectedEdge(null)
                           }}
@@ -650,229 +726,262 @@ export function Actions({
                     ))}
                     {!draft.nodes.length && (
                       <div className="action-canvas-empty">
-                        <strong>What should this button do?</strong>
-                        <p>Add Open, Run, or Wait. Connect them into your routine.</p>
-                        <button onClick={() => setAdding(true)}>+ Add your first step</button>
+                        <strong>No steps yet</strong>
+                        <p>Choose an action from a service.</p>
+                        <button onClick={() => setAdding(true)}>Add step</button>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-            <aside className="action-inspector">
-              {currentNode ? (
-                <>
-                  <span className="actions-eyebrow">STEP SETTINGS</span>
-                  <label className="action-field">
-                    <span>Step title</span>
-                    <input
-                      value={currentNode.title}
-                      maxLength={80}
-                      onChange={(event) =>
-                        updateNode(currentNode.id, { title: event.target.value })
-                      }
-                    />
-                  </label>
-                  <p className="action-inspector-description">
-                    {currentType?.description ??
-                      'This step’s plugin is unavailable. Install or enable it to run this flow.'}
-                  </p>
-                  {currentType?.fields.map((field) => (
-                    <ConfigField
-                      presentations={presentations}
-                      key={`${currentNode.id}:${field.key}:${bindingId(currentNode.bindings?.[field.key]) || 'custom'}`}
-                      field={field}
-                      config={currentConfig}
-                      inputs={draft.inputs ?? []}
-                      binding={currentNode.bindings?.[field.key]}
-                      sources={draft.nodes
+            {inspecting && (
+              <aside className="action-inspector">
+                <button
+                  className="action-inspector-close"
+                  aria-label="Close step settings"
+                  onClick={() => setInspecting(false)}
+                >
+                  Close
+                </button>
+                {currentNode ? (
+                  <>
+                    <h2>{currentType?.name ?? currentNode.title}</h2>
+                    <label className="action-field">
+                      <span>Step title</span>
+                      <input
+                        value={currentNode.title}
+                        maxLength={80}
+                        onChange={(event) =>
+                          updateNode(currentNode.id, { title: event.target.value })
+                        }
+                      />
+                    </label>
+                    <p className="action-inspector-description">
+                      {currentType?.description ??
+                        'This step’s plugin is unavailable. Install or enable it to run this flow.'}
+                    </p>
+                    {currentType?.fields.map((field) => (
+                      <ConfigField
+                        presentations={presentations}
+                        key={`${currentNode.id}:${field.key}:${bindingId(currentNode.bindings?.[field.key]) || 'custom'}`}
+                        field={field}
+                        config={currentConfig}
+                        inputs={draft.inputs ?? []}
+                        binding={currentNode.bindings?.[field.key]}
+                        changeInput={(key, value) =>
+                          setDraft({
+                            ...draft,
+                            inputs: draft.inputs?.map((input) =>
+                              input.key === key ? { ...input, value } : input,
+                            ),
+                          })
+                        }
+                        expose={(show) => exposeField(field, show)}
+                        sources={draft.nodes
+                          .filter(
+                            (node) =>
+                              node.id !== currentNode.id &&
+                              (draft.edges.some(
+                                (edge) => edge.from === node.id && edge.to === currentNode.id,
+                              ) ||
+                                !connectionError(draft.edges, node.id, currentNode.id)),
+                          )
+                          .flatMap((node) =>
+                            (findType(types, node.type)?.outputs ?? [])
+                              .filter((output) => compatibleInput(field.kind, output.kind))
+                              .map((output) => ({
+                                reference: { step: node.id, path: [output.key] },
+                                label: `${node.title} → ${output.label}`,
+                              })),
+                          )}
+                        bind={(key) => {
+                          const bindings = { ...currentNode.bindings }
+                          if (key) bindings[field.key] = key
+                          else delete bindings[field.key]
+                          const sourceStep = key ? stepKey(key) : undefined
+                          setDraft({
+                            ...draft,
+                            edges:
+                              sourceStep &&
+                              !draft.edges.some(
+                                (edge) => edge.from === sourceStep && edge.to === currentNode.id,
+                              )
+                                ? [...draft.edges, { from: sourceStep, to: currentNode.id }]
+                                : draft.edges,
+                            nodes: draft.nodes.map((node) =>
+                              node.id === currentNode.id
+                                ? {
+                                    ...node,
+                                    bindings,
+                                    config: {
+                                      ...node.config,
+                                      [field.key]: clone(
+                                        currentConfig[field.key] ?? node.config[field.key] ?? '',
+                                      ),
+                                    },
+                                  }
+                                : node,
+                            ),
+                          })
+                        }}
+                        desktop={desktop}
+                        change={(key, value) =>
+                          updateNode(currentNode.id, {
+                            config: { ...currentNode.config, [key]: value },
+                          })
+                        }
+                      />
+                    ))}
+                    <details className="action-incoming">
+                      <summary>Connections &amp; position</summary>
+                      <p>Waits for all connected steps to succeed.</p>
+                      {draft.edges
                         .filter(
-                          (node) =>
-                            node.id !== currentNode.id &&
-                            (draft.edges.some(
-                              (edge) => edge.from === node.id && edge.to === currentNode.id,
-                            ) ||
-                              !connectionError(draft.edges, node.id, currentNode.id)),
+                          (edge) => edge.to === currentNode.id || edge.from === currentNode.id,
                         )
-                        .flatMap((node) =>
-                          (findType(types, node.type)?.outputs ?? [])
-                            .filter((output) => compatibleInput(field.kind, output.kind))
-                            .map((output) => ({
-                              reference: { step: node.id, path: [output.key] },
-                              label: `${node.title} → ${output.label}`,
-                            })),
+                        .map((edge) => (
+                          <div key={`${edge.from}:${edge.to}`}>
+                            <span>
+                              {edge.from === 'start'
+                                ? 'Start'
+                                : draft.nodes.find((node) => node.id === edge.from)?.title}{' '}
+                              → {draft.nodes.find((node) => node.id === edge.to)?.title}
+                            </span>
+                            <button
+                              aria-label="Remove connection"
+                              onClick={() =>
+                                setDraft({
+                                  ...draft,
+                                  edges: draft.edges.filter((item) => item !== edge),
+                                })
+                              }
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      <label>
+                        X
+                        <input
+                          type="number"
+                          min={0}
+                          max={8000}
+                          value={Math.round(currentNode.x)}
+                          onChange={(event) =>
+                            updateNode(currentNode.id, {
+                              x: Math.max(0, Number(event.target.value)),
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Y
+                        <input
+                          type="number"
+                          min={0}
+                          max={8000}
+                          value={Math.round(currentNode.y)}
+                          onChange={(event) =>
+                            updateNode(currentNode.id, {
+                              y: Math.max(0, Number(event.target.value)),
+                            })
+                          }
+                        />
+                      </label>
+                    </details>
+                    {currentState && (
+                      <div className="action-node-result">
+                        <strong>{statusLabel(currentState.status)}</strong>
+                        {currentState.error && <p className="action-error">{currentState.error}</p>}
+                        {currentState.output && <pre>{currentState.output}</pre>}
+                        {currentState.result !== undefined && (
+                          <details>
+                            <summary>Result data</summary>
+                            <pre>{JSON.stringify(currentState.result, null, 2)}</pre>
+                          </details>
                         )}
-                      bind={(key) => {
-                        const bindings = { ...currentNode.bindings }
-                        if (key) bindings[field.key] = key
-                        else delete bindings[field.key]
-                        const sourceStep = key ? stepKey(key) : undefined
+                      </div>
+                    )}
+                    <button
+                      className="action-remove"
+                      onClick={() => {
+                        const nodes = draft.nodes.filter((node) => node.id !== currentNode.id)
+                        const usedHere = Object.values(currentNode.bindings ?? {}).map(inputKey)
                         setDraft({
                           ...draft,
-                          edges:
-                            sourceStep &&
-                            !draft.edges.some(
-                              (edge) => edge.from === sourceStep && edge.to === currentNode.id,
-                            )
-                              ? [...draft.edges, { from: sourceStep, to: currentNode.id }]
-                              : draft.edges,
-                          nodes: draft.nodes.map((node) =>
-                            node.id === currentNode.id
-                              ? {
-                                  ...node,
-                                  bindings,
-                                  config: {
-                                    ...node.config,
-                                    [field.key]: clone(
-                                      currentConfig[field.key] ?? node.config[field.key] ?? '',
-                                    ),
-                                  },
-                                }
-                              : node,
+                          nodes,
+                          inputs: draft.inputs?.filter(
+                            (input) =>
+                              !usedHere.includes(input.key) ||
+                              nodes.some((node) =>
+                                Object.values(node.bindings ?? {}).some(
+                                  (ref) => inputKey(ref) === input.key,
+                                ),
+                              ),
+                          ),
+                          edges: draft.edges.filter(
+                            (edge) => edge.from !== currentNode.id && edge.to !== currentNode.id,
                           ),
                         })
+                        setSelected('start')
+                        setConnecting(null)
                       }}
-                      desktop={desktop}
-                      change={(key, value) =>
-                        updateNode(currentNode.id, {
-                          config: { ...currentNode.config, [key]: value },
+                    >
+                      Remove step
+                    </button>
+                  </>
+                ) : selectedEdge ? (
+                  <>
+                    <span className="actions-eyebrow">CONNECTION</span>
+                    <h2>Run after success</h2>
+                    <p>
+                      The next step starts when all its incoming steps succeed. A failed step skips
+                      the steps that depend on it.
+                    </p>
+                    <button
+                      className="action-remove"
+                      onClick={() => {
+                        setDraft({
+                          ...draft,
+                          edges: draft.edges.filter(
+                            (edge) =>
+                              edge.from !== selectedEdge.from || edge.to !== selectedEdge.to,
+                          ),
                         })
-                      }
-                    />
-                  ))}
-                  <details className="action-incoming">
-                    <summary>Connections &amp; position</summary>
-                    <p>Waits for all connected steps to succeed.</p>
-                    {draft.edges
-                      .filter((edge) => edge.to === currentNode.id || edge.from === currentNode.id)
-                      .map((edge) => (
-                        <div key={`${edge.from}:${edge.to}`}>
-                          <span>
-                            {edge.from === 'start'
-                              ? 'Start'
-                              : draft.nodes.find((node) => node.id === edge.from)?.title}{' '}
-                            → {draft.nodes.find((node) => node.id === edge.to)?.title}
-                          </span>
-                          <button
-                            aria-label="Remove connection"
-                            onClick={() =>
-                              setDraft({
-                                ...draft,
-                                edges: draft.edges.filter((item) => item !== edge),
-                              })
-                            }
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    <label>
-                      X
-                      <input
-                        type="number"
-                        min={0}
-                        max={8000}
-                        value={Math.round(currentNode.x)}
+                        setSelectedEdge(null)
+                      }}
+                    >
+                      Remove connection
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2>Card settings</h2>
+                    <label className="action-field">
+                      <span>Description</span>
+                      <textarea
+                        rows={3}
+                        value={draft.description}
+                        maxLength={240}
+                        placeholder="A reminder of what this action does"
                         onChange={(event) =>
-                          updateNode(currentNode.id, { x: Math.max(0, Number(event.target.value)) })
+                          setDraft({ ...draft, description: event.target.value })
                         }
                       />
                     </label>
-                    <label>
-                      Y
-                      <input
-                        type="number"
-                        min={0}
-                        max={8000}
-                        value={Math.round(currentNode.y)}
-                        onChange={(event) =>
-                          updateNode(currentNode.id, { y: Math.max(0, Number(event.target.value)) })
-                        }
-                      />
-                    </label>
-                  </details>
-                  {currentState && (
-                    <div className="action-node-result">
-                      <strong>{statusLabel(currentState.status)}</strong>
-                      {currentState.error && <p className="action-error">{currentState.error}</p>}
-                      {currentState.output && <pre>{currentState.output}</pre>}
-                      {currentState.result !== undefined && (
-                        <details>
-                          <summary>Result data</summary>
-                          <pre>{JSON.stringify(currentState.result, null, 2)}</pre>
-                        </details>
-                      )}
-                    </div>
-                  )}
-                  <button
-                    className="action-remove"
-                    onClick={() => {
-                      setDraft({
-                        ...draft,
-                        nodes: draft.nodes.filter((node) => node.id !== currentNode.id),
-                        edges: draft.edges.filter(
-                          (edge) => edge.from !== currentNode.id && edge.to !== currentNode.id,
-                        ),
-                      })
-                      setSelected('start')
-                      setConnecting(null)
-                    }}
-                  >
-                    Remove step
-                  </button>
-                </>
-              ) : selectedEdge ? (
-                <>
-                  <span className="actions-eyebrow">CONNECTION</span>
-                  <h2>Run after success</h2>
-                  <p>
-                    The next step starts when all its incoming steps succeed. A failed step skips
-                    the steps that depend on it.
-                  </p>
-                  <button
-                    className="action-remove"
-                    onClick={() => {
-                      setDraft({
-                        ...draft,
-                        edges: draft.edges.filter(
-                          (edge) => edge.from !== selectedEdge.from || edge.to !== selectedEdge.to,
-                        ),
-                      })
-                      setSelectedEdge(null)
-                    }}
-                  >
-                    Remove connection
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h2>Card settings</h2>
-                  <p>
-                    Start branches from the Run card node. Connect a step’s output to the next
-                    step’s input.
-                  </p>
-                  <label className="action-field">
-                    <span>Description</span>
-                    <textarea
-                      rows={3}
-                      value={draft.description}
-                      maxLength={240}
-                      placeholder="A reminder of what this action does"
-                      onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                    <CardInputsEditor
+                      presentations={presentations}
+                      inputs={draft.inputs ?? []}
+                      desktop={desktop}
+                      change={(inputs) => setDraft({ ...draft, inputs })}
+                      remove={removeInput}
                     />
-                  </label>
-                  <CardInputsEditor
-                    presentations={presentations}
-                    inputs={draft.inputs ?? []}
-                    desktop={desktop}
-                    change={(inputs) => setDraft({ ...draft, inputs })}
-                    remove={removeInput}
-                  />
-                  <p>Select a step to configure it. Select a connection to remove it.</p>
-                  {activeRun && <p role="status">Last run: {statusLabel(activeRun.status)}</p>}
-                </>
-              )}
-            </aside>
+                    {activeRun && <p role="status">Last run: {statusLabel(activeRun.status)}</p>}
+                  </>
+                )}
+              </aside>
+            )}
           </div>
         </>
       ) : (
@@ -907,6 +1016,7 @@ export function Actions({
                 )
                 .map((flow) => (
                   <ActionCard
+                    reportError={setError}
                     key={flow.id}
                     flow={flow}
                     run={runs[flow.id]}

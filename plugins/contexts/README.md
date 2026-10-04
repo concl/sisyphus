@@ -38,9 +38,11 @@ copy it into app data. Programs can also keep scripts or assets beside
 `program.json`, using absolute paths in Run settings.
 
 Workflows expose **inputs**: text, numbers, on/off values, lists, and structured
-JSON data. Select Start to define them; cards provide their saved values.
+JSON data. In a step, **Show on card** exposes a setting while keeping it editable
+in place. Card settings also allow independently defined inputs. Exposed settings
+retain their choice lists, number limits, and file/folder controls.
 Every action setting can use a literal value, a workflow input, or an earlier
-step's result. Use **Source for …** in the inspector to choose one. Choosing a
+step's result. Expand **Use another value** in the inspector to choose one. Choosing a
 result automatically adds its execution dependency. A property path such as
 `items.0.url` selects part of structured data. Values retain their types; there
 is no implicit code execution or string evaluation.
@@ -50,7 +52,11 @@ JSON on stdout, Read JSON turns it into data, Format text creates an address,
 and Open uses it. Or pass **Web request → Response data** straight to another
 service's setting. Result data is inspectable in the step and run details.
 
-Inputs appear on the card and save automatically. Run saves pending edits before
+Simple inputs appear on the card and save automatically, including when navigating
+away immediately after an edit. Structured inputs show a compact summary; select
+it to edit in a dialog. Done applies the value; Cancel or Escape discards the draft.
+Providers can supply summary presentations alongside their input editors.
+Run saves pending edits before
 starting with a snapshot of those values. Invalid edits remain visible and block
 the run rather than silently using older settings.
 Duplicate creates a new card using the same program, with independent input

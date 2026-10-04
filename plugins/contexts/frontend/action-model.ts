@@ -50,16 +50,44 @@ export interface Step {
   bindings?: Record<string, Binding>
 }
 export interface CardInput {
+  field?: Omit<Field, 'key' | 'label' | 'when' | 'expose' | 'editor'>
   editor?: string
   key: string
   label: string
   kind: 'text' | 'number' | 'boolean' | 'lines' | 'urls' | 'json'
   value: unknown
 }
+export function cardInputFor(field: Field, value: unknown): CardInput {
+  return {
+    key: crypto.randomUUID(),
+    label: field.label,
+    editor: field.editor,
+    kind: (['number', 'boolean', 'json'].includes(field.kind)
+      ? field.kind
+      : ['lines', 'targets'].includes(field.kind)
+        ? 'lines'
+        : 'text') as CardInput['kind'],
+    field: {
+      kind: field.kind,
+      ...(field.hint !== undefined ? { hint: field.hint } : {}),
+      ...(field.min !== undefined ? { min: field.min } : {}),
+      ...(field.max !== undefined ? { max: field.max } : {}),
+      ...(field.options ? { options: field.options } : {}),
+    },
+    value,
+  }
+}
 export interface Edge {
   from: string
   to: string
 }
+export const inputField = (input: CardInput, label = input.label): Field => ({
+  ...input.field,
+  key: 'value',
+  label,
+  editor: input.editor,
+  kind: input.field?.kind ?? (input.kind === 'urls' ? 'lines' : input.kind),
+})
 export interface Flow {
   id: string
   programId?: string
@@ -119,7 +147,15 @@ export const resolvedConfig = (node: Step, inputs: CardInput[]) => ({
   ...Object.fromEntries(
     Object.entries(node.bindings ?? {}).map(([field, ref]) => [
       field,
-      inputs.find((input) => input.key === inputKey(ref))?.value,
+      typeof ref === 'object' && 'step' in ref
+        ? undefined
+        : (typeof ref === 'object' ? (ref.path ?? []) : []).reduce<unknown>(
+            (value, key) =>
+              value && typeof value === 'object' && Object.hasOwn(value, key)
+                ? (value as Record<string, unknown>)[key]
+                : undefined,
+            inputs.find((input) => input.key === inputKey(ref))?.value,
+          ),
     ]),
   ),
 })

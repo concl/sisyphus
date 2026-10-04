@@ -1,5 +1,6 @@
 import type { Desktop } from '@sisyphus/sdk'
-import type { CardInput, Field } from './action-model'
+import { inputField, type CardInput } from './action-model'
+import { CardValuePopup } from './card-value-popup'
 import { ConfigField } from './action-fields'
 import type { ActionPresentations } from '../../actions/frontend/presentations'
 
@@ -11,43 +12,42 @@ const kinds: { value: CardInput['kind']; label: string }[] = [
   { value: 'json', label: 'Structured data (JSON)' },
   { value: 'urls', label: 'Web addresses (legacy)' },
 ]
-function valueField(input: CardInput, label: string): Field {
-  return {
-    key: 'value',
-    editor: input.editor,
-    label,
-    kind: input.kind === 'urls' ? 'lines' : input.kind,
-    hint:
-      input.kind === 'urls'
-        ? 'One complete web address per line.'
-        : input.kind === 'lines'
-          ? 'One item per line.'
-          : undefined,
-  }
-}
 export function CardInputValues({
   inputs,
   desktop,
   change,
   presentations,
+  compact = false,
 }: {
   inputs: CardInput[]
   desktop: Desktop
   change: (key: string, value: CardInput['value']) => void
   presentations?: ActionPresentations
+  compact?: boolean
 }) {
   return (
     <>
-      {inputs.map((input) => (
-        <ConfigField
-          key={input.key}
-          desktop={desktop}
-          presentations={presentations}
-          field={valueField(input, input.label)}
-          config={{ value: input.value }}
-          change={(_, value) => change(input.key, value as CardInput['value'])}
-        />
-      ))}
+      {inputs.map((input) =>
+        compact && input.kind === 'json' ? (
+          <CardValuePopup
+            key={input.key}
+            input={input}
+            desktop={desktop}
+            presentations={presentations}
+            change={(value) => change(input.key, value)}
+          />
+        ) : (
+          <ConfigField
+            key={input.key}
+            desktop={desktop}
+            presentations={presentations}
+            field={inputField(input)}
+            compact={compact}
+            config={{ value: input.value }}
+            change={(_, value) => change(input.key, value as CardInput['value'])}
+          />
+        ),
+      )}
     </>
   )
 }
@@ -105,6 +105,8 @@ export function CardInputsEditor({
                 const kind = event.target.value as CardInput['kind']
                 update(input.key, {
                   kind,
+                  field: undefined,
+                  editor: undefined,
                   value:
                     kind === 'urls' || kind === 'lines'
                       ? []
@@ -127,7 +129,7 @@ export function CardInputsEditor({
           </label>
           <ConfigField
             key={`${input.key}:${input.kind}`}
-            field={valueField(input, 'Saved default')}
+            field={inputField(input, 'Saved default')}
             config={{ value: input.value }}
             desktop={desktop}
             presentations={presentations}

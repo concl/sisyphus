@@ -160,3 +160,14 @@ python scripts/build.py --package
 
 Smoke uses isolated app data and a local model fixture; it does not call a paid
 model provider. `SISYPHUS_PYTHON` selects the Python interpreter.
+
+For Actions screenshots and additional native mouse/keyboard checks, run the
+smoke test with `SISYPHUS_LAUNCHER_SCREENSHOTS` set to an output directory. These
+checks cover dialog cancellation and validation, focus return, saving during
+navigation, showing settings on cards, service search, and narrow panels. They
+use the disposable smoke profile and do not open websites.
+
+```powershell
+$env:SISYPHUS_LAUNCHER_SCREENSHOTS = "$PWD/build/actions-preview"
+npm run smoke
+```

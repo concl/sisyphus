@@ -290,8 +290,8 @@
     'The copied step should still use its card input',
   )
   assert(
-    document.querySelector('.action-bound-value').textContent.includes('example.org/two'),
-    'The settings inspector should show the resolved websites',
+    document.querySelector('.action-inspector textarea').value.includes('example.org/two'),
+    'A card input should remain directly editable in its step',
   )
   document.querySelector('.action-start .action-node-body').click()
   await waitFor(() => document.querySelector('.action-input-definition textarea'))
@@ -353,8 +353,11 @@
     .find((button) => button.textContent.includes('Create event'))
     .click()
   await waitFor(() => document.querySelector('[aria-label="Source for Event"]'))
-  document.querySelector('.action-start .action-node-body').click()
   await waitFor(() => document.querySelector('[aria-label="Event title"]'))
+  assert(
+    document.querySelector('[aria-label="Show Event on card"]')?.checked,
+    'A step should stay editable when its settings appear on the card',
+  )
   const eventTitle = document.querySelector('[aria-label="Event title"]')
   nameSetter.call(eventTitle, 'Planning from Actions')
   eventTitle.dispatchEvent(new Event('input', { bubbles: true }))
@@ -383,11 +386,15 @@
   const eventCard = document
     .querySelector('[aria-label="Run Create planning event"]')
     .closest('article')
-  nameSetter.call(eventCard.querySelector('[aria-label="Event title"]'), 'Changed on the card')
-  eventCard
+  eventCard.querySelector('[aria-label="Edit Event input"]').click()
+  await waitFor(() => document.querySelector('.action-input-dialog[open]'))
+  nameSetter.call(document.querySelector('[aria-label="Event title"]'), 'Changed on the card')
+  document
     .querySelector('[aria-label="Event title"]')
     .dispatchEvent(new Event('input', { bubbles: true }))
   await new Promise((resolve) => setTimeout(resolve, 0))
+  document.querySelector('.action-input-dialog-content').requestSubmit()
+  await waitFor(() => !document.querySelector('.action-input-dialog'))
   eventCard.querySelector('[aria-label="Run Create planning event"]').click()
   await waitFor(async () =>
     (await bridge.call('planner.get')).records.some((item) => item.title === 'Changed on the card'),
@@ -405,22 +412,36 @@
   const fallbackEvent = document
     .querySelector('[aria-label="Run Create planning event"]')
     .closest('article')
-    .querySelector('textarea')
+    .querySelector('[aria-label="Edit Event input"]')
+  document.querySelector('[aria-label="Close plugins"]').click()
+  fallbackEvent.click()
+  await waitFor(() => document.querySelector('.action-input-dialog textarea'))
   assert(
-    JSON.parse(fallbackEvent.value).title === 'Changed on the card',
+    JSON.parse(document.querySelector('.action-input-dialog textarea').value).title ===
+      'Changed on the card',
     'Removing a custom editor should show the current value in its generic editor',
   )
+  document.querySelector('[aria-label="Close input"]').click()
+  document.querySelector('.header-actions > button').click()
   await waitFor(
     () =>
       document.querySelector('[role="switch"][aria-label="Calendar actions"]')?.disabled === false,
   )
   document.querySelector('[role="switch"][aria-label="Calendar actions"]').click()
+  await waitFor(
+    () =>
+      document
+        .querySelector('[role="switch"][aria-label="Calendar actions"]')
+        ?.getAttribute('aria-checked') === 'true',
+  )
+  document.querySelector('[aria-label="Close plugins"]').click()
+  eventCard.querySelector('[aria-label="Edit Event input"]').click()
   await waitFor(() => document.querySelector('[aria-label="Event title"]'))
   assert(
     document.querySelector('[aria-label="Event title"]').value === 'Changed on the card',
     'Provider controls should restore with the saved values',
   )
-  document.querySelector('[aria-label="Close plugins"]').click()
+  document.querySelector('[aria-label="Close input"]').click()
   await bridge.call('runtime.enable', { id: 'desktop.planner-data', enabled: false })
   await waitFor(() => document.querySelector('[aria-label="Run Create planning event"]')?.disabled)
   assert(
