@@ -13,13 +13,13 @@ const {
 const validId = (id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(id)
 const copy = (value) => JSON.parse(JSON.stringify(value))
 
-function validateProgram(input, registry, { validateDefaults = true } = {}) {
+function validateProgram(input, registry, { validateDefaults = true, draft = false } = {}) {
   if (!input || typeof input !== 'object') throw new Error('Invalid action')
   const id = input.id ?? randomUUID()
   if (!validId(id)) throw new Error('Invalid action id')
   const inputs = normalizeInputs(input.inputs)
   const values = valuesFor(inputs)
-  if (!Array.isArray(input.nodes) || !input.nodes.length || input.nodes.length > 64)
+  if (!Array.isArray(input.nodes) || (!draft && !input.nodes.length) || input.nodes.length > 64)
     throw new Error('Add between 1 and 64 steps')
   const ids = new Set(['start'])
   const nodes = input.nodes.map((node) => {
@@ -30,10 +30,26 @@ function validateProgram(input, registry, { validateDefaults = true } = {}) {
     const config = jsonValue(node.config ?? {})
     if (!config || typeof config !== 'object' || Array.isArray(config))
       throw new Error('Step settings must be an object')
-    const bindings = normalizeBindings(node.bindings, inputs, runner)
-    if (runner && validateDefaults && !hasStepBindings({ bindings }))
-      runner.validate(resolveConfig({ config, bindings }, values))
-    const name = typeof node.title === 'string' ? node.title.trim() : (runner?.name ?? node.type)
+    const bindings = normalizeBindings(node.bindings, inputs, draft ? undefined : runner)
+    const drafts = jsonValue(node.drafts ?? {})
+    if (
+      !drafts ||
+      typeof drafts !== 'object' ||
+      Array.isArray(drafts) ||
+      Object.entries(drafts).some(
+        ([key, value]) => !/^[a-zA-Z0-9_-]{1,80}$/.test(key) || typeof value !== 'string',
+      )
+    )
+      throw new Error('Invalid unfinished settings')
+    if (!draft && Object.keys(drafts).length)
+      throw new Error(
+        `${node.title || node.type}: finish editing ${Object.keys(drafts).join(', ')}`,
+      )
+    if (runner && validateDefaults && !draft && !hasStepBindings({ bindings }))
+      runner.validate({ ...runner.defaults, ...resolveConfig({ config, bindings }, values) })
+    const name =
+      (typeof node.title === 'string' ? node.title.trim() : (runner?.name ?? node.type)) ||
+      (draft ? (runner?.name ?? node.type) : '')
     if (!name || name.length > 80) throw new Error('Give every step a title')
     return {
       id: node.id,
@@ -41,6 +57,7 @@ function validateProgram(input, registry, { validateDefaults = true } = {}) {
       title: name,
       config,
       bindings,
+      ...(Object.keys(drafts).length ? { drafts } : {}),
       x: Math.max(0, Math.min(8000, Number(node.x) || 0)),
       y: Math.max(0, Math.min(8000, Number(node.y) || 0)),
     }
@@ -73,7 +90,10 @@ function validateProgram(input, registry, { validateDefaults = true } = {}) {
     visited.add(id)
   }
   visit('start')
-  if (nodes.some((node) => !visited.has(node.id))) throw new Error('Connect every step to Start')
+  if (!draft && nodes.some((node) => !visited.has(node.id)))
+    throw new Error('Connect every step to Start')
+  // Disconnected drafts are valid documents, but must not conceal a cycle.
+  for (const node of nodes) visit(node.id)
   const ancestors = (id, result = new Set()) => {
     for (const edge of edges.filter((edge) => edge.to === id)) {
       if (result.has(edge.from)) continue
@@ -82,7 +102,7 @@ function validateProgram(input, registry, { validateDefaults = true } = {}) {
     }
     return result
   }
-  for (const node of nodes) {
+  for (const node of draft ? [] : nodes) {
     for (const [field, ref] of Object.entries(node.bindings)) {
       if (!ref?.step) continue
       if (!ancestors(node.id).has(ref.step))
@@ -102,6 +122,73 @@ function validateProgram(input, registry, { validateDefaults = true } = {}) {
     nodes,
     edges,
   }
+}
+
+function checkProgram(saved, registry, inputValues = {}) {
+  const issues = []
+  let flow, values
+  try {
+    flow = validateProgram(saved, registry, { draft: true })
+    values = valuesFor(flow.inputs, inputValues)
+  } catch (error) {
+    return [{ message: error.message }]
+  }
+  if (!flow.nodes.length) issues.push({ message: 'Add a step to run this workflow.' })
+  const reachable = new Set(['start'])
+  for (let i = 0; i < flow.nodes.length; i++)
+    for (const edge of flow.edges) if (reachable.has(edge.from)) reachable.add(edge.to)
+  for (const input of flow.inputs)
+    if (input.draft !== undefined && !Object.hasOwn(inputValues, input.key))
+      issues.push({ message: `Finish editing input “${input.label}”.` })
+  for (const node of flow.nodes) {
+    const add = (message) => issues.push({ nodeId: node.id, message: `${node.title}: ${message}` })
+    if (!reachable.has(node.id)) add('Connect this step to Start.')
+    const action = registry.get(node.type)
+    if (!action) {
+      add(`Action unavailable: ${node.type}. Enable its plugin to run it.`)
+      continue
+    }
+    if (Object.keys(node.drafts ?? {}).length) {
+      add(
+        `Finish editing ${Object.keys(node.drafts)
+          .map((key) => action.fields.find((field) => field.key === key)?.label ?? key)
+          .join(', ')}.`,
+      )
+      continue
+    }
+    try {
+      normalizeBindings(node.bindings, flow.inputs, action)
+      for (const ref of Object.values(node.bindings)) {
+        if (!ref?.step) continue
+        if (!flow.nodes.some((step) => step.id === ref.step))
+          throw new Error('A source step was removed. Choose another value source.')
+        const ancestors = new Set()
+        const visit = (id) => {
+          for (const edge of flow.edges.filter((edge) => edge.to === id)) {
+            if (ancestors.has(edge.from)) continue
+            ancestors.add(edge.from)
+            visit(edge.from)
+          }
+        }
+        visit(node.id)
+        if (!ancestors.has(ref.step))
+          throw new Error('A result must come from a connected earlier step')
+      }
+      if (!hasStepBindings(node))
+        action.validate({ ...action.defaults, ...resolveConfig(node, values) })
+    } catch (error) {
+      add(error.message)
+    }
+  }
+  // Validate result paths and execution dependencies without evaluating dynamic values.
+  if (!issues.length) {
+    try {
+      validateProgram(saved, registry, { validateDefaults: false })
+    } catch (error) {
+      issues.push({ message: error.message })
+    }
+  }
+  return issues
 }
 
 class WorkflowEngine {
@@ -128,14 +215,12 @@ class WorkflowEngine {
     for (const controller of this.active.values()) controller.abort()
   }
   run(saved, inputValues = {}) {
+    const issues = checkProgram(saved, this.actions, inputValues)
+    if (issues.length) throw new Error(issues.map((issue) => issue.message).join('\n'))
     const flow = validateProgram(saved, this.actions, { validateDefaults: false })
     const id = flow.id
     if (this.active.has(id)) throw new Error('This action is already running')
     const values = valuesFor(flow.inputs, inputValues)
-    for (const node of flow.nodes)
-      if (!this.actions.has(node.type)) throw new Error(`Step type unavailable: ${node.type}`)
-      else if (!hasStepBindings(node))
-        this.actions.get(node.type).validate(resolveConfig(node, values))
     const controller = new AbortController()
     this.active.set(id, controller)
     const run = {
@@ -181,7 +266,7 @@ class WorkflowEngine {
         publish()
         try {
           const action = actions.get(node.id)
-          const config = resolveConfig(node, run.inputValues, outputs)
+          const config = { ...action.defaults, ...resolveConfig(node, run.inputValues, outputs) }
           action.validate(config)
           const result = await action.execute(config, {
             signal,
@@ -219,4 +304,4 @@ class WorkflowEngine {
   }
 }
 
-module.exports = { WorkflowEngine, validateProgram }
+module.exports = { WorkflowEngine, validateProgram, checkProgram }

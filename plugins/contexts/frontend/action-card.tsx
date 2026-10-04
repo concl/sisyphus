@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } from 'react'
 import type { Desktop } from '@sisyphus/sdk'
 import type { ActionPresentations } from '../../actions/frontend/presentations'
-import { findType, type Flow, type Run, type StepType } from './action-model'
+import { errorMessage, findType, type Flow, type Run, type StepType } from './action-model'
 import { CardInputValues } from './card-inputs'
 
 export function ActionCard({
@@ -61,8 +61,18 @@ export function ActionCard({
         )
         void pending.current
           .catch(() => {})
-          .then(() => desktop.call('automations.inputs.set', { id: flow.id, inputValues }))
-          .catch((problem) => reportError(`${flow.title}: ${String(problem)}`))
+          .then(() =>
+            desktop.call('automations.inputs.set', {
+              id: flow.id,
+              inputValues,
+              drafts: Object.fromEntries(
+                current.current
+                  .filter((input) => input.draft !== undefined)
+                  .map((input) => [input.key, input.draft]),
+              ),
+            }),
+          )
+          .catch((problem) => reportError(`${flow.title}: ${errorMessage(problem)}`))
       }
     }
   }, [desktop, flow.id, flow.title, reportError])
@@ -73,8 +83,6 @@ export function ActionCard({
     Object.fromEntries(items.map((item) => [item.key, item.value]))
   async function persist() {
     if (timer.current) clearTimeout(timer.current)
-    if (root.current?.querySelector('[aria-invalid="true"]'))
-      throw new Error('Check the highlighted input.')
     const captured = current.current
     if (!dirtyRef.current) {
       await pending.current
@@ -84,7 +92,15 @@ export function ActionCard({
     const task = pending.current
       .catch(() => {})
       .then(async () => {
-        await desktop.call('automations.inputs.set', { id: flow.id, inputValues: values(captured) })
+        await desktop.call('automations.inputs.set', {
+          id: flow.id,
+          inputValues: values(captured),
+          drafts: Object.fromEntries(
+            captured
+              .filter((input) => input.draft !== undefined)
+              .map((input) => [input.key, input.draft]),
+          ),
+        })
         if (current.current === captured) {
           dirtyRef.current = false
           if (alive.current) setDirty(false)
@@ -103,16 +119,36 @@ export function ActionCard({
     try {
       const inputValues = values()
       await persist()
+      if (
+        current.current.some((input) => input.draft !== undefined) ||
+        root.current?.querySelector('[aria-invalid="true"]')
+      )
+        throw new Error('Draft saved. Finish the highlighted input before running.')
       await desktop.call('automations.start', { id: flow.id, inputValues })
       setError('')
     } catch (problem) {
-      setError(String(problem))
+      setError(errorMessage(problem))
     } finally {
       setStarting(false)
     }
   }
   const running = run?.status === 'running'
   const missing = flow.nodes.filter((node) => !findType(types, node.type))
+  function changeInput(key: string, patch: Partial<(typeof inputs)[number]>) {
+    const next = current.current.map((input) =>
+      input.key === key ? { ...input, ...patch } : input,
+    )
+    current.current = next
+    dirtyRef.current = true
+    setDirty(true)
+    setInputs(next)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      void persist().catch((problem) => {
+        if (alive.current) setError(errorMessage(problem))
+      })
+    }, 400)
+  }
   return (
     <article
       ref={root}
@@ -145,19 +181,8 @@ export function ActionCard({
           inputs={inputs}
           desktop={desktop}
           presentations={presentations}
-          change={(key, value) => {
-            const next = inputs.map((input) => (input.key === key ? { ...input, value } : input))
-            current.current = next
-            dirtyRef.current = true
-            setDirty(true)
-            setInputs(next)
-            if (timer.current) clearTimeout(timer.current)
-            timer.current = setTimeout(() => {
-              void persist().catch((problem) => {
-                if (alive.current) setError(String(problem))
-              })
-            }, 400)
-          }}
+          change={(key, value) => changeInput(key, { value, draft: undefined })}
+          changeDraft={(key, draft) => changeInput(key, { draft })}
         />
       </div>
       {missing.length > 0 && (
@@ -166,9 +191,12 @@ export function ActionCard({
         </p>
       )}
       {error && (
-        <p role="alert" className="action-error">
-          {error}
-        </p>
+        <div role="alert" className="action-card-notification">
+          <span>{error}</span>
+          <button aria-label="Dismiss error" onClick={() => setError('')}>
+            ×
+          </button>
+        </div>
       )}
       <div className="action-card-controls">
         <span role="status">
@@ -223,7 +251,7 @@ export function ActionCard({
               onClick={() => {
                 void persist()
                   .then(() => duplicate({ ...flow, inputs: current.current }))
-                  .catch((problem) => setError(String(problem)))
+                  .catch((problem) => setError(errorMessage(problem)))
               }}
             >
               Duplicate

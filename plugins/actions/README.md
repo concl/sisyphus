@@ -12,6 +12,11 @@ ctx.effect(() =>
     actions: {
       lookup: {
         name: 'Look up an item',
+        description: 'Find an item by its name.',
+        effects: ['Reads items; does not change stored data.'],
+        calls: ['example.service.v1.lookup(name)'],
+        notes: ['Fails when no item matches.'],
+        examples: [{ title: 'Find a report', input: { name: 'Report' } }],
         defaults: { name: '' },
         fields: [{ key: 'name', label: 'Name', kind: 'text', expose: true }],
         outputs: [{ key: 'item', label: 'Item', kind: 'json' }],
@@ -57,3 +62,24 @@ Missing custom editors fall back to the field's generic control. Calendar's
 adapter demonstrates reusable scheduling controls, an observable domain change,
 and a result that can open the existing Calendar panel. The catalog publishes
 `actions.changed` and exposes `actions.list` over the desktop transport.
+
+## Action reference contract
+
+The workflow library and inspector render the same reference directly from the
+descriptor. Keep documentation next to the service adapter, so actions remain
+discoverable without editor-specific code:
+
+- `description`: what the action does, in one plain sentence.
+- `fields`: input key, readable label, kind, `hint`, `required`, conditional `when`,
+  choices and limits. `defaults` supplies initial values for direct and workflow calls.
+- `outputs`: returned keys, kinds and hints, including nullable or conditional results.
+- `effects`: persistent changes or external effects, including what Stop cannot undo.
+  Say explicitly when there are no changes.
+- `calls`: domain service calls and significant chained operations, as readable strings.
+- `notes`: completion, failure, cancellation, and data-passing behavior.
+- `examples`: `{ title, input, output? }` examples containing JSON data only.
+
+`required` documents the contract; the provider's `validate` function remains
+authoritative. Documentation is optional for third-party compatibility; missing
+effect/call descriptions are identified as undocumented, never assumed harmless.
+All metadata travels through `actions.list`; executable functions stay in the provider.

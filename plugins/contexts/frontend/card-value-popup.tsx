@@ -64,15 +64,14 @@ function InputDialog({
         <ConfigField
           field={inputField(input)}
           config={{ value }}
+          draftText={input.draft}
           change={(_, value) => setValue(value)}
           desktop={desktop}
           presentations={presentations}
         />
-        {error && (
-          <p className="action-error" role="alert">
-            {error}
-          </p>
-        )}
+        <p className="action-error action-field-feedback" role="status">
+          {error}
+        </p>
         <footer>
           <button type="button" onClick={close}>
             Cancel
@@ -105,7 +104,9 @@ export function CardValuePopup({
         aria-label={`Edit ${input.label} input`}
         onClick={() => setOpen(true)}
       >
-        {Summary ? (
+        {input.draft !== undefined ? (
+          <span className="action-error">Unfinished JSON · edit to continue</span>
+        ) : Summary ? (
           <Summary value={input.value} />
         ) : (
           <span>

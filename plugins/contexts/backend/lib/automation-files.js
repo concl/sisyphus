@@ -112,6 +112,9 @@ class AutomationFiles {
           value: Object.hasOwn(card.inputValues ?? {}, definition.key)
             ? card.inputValues[definition.key]
             : fallback,
+          ...(card.inputDrafts?.[definition.key] !== undefined
+            ? { draft: card.inputDrafts[definition.key] }
+            : {}),
         })),
         nodes: program.nodes,
         edges: program.edges,
@@ -129,7 +132,9 @@ class AutomationFiles {
       throw new Error(`Invalid automation program: ${programId}`)
     if (flow.programId && !previousProgram) throw new Error('Automation program is missing')
     const graph = {
-      inputs: (flow.inputs ?? []).map(({ value: _value, ...definition }) => definition),
+      inputs: (flow.inputs ?? []).map(
+        ({ value: _value, draft: _draft, ...definition }) => definition,
+      ),
       nodes: flow.nodes,
       edges: flow.edges,
     }
@@ -154,7 +159,7 @@ class AutomationFiles {
         version: 1,
         id: programId,
         name: flow.title,
-        inputs: (flow.inputs ?? []).map(({ value, ...definition }) => ({
+        inputs: (flow.inputs ?? []).map(({ value, draft: _draft, ...definition }) => ({
           ...definition,
           default: value,
         })),
@@ -171,6 +176,11 @@ class AutomationFiles {
       color: flow.color,
       order: previous?.order ?? order ?? Math.max(-1, ...cards.map((card) => card.order)) + 1,
       inputValues: Object.fromEntries((flow.inputs ?? []).map((input) => [input.key, input.value])),
+      inputDrafts: Object.fromEntries(
+        (flow.inputs ?? [])
+          .filter((input) => input.draft !== undefined)
+          .map((input) => [input.key, input.draft]),
+      ),
     })
     return copy({ ...flow, programId })
   }

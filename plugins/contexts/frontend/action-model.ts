@@ -1,4 +1,5 @@
 export interface Field {
+  required?: boolean
   editor?: string
   expose?: boolean
   key: string
@@ -11,6 +12,10 @@ export interface Field {
   when?: { key: string; value: string }
 }
 export interface StepType {
+  effects?: string[]
+  calls?: string[]
+  notes?: string[]
+  examples?: { title: string; input: Record<string, unknown>; output?: unknown }[]
   presentation?: string
   type: string
   name: string
@@ -41,6 +46,7 @@ export const bindingId = (ref?: Binding) =>
 export const findType = (types: StepType[], type?: string) =>
   types.find((item) => item.type === type || item.aliases?.includes(type ?? ''))
 export interface Step {
+  drafts?: Record<string, string>
   id: string
   type: string
   title: string
@@ -50,6 +56,7 @@ export interface Step {
   bindings?: Record<string, Binding>
 }
 export interface CardInput {
+  draft?: string
   field?: Omit<Field, 'key' | 'label' | 'when' | 'expose' | 'editor'>
   editor?: string
   key: string
@@ -115,6 +122,10 @@ export interface Run {
   nodes: Record<string, NodeRun>
 }
 export const colors = ['blue', 'green', 'amber', 'purple', 'rose', 'slate']
+export const errorMessage = (problem: unknown) =>
+  (problem instanceof Error ? problem.message : String(problem))
+    .replace(/^Error: /, '')
+    .replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '')
 export const WIDTH = 220
 export const HEIGHT = 120
 export const start = { x: 30, y: 60 }
@@ -135,12 +146,66 @@ export const compatibleInput = (
   fieldKind: Field['kind'],
   inputKind: CardInput['kind'] | Field['kind'],
 ) => {
+  if (fieldKind === inputKind) return true
   if (fieldKind === 'json' || inputKind === 'json') return true
   if (fieldKind === 'targets' || fieldKind === 'lines')
     return inputKind === 'lines' || inputKind === 'urls'
   if (fieldKind === 'number') return inputKind === 'number'
   if (fieldKind === 'boolean') return inputKind === 'boolean'
   return inputKind === 'text'
+}
+
+export interface ReadinessIssue {
+  nodeId?: string
+  message: string
+}
+
+/** Insert on an existing path. Graph mode may instead add a parallel branch. */
+export function insertStep(flow: Flow, node: Step, after: string, branch = false): Flow {
+  const outgoing = flow.edges.filter((edge) => edge.from === after)
+  return {
+    ...flow,
+    nodes: [...flow.nodes, node],
+    edges: branch
+      ? [...flow.edges, { from: after, to: node.id }]
+      : [
+          ...flow.edges.filter((edge) => edge.from !== after),
+          { from: after, to: node.id },
+          ...outgoing.map((edge) => ({ from: node.id, to: edge.to })),
+        ],
+  }
+}
+
+export function removeStep(flow: Flow, id: string): Flow {
+  const incoming = flow.edges.filter((edge) => edge.to === id)
+  const outgoing = flow.edges.filter((edge) => edge.from === id)
+  const edges = flow.edges.filter((edge) => edge.from !== id && edge.to !== id)
+  for (const before of incoming)
+    for (const after of outgoing)
+      if (!edges.some((edge) => edge.from === before.from && edge.to === after.to))
+        edges.push({ from: before.from, to: after.to })
+  // Retain result references so the editor asks the user to replace the source.
+  // Silently reverting to an old literal could run with an unintended value.
+  const nodes = flow.nodes.filter((node) => node.id !== id)
+  // Keep named card inputs: they may be deliberate reusable workflow parameters.
+  return { ...flow, nodes, edges }
+}
+
+/** Stable topological display order; disconnected draft steps remain visible. */
+export function orderedSteps(flow: Flow): Step[] {
+  const remaining = [...flow.nodes]
+  const done = new Set(['start'])
+  const result: Step[] = []
+  while (remaining.length) {
+    const index = remaining.findIndex((node) =>
+      flow.edges.filter((edge) => edge.to === node.id).every((edge) => done.has(edge.from)),
+    )
+    if (index < 0) return [...result, ...remaining]
+    const [node] = remaining.splice(index, 1)
+    result.push(node)
+    done.add(node.id)
+  }
+  return result
 }
 export const resolvedConfig = (node: Step, inputs: CardInput[]) => ({
   ...node.config,

@@ -8,6 +8,7 @@ import {
   bindingId,
   inputKey,
   stepKey,
+  errorMessage,
   type CardInput,
   type Field,
   type Binding,
@@ -27,6 +28,8 @@ export function ConfigField({
   changeInput,
   expose,
   compact = false,
+  draftText,
+  changeDraft,
 }: {
   field: Field
   config: Record<string, unknown>
@@ -40,6 +43,8 @@ export function ConfigField({
   changeInput?: (key: string, value: unknown) => void
   expose?: (show: boolean) => void
   compact?: boolean
+  draftText?: string
+  changeDraft?: (text: string | undefined) => void
 }) {
   useSyncExternalStore(
     presentations?.subscribe ?? noSubscribe,
@@ -51,12 +56,16 @@ export function ConfigField({
   const inlineInput = Boolean(wholeInput && changeInput)
   const linked = Boolean(binding && !inlineInput)
   const Label = Input && !linked ? 'div' : 'label'
-  const [problem, setProblem] = useState('')
+  const [problem, setProblem] = useState(
+    draftText !== undefined ? 'Finish this value before running. Your draft can be saved.' : '',
+  )
   const [lines, setLines] = useState(() =>
     Array.isArray(config[field.key]) ? (config[field.key] as string[]).join('\n') : '',
   )
-  const [json, setJson] = useState(() => JSON.stringify(config[field.key] ?? null, null, 2))
-  const [number, setNumber] = useState(() => String(config[field.key] ?? ''))
+  const [json, setJson] = useState(
+    () => draftText ?? JSON.stringify(config[field.key] ?? null, null, 2),
+  )
+  const [number, setNumber] = useState(() => draftText ?? String(config[field.key] ?? ''))
   const [propertyPath, setPropertyPath] = useState(() =>
     typeof binding === 'object'
       ? (binding.path?.slice('step' in binding ? 1 : 0).join('.') ?? '')
@@ -105,7 +114,7 @@ export function ConfigField({
         update(next)
       } else update(result.path)
     } catch (error) {
-      setProblem(String(error))
+      setProblem(errorMessage(error))
     }
   }
   return (
@@ -146,7 +155,12 @@ export function ConfigField({
                 setProblem('')
                 update(parsed)
               } catch {
-                setProblem('Enter valid JSON before saving or running.')
+                changeDraft?.(event.target.value)
+                setProblem(
+                  changeDraft
+                    ? 'Enter valid JSON before running. Your draft can be saved.'
+                    : 'Enter valid JSON before saving or running.',
+                )
               }
             }}
           />
@@ -178,7 +192,7 @@ export function ConfigField({
               setLines(event.target.value)
               const next = event.target.value
                 .split(/\r?\n/)
-                .map((line) => line.trim())
+                .map((line) => (field.kind === 'targets' ? line.trim() : line))
                 .filter(Boolean)
               setPreviousValue(JSON.stringify(next))
               update(next)
@@ -200,6 +214,7 @@ export function ConfigField({
               }
               setNumber(event.target.value)
               if (!event.target.validity.valid || !Number.isFinite(Number(event.target.value))) {
+                changeDraft?.(event.target.value)
                 setProblem(event.target.validationMessage || 'Enter a valid number.')
                 return
               }
@@ -284,11 +299,9 @@ export function ConfigField({
           )}
         </div>
       )}
-      {problem && (
-        <small role="alert" className="action-error">
-          {problem}
-        </small>
-      )}
+      <small role="status" className={`action-field-feedback ${problem ? 'action-error' : ''}`}>
+        {problem}
+      </small>
     </div>
   )
 }

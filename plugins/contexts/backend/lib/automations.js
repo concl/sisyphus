@@ -1,12 +1,15 @@
 'use strict'
 const { WorkflowEngine, validateProgram } = require('./workflow-engine.js')
 const { launcherPrograms } = require('./import-launchers.js')
+const { buildNodes, buildInputs, linearEdges } = require('./action-drafts.js')
 const colors = ['blue', 'green', 'amber', 'purple', 'rose', 'slate']
 const { valuesFor } = require('./action-inputs.js')
 
-function validateFlow(input, registry) {
-  const program = validateProgram(input, registry)
-  const title = typeof input.title === 'string' ? input.title.trim() : ''
+function validateFlow(input, registry, options) {
+  const program = validateProgram(input, registry, options)
+  const title =
+    (typeof input.title === 'string' ? input.title.trim() : '') ||
+    (options?.draft ? 'Untitled workflow' : '')
   if (!title || title.length > 80) throw new Error('Give this action a title of 1–80 characters')
   if (input.programId !== undefined && !/^[a-zA-Z0-9_-]{1,80}$/.test(input.programId))
     throw new Error('Invalid program id')
@@ -34,9 +37,53 @@ class Automations extends WorkflowEngine {
     return this.files.list()
   }
   save(input) {
-    const flow = validateFlow(input, this.actions)
+    const flow = validateFlow(input, this.actions, { draft: true })
     this.list()
     return this.files.save(flow)
+  }
+  get(id) {
+    const flow = this.list().find((item) => item.id === id)
+    if (!flow) throw new Error('Action not found')
+    return flow
+  }
+  // Creates a card from an ordered list of steps. The agent tools use this so a
+  // caller does not have to build node ids, positions, or connections by hand.
+  create(input) {
+    const nodes = buildNodes(input.steps, this.actions)
+    return this.save({
+      ...(input.id ? { id: input.id } : {}),
+      title: input.title,
+      description: input.description,
+      color: input.color,
+      inputs: buildInputs(input.inputs),
+      nodes,
+      edges: input.edges ?? linearEdges(nodes),
+    })
+  }
+  // Edits a card in place. Steps replace the graph; inputValues change only the
+  // saved values, so a caller can adjust one field without rebuilding the flow.
+  update(input) {
+    const current = this.get(input.id)
+    const nodes = input.steps ? buildNodes(input.steps, this.actions) : current.nodes
+    let inputs = input.inputs ? buildInputs(input.inputs) : (current.inputs ?? [])
+    if (input.inputValues) {
+      const values = valuesFor(inputs, input.inputValues)
+      inputs = inputs.map((entry) => {
+        if (!Object.hasOwn(input.inputValues, entry.key)) return entry
+        const { draft: _draft, ...rest } = entry
+        return { ...rest, value: values[entry.key] }
+      })
+    }
+    return this.save({
+      id: current.id,
+      programId: current.programId,
+      title: input.title ?? current.title,
+      description: input.description ?? current.description,
+      color: input.color ?? current.color,
+      inputs,
+      nodes,
+      edges: input.edges ?? (input.steps ? linearEdges(nodes) : current.edges),
+    })
   }
   delete(id) {
     if (this.active.has(id)) throw new Error('Stop this action before deleting it')
@@ -81,13 +128,27 @@ class Automations extends WorkflowEngine {
       if (signal?.aborted) this.cancel(run.id)
     }
   }
-  setInputs(id, inputValues) {
+  setInputs(id, inputValues, drafts = {}) {
     const saved = this.list().find((flow) => flow.id === id)
     if (!saved) throw new Error('Action not found')
     const values = valuesFor(saved.inputs ?? [], inputValues)
+    if (
+      !drafts ||
+      typeof drafts !== 'object' ||
+      Array.isArray(drafts) ||
+      Object.entries(drafts).some(
+        ([key, value]) =>
+          !saved.inputs.some((input) => input.key === key) || typeof value !== 'string',
+      )
+    )
+      throw new Error('Invalid unfinished inputs')
     return this.save({
       ...saved,
-      inputs: (saved.inputs ?? []).map((input) => ({ ...input, value: values[input.key] })),
+      inputs: (saved.inputs ?? []).map((input) => ({
+        ...input,
+        value: values[input.key],
+        draft: drafts[input.key],
+      })),
     })
   }
   runProgram(id, inputValues = {}) {

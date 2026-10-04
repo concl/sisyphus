@@ -18,12 +18,14 @@ export function CardInputValues({
   change,
   presentations,
   compact = false,
+  changeDraft,
 }: {
   inputs: CardInput[]
   desktop: Desktop
   change: (key: string, value: CardInput['value']) => void
   presentations?: ActionPresentations
   compact?: boolean
+  changeDraft?: (key: string, draft: string | undefined) => void
 }) {
   return (
     <>
@@ -43,6 +45,8 @@ export function CardInputValues({
             presentations={presentations}
             field={inputField(input)}
             compact={compact}
+            draftText={input.draft}
+            changeDraft={changeDraft ? (text) => changeDraft(input.key, text) : undefined}
             config={{ value: input.value }}
             change={(_, value) => change(input.key, value as CardInput['value'])}
           />
@@ -107,6 +111,7 @@ export function CardInputsEditor({
                   kind,
                   field: undefined,
                   editor: undefined,
+                  draft: undefined,
                   value:
                     kind === 'urls' || kind === 'lines'
                       ? []
@@ -133,7 +138,11 @@ export function CardInputsEditor({
             config={{ value: input.value }}
             desktop={desktop}
             presentations={presentations}
-            change={(_, value) => update(input.key, { value: value as CardInput['value'] })}
+            draftText={input.draft}
+            changeDraft={(draft) => update(input.key, { draft })}
+            change={(_, value) =>
+              update(input.key, { value: value as CardInput['value'], draft: undefined })
+            }
           />
           <button className="action-remove" onClick={() => remove(input.key)}>
             Remove input

@@ -14,6 +14,19 @@ from backend extensions; it has no fixed action catalog or application-specific
 settings. New services can supply actions without changes to the workflow engine
 or editor. Existing saved launchers are imported once, preserving their source.
 
+The editor opens in **Steps**, an ordered overview that names each step's actual
+dependencies. **Graph** exposes branches and joins. **Add step** opens a searchable
+action library with service categories and a reference preview. Every action uses
+the same reference structure: purpose, inputs and defaults, outputs, state changes,
+service calls, and examples. The inspector's **Reference** tab uses that same data.
+
+**Save** preserves drafts, including empty workflows, disconnected steps, unavailable
+providers, and unfinished JSON or number edits. **Save & run** saves first, then checks
+readiness before executing any step. The fixed footer shows save state and a readiness
+list whose entries open the relevant step. Feedback overlays do not move the editor.
+Document integrity errors (such as cycles or invalid identifiers) still prevent saving.
+Unfinished text is stored separately from parsed values and never silently executed.
+
 Automation programs and cards are individual documents under
 `%APPDATA%/Sisyphus/automations` on Windows (or under `SISYPHUS_USER_DATA`
 for a custom installation):
@@ -101,12 +114,18 @@ for servers and apps; a detached program stays open after Stop.
 Wait pauses for a duration or polls an HTTP/HTTPS service until it returns a
 successful status. Use it between launching a server and opening its page.
 
-Drag steps to arrange them. Use the zoom controls or Fit to see the whole flow.
+In Steps, adding an action inserts it after the selected step and before its successors.
+In Graph, adding an action creates another outgoing connection from the selection,
+so it can form a parallel branch. Removing a step reconnects its predecessors and
+successors; references to removed outputs remain visible and must be repaired before
+running. Named card inputs remain available until explicitly removed in Card settings.
+
+In Graph, drag steps to arrange them. Use the zoom controls or Fit to see the whole flow.
 Drag an output dot to an input dot, or click the two
 dots in order, to connect them. Start has only an output. Multiple outgoing
 connections run branches concurrently; multiple incoming connections wait for
 every predecessor to succeed. A failed step skips its dependent steps while
-independent branches finish. Graphs must be connected to Start and cannot loop.
+independent branches finish. Runnable graphs must be connected to Start and cannot loop.
 Select a wire to remove it, or manage connections in the step inspector.
 
 Cards can be colored, duplicated, filtered, deleted, and dragged by their grip
@@ -185,3 +204,27 @@ finish; downstream steps skip a cancelled dependency. Providers should observe
 the supplied signal; cancellation cannot undo completed state changes.
 The current engine supports dependencies and data passing. Conditions,
 loops, and scheduled triggers remain future execution features.
+
+## Agent tools
+
+The chat assistant manages cards through the same `automations.v1` service, so a
+workflow can be created or edited from a conversation instead of by editing its
+files. The read tools have `read` access; the rest are `write`.
+
+| Tool                | Purpose                                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `list_actions`      | Saved cards and their steps.                                                                                |
+| `list_action_types` | The actions usable as steps, with settings, defaults, outputs, and reference notes.                         |
+| `get_action`        | One card, including step ids, settings, inputs, and connections.                                            |
+| `create_action`     | A card from a title and an ordered list of steps.                                                           |
+| `update_action`     | Edit a card's metadata, inputs, or steps; `inputValues` changes a saved value without rebuilding the graph. |
+| `delete_action`     | Remove a card by id.                                                                                        |
+| `run_action`        | Start a card by id.                                                                                         |
+
+`create_action` and `update_action` build node ids, positions, and a single ordered
+chain from the step list, and merge each action's defaults into its settings, so
+nobody writes the card's JSON files by hand. Both answer with the saved card plus
+any readiness `issues`, so the model can tell whether the new action can run and
+correct what it cannot. Passing `steps` replaces the graph and gives the card an
+independent program, exactly as a graph edit in the editor does. Read a card with
+`get_action` before editing it; a value-only change keeps its existing program.

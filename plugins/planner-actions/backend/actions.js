@@ -11,9 +11,30 @@ module.exports = () => ({
           createEvent: {
             name: 'Create event',
             description: 'Add an event to your calendar.',
+            effects: [
+              'Creates a new event in the Sisyphus calendar. Running again creates another event. Stop does not delete an event already created.',
+            ],
+            calls: ['planner.v1.createEvent(event) → saves the event and notifies calendar views'],
+            notes: [
+              'Requires a title and a date. Use the Event editor for dates, times, and recurrence, or supply an event object from an earlier step.',
+            ],
+            examples: [
+              {
+                title: 'Create an all-day event',
+                input: { event: { title: 'Project review', date: '2026-11-02' } },
+              },
+            ],
             defaults: { event: { title: '', date: '' } },
             fields: [
-              { key: 'event', label: 'Event', kind: 'json', editor: 'planner.event', expose: true },
+              {
+                key: 'event',
+                label: 'Event',
+                kind: 'json',
+                editor: 'planner.event',
+                expose: true,
+                required: true,
+                hint: 'An event object with title and date (YYYY-MM-DD), plus optional scheduling details.',
+              },
             ],
             presentation: 'planner.item',
             outputs: [

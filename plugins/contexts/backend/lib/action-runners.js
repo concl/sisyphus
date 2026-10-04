@@ -20,7 +20,12 @@ function strings(values, name) {
   values.forEach((value) => text(value, name))
 }
 function checkedURL(value) {
-  const url = new URL(value)
+  let url
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error('Enter a complete HTTP or HTTPS address')
+  }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
     throw new Error('Use an HTTP or HTTPS address without embedded credentials')
   return url.toString()
@@ -49,6 +54,24 @@ function localActions({ shell, integrations, spawnProcess = spawn }) {
     ],
     name: 'Open',
     description: 'Open projects, files, folders, or a set of pages.',
+    effects: [
+      'Opens local files, folders, or web pages in the selected application. Already opened windows remain open after Stop.',
+    ],
+    calls: [
+      'system-actions.v1.open(input)',
+      'System default → shell.openPath or shell.openExternal. Code editor → integrations.v1.launch or the editor executable. Custom application → a detached process.',
+    ],
+    notes: [
+      'All targets are checked before any is opened. Paths must be absolute; web addresses must use HTTP or HTTPS.',
+      'Custom arguments are passed literally with targets appended. There is no implicit shell expansion.',
+    ],
+    examples: [
+      {
+        title: 'Open a web page',
+        input: { targets: ['https://example.com'], application: 'default' },
+        output: { targets: ['https://example.com/'], count: 1 },
+      },
+    ],
     defaults: {
       targets: [],
       application: 'default',
@@ -60,6 +83,7 @@ function localActions({ shell, integrations, spawnProcess = spawn }) {
     fields: [
       {
         key: 'targets',
+        required: true,
         label: 'Files, folders or websites',
         kind: 'targets',
         hint: 'One file, folder, workspace, or web address per line.',
@@ -129,7 +153,7 @@ function localActions({ shell, integrations, spawnProcess = spawn }) {
             folders: targets,
             profile: config.profile,
             window: config.window,
-            context: { id: `${context.flow.id}-${context.node.id}` },
+            context: { id: `${context.flow?.id ?? 'service'}-${context.node?.id ?? 'open'}` },
           })
         } else {
           const program = findVSCode()
@@ -217,6 +241,23 @@ function localActions({ shell, integrations, spawnProcess = spawn }) {
     outputs: [{ key: 'ready', label: 'Ready', kind: 'boolean' }],
     name: 'Wait',
     description: 'Pause briefly, or wait for a web service to respond.',
+    effects: [
+      'Duration mode only pauses this branch. Web service mode repeatedly sends GET requests until the service returns a successful status.',
+    ],
+    calls: [
+      'system-actions.v1.wait(input)',
+      'Duration → cancellable timer. Web service → fetch(address), retrying about every half second until the timeout.',
+    ],
+    notes: [
+      'Place Wait after a detached server launch and before Open to wait for readiness. Stop cancels the wait.',
+    ],
+    examples: [
+      {
+        title: 'Pause for two seconds',
+        input: { mode: 'duration', seconds: 2 },
+        output: { ready: true },
+      },
+    ],
     defaults: { mode: 'duration', seconds: 1, url: '', timeoutSeconds: 60 },
     fields: [
       {
@@ -291,10 +332,25 @@ function localActions({ shell, integrations, spawnProcess = spawn }) {
   actions.websites = {
     name: 'Open websites',
     description: 'Open a saved list of browser tabs.',
+    effects: [
+      'Opens each website in your default browser. Already opened tabs remain open after Stop.',
+    ],
+    calls: ['system-actions.v1.websites(input) → shell.openExternal(address), once per website'],
+    notes: [
+      'Enter one complete HTTP or HTTPS address per line. All addresses are validated before opening tabs. Show Websites on card to change the list without editing the workflow.',
+    ],
+    examples: [
+      {
+        title: 'Open two pages',
+        input: { websites: ['https://example.com', 'https://example.org'] },
+        output: { websites: ['https://example.com', 'https://example.org'], count: 2 },
+      },
+    ],
     defaults: { websites: [] },
     fields: [
       {
         key: 'websites',
+        required: true,
         label: 'Websites',
         kind: 'lines',
         expose: true,

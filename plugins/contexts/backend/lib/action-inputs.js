@@ -89,7 +89,16 @@ function normalizeInputs(inputs = []) {
         throw new Error('Invalid input editor')
       definition.editor = input.editor
     }
-    return { ...definition, value: inputValue(definition, input.value) }
+    if (
+      input.draft !== undefined &&
+      (typeof input.draft !== 'string' || input.draft.length > 1024 * 1024)
+    )
+      throw new Error('Invalid unfinished input')
+    return {
+      ...definition,
+      value: inputValue(definition, input.value),
+      ...(input.draft !== undefined ? { draft: input.draft } : {}),
+    }
   })
 }
 
@@ -107,6 +116,7 @@ function valuesFor(inputs, overrides = {}) {
 }
 
 function compatible(fieldKind, inputKind) {
+  if (fieldKind === inputKind) return true
   if (fieldKind === 'json' || inputKind === 'json') return true
   if (['targets', 'lines'].includes(fieldKind)) return ['lines', 'urls'].includes(inputKind)
   if (fieldKind === 'number') return inputKind === 'number'

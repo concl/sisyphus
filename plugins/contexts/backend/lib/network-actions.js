@@ -4,10 +4,36 @@ function networkActions(fetchRequest = fetch) {
     request: {
       name: 'Web request',
       description: 'Get or send data to a web service.',
+      effects: [
+        'Sends an HTTP request to the address you supply. POST, PUT, PATCH and DELETE may change remote data.',
+      ],
+      calls: ['network-actions.v1.request(input) → fetch(url, options)'],
+      notes: [
+        'A non-success HTTP status fails the step. Responses are limited to 256 KB.',
+        'Response data is parsed as JSON when the response content type contains json; otherwise it is text. Stop aborts the request, but cannot undo a request already received by the server.',
+      ],
+      examples: [
+        {
+          title: 'Read JSON from a service',
+          input: {
+            url: 'https://example.com/api/items',
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            body: null,
+            timeoutSeconds: 30,
+          },
+        },
+      ],
       icon: '⇄',
       defaults: { url: '', method: 'GET', headers: {}, body: null, timeoutSeconds: 30 },
       fields: [
-        { key: 'url', label: 'Address', kind: 'text' },
+        {
+          key: 'url',
+          label: 'Address',
+          kind: 'text',
+          required: true,
+          hint: 'A complete HTTP or HTTPS URL.',
+        },
         {
           key: 'method',
           label: 'Method',
@@ -37,7 +63,12 @@ function networkActions(fetchRequest = fetch) {
         { key: 'text', label: 'Response text', kind: 'text' },
       ],
       validate(input) {
-        const url = new URL(input.url)
+        let url
+        try {
+          url = new URL(input.url)
+        } catch {
+          throw new Error('Enter a complete HTTP or HTTPS address')
+        }
         if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
           throw new Error('Use an HTTP/HTTPS address without embedded credentials')
         if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(input.method))

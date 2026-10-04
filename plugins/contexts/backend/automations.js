@@ -1,8 +1,9 @@
 const { BrowserWindow, dialog } = require('electron')
-const { z } = require('zod')
 const { Automations } = require('./lib/automations.js')
+const { checkProgram } = require('./lib/workflow-engine.js')
 const { AutomationFiles } = require('./lib/automation-files.js')
 const { readLauncherPrograms } = require('./lib/import-launchers.js')
+const { automationTools } = require('./lib/action-tools.js')
 
 module.exports = ({ userData }) => ({
   id: 'desktop.automations',
@@ -39,10 +40,38 @@ module.exports = ({ userData }) => ({
           runCard: {
             name: 'Run card',
             description: 'Run another saved card and use its results.',
+            effects: [
+              'Runs every action in the selected card, including their state changes. Input overrides apply only to this run and do not edit the saved card.',
+            ],
+            calls: [
+              'automations.v1.runCard(cardId, inputValues, context) → starts the saved workflow and waits for completion',
+            ],
+            notes: [
+              'Fails if the card fails, is stopped, is missing, or is already running. Recursive calls to an active card are rejected.',
+              'Stop propagates to the child workflow. Completed actions are not undone.',
+            ],
+            examples: [
+              {
+                title: 'Use the card’s saved inputs',
+                input: { cardId: 'your-card-id', inputValues: {} },
+              },
+            ],
             defaults: { cardId: '', inputValues: {} },
             fields: [
-              { key: 'cardId', label: 'Card', kind: 'text', editor: 'automation.card' },
-              { key: 'inputValues', label: 'Inputs', kind: 'json' },
+              {
+                key: 'cardId',
+                label: 'Card',
+                kind: 'text',
+                editor: 'automation.card',
+                required: true,
+                hint: 'Choose a saved card.',
+              },
+              {
+                key: 'inputValues',
+                label: 'Inputs',
+                kind: 'json',
+                hint: 'Optional object keyed by the selected card’s input keys. Empty uses its saved values.',
+              },
             ],
             outputs: [
               { key: 'nodes', label: 'Step results', kind: 'json' },
@@ -69,9 +98,14 @@ module.exports = ({ userData }) => ({
     ctx.effect(() => transport.handle('automations.types', () => automations.types()))
     ctx.effect(() => transport.handle('automations.runs', () => automations.snapshot()))
     ctx.effect(() =>
+      transport.handle('automations.check', ({ flow, inputValues }) =>
+        checkProgram(flow, automations.actions, inputValues),
+      ),
+    )
+    ctx.effect(() =>
       transport.handle(
         'automations.inputs.set',
-        changed(({ id, inputValues }) => automations.setInputs(id, inputValues)),
+        changed(({ id, inputValues, drafts }) => automations.setInputs(id, inputValues, drafts)),
       ),
     )
     ctx.effect(() =>
@@ -108,27 +142,14 @@ module.exports = ({ userData }) => ({
       }),
     )
     const tools = ctx.get('agent.tools.v1')
-    ctx.effect(() =>
-      tools.register('list_actions', {
-        description: 'List saved automation cards and their steps.',
-        access: 'read',
-        inputSchema: z.object({}).strict(),
-        execute: async () => automations.list(),
-      }),
-    )
-    ctx.effect(() =>
-      tools.register('run_action', {
-        description:
-          'Start a saved automation card by id. It may open applications or run local scripts.',
-        access: 'write',
-        inputSchema: z
-          .object({
-            id: z.string().min(1).max(80),
-            inputValues: z.record(z.string(), z.unknown()).optional(),
-          })
-          .strict(),
-        execute: async ({ id, inputValues }) => automations.start(id, inputValues),
-      }),
-    )
+    // The chat model builds a saved card from an ordered list of steps. These
+    // tools turn that description into node ids, positions, and connections, so
+    // creating or editing an action does not mean hand-writing its JSON files.
+    const definitions = automationTools({
+      automations,
+      onChange: () => broadcast('automations.changed', automations.list()),
+    })
+    for (const { name, description, access, inputSchema, execute } of definitions)
+      ctx.effect(() => tools.register(name, { description, access, inputSchema, execute }))
   },
 })

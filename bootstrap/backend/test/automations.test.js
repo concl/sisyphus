@@ -248,7 +248,7 @@ test('Open validates all targets before opening any, and preserves literal paths
   assert.deepEqual(opened, [])
   assert.throws(
     () =>
-      automations.save(
+      automations.run(
         flow(
           [node('a', 'open', { application: 'default', targets: ['javascript:alert(1)'] })],
           [{ from: 'start', to: 'a' }],
@@ -258,7 +258,7 @@ test('Open validates all targets before opening any, and preserves literal paths
   )
   assert.throws(
     () =>
-      automations.save(
+      automations.run(
         flow(
           [
             node('a', 'open', {
@@ -362,7 +362,7 @@ test('Wait checks HTTP readiness, retries failures, and observes its deadline', 
   assert.equal(requests, 2)
   assert.throws(
     () =>
-      automations.save(
+      automations.run(
         flow(
           [node('a', 'wait', { mode: 'url', url: 'file:///tmp/foo', timeoutSeconds: 3 })],
           [{ from: 'start', to: 'a' }],
@@ -477,7 +477,7 @@ test('invalid inputs fail before any branch starts and do not overwrite stored d
   assert.deepEqual(automations.list()[0], original)
 })
 
-test('invalid and incompatible input connections are rejected before saving', () => {
+test('malformed input connections cannot save; incompatible draft bindings cannot run', () => {
   const { automations } = setup()
   registerBuiltins(automations, { shell: {}, integrations: {} })
   const example = browserTabsFlow('example')
@@ -497,9 +497,11 @@ test('invalid and incompatible input connections are rejected before saving', ()
   invalid.nodes[0].bindings.websites = 'missing'
   assert.throws(() => automations.save(invalid), /unavailable/)
   invalid.nodes[0].bindings = { application: 'websites' }
-  assert.throws(() => automations.save(invalid), /cannot be used/)
+  assert.doesNotThrow(() => automations.save(invalid))
+  assert.throws(() => automations.start(invalid.id), /cannot be used/)
   invalid.nodes[0].bindings = { __proto__: null, nonexistent: 'websites' }
-  assert.throws(() => automations.save(invalid), /cannot be used/)
+  assert.doesNotThrow(() => automations.save(invalid))
+  assert.throws(() => automations.start(invalid.id), /cannot be used/)
 })
 
 test('text, number, boolean, and list inputs keep their types and can feed several steps', async () => {
