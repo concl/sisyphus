@@ -84,6 +84,9 @@ class PlannerRepository {
     this.save({ schema: 1, records: [...this.document().records, item] })
     return item
   }
+  createEvent(input) {
+    return this.create({ ...input, kind: 'event' })
+  }
   update(input) {
     const { id, ...fields } = updateSchema.parse(input)
     return this.change(id, fields)
@@ -135,4 +138,4 @@ class PlannerRepository {
     return this.save(merge(this.document(), document))
   }
 }
-module.exports = { PlannerRepository, createSchema, updateSchema, idSchema }
+module.exports = { PlannerRepository, createSchema, updateSchema, idSchema, validateItem }

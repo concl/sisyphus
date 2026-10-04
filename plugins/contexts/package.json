@@ -18,6 +18,26 @@
     },
     "backend": [
       {
+        "id": "desktop.automations",
+        "entry": "./backend/automations.js",
+        "order": 5
+      },
+      {
+        "id": "desktop.local-actions",
+        "entry": "./backend/local-actions.js",
+        "order": 6
+      },
+      {
+        "id": "desktop.network-actions",
+        "entry": "./backend/network-actions.js",
+        "order": 7
+      },
+      {
+        "id": "desktop.data-actions",
+        "entry": "./backend/data-actions.js",
+        "order": 8
+      },
+      {
         "id": "desktop.app-contexts",
         "entry": "./backend/app-contexts.js",
         "order": 1

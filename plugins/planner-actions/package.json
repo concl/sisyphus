@@ -1,0 +1,26 @@
+{
+  "name": "@sisyphus/plugin-planner-actions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8"
+  },
+  "sisyphus": {
+    "frontend": {
+      "id": "feature.planner-actions",
+      "entry": "./frontend/index.ts",
+      "export": "plannerActionsPlugin",
+      "needs": [],
+      "order": 11
+    },
+    "backend": [
+      {
+        "id": "desktop.planner-actions",
+        "entry": "./backend/actions.js",
+        "order": 7
+      }
+    ]
+  }
+}

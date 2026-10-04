@@ -1,0 +1,20 @@
+{
+  "name": "@sisyphus/plugin-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sisyphus": {
+    "backend": [
+      {
+        "id": "desktop.scripts",
+        "entry": "./backend/scripts.js",
+        "order": 2
+      },
+      {
+        "id": "desktop.script-actions",
+        "entry": "./backend/actions.js",
+        "order": 3
+      }
+    ]
+  }
+}

@@ -1,34 +1,31 @@
 import { services, type AppPlugin, type Desktop, type Panels } from '@sisyphus/sdk'
-import { Launcher } from './launcher'
-import editorIcon from './editor.svg'
-import browserIcon from './browser.svg'
+import { Actions } from './actions'
+import icon from './icon.svg'
+import type { ActionPresentations } from '../../actions/frontend/presentations'
+import { SavedCardInput } from './saved-card-input'
 
 export const contextsPlugin: AppPlugin = {
   id: 'feature.contexts',
-  name: 'App launchers',
-  inject: [services.panels, services.desktop],
+  name: 'Actions',
+  inject: [services.panels, services.desktop, 'ui.actions.v1'],
   apply(ctx) {
     const panels = ctx.get(services.panels) as Panels
     const desktop = ctx.get(services.desktop) as Desktop
+    const presentations = ctx.get('ui.actions.v1') as ActionPresentations
     ctx.effect(() =>
-      panels.register({
-        // Preserve the old panel id so saved dock layouts still restore.
-        id: 'contexts',
-        title: 'VS Code',
-        description: 'Open your saved editor workspaces.',
-        icon: editorIcon,
-        component: () => <Launcher desktop={desktop} integration="vscode" />,
-        priority: 80,
+      presentations.register('automation.card', {
+        input: (props) => <SavedCardInput {...props} desktop={desktop} />,
       }),
     )
     ctx.effect(() =>
       panels.register({
-        id: 'browser-tabs',
-        title: 'Browser Tabs',
-        description: 'Open a saved set of pages.',
-        icon: browserIcon,
-        component: () => <Launcher desktop={desktop} integration="browser" />,
-        priority: 79,
+        // Preserve the old panel id so saved dock layouts still restore.
+        id: 'contexts',
+        title: 'Actions',
+        description: 'Saved actions and their inputs.',
+        icon,
+        component: () => <Actions desktop={desktop} presentations={presentations} />,
+        priority: 80,
       }),
     )
   },

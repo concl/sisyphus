@@ -134,7 +134,13 @@ service contracts in Electron.
   sync are retained. Old To-dos/Planner layouts open Calendar. See the
   [Calendar guide](plugins/planner/README.md) for supported ICS features and the
   provider adapter boundary for future cloud integrations.
-- **Terminal, Python Host, VS Code, Browser Tabs, Home, Settings, Theme, and
+- **Actions:** cards with inline saved inputs and a graph editor that discovers
+  actions from component services. Compose Calendar, browser tabs, scripts,
+  web requests, and other cards, passing their results between steps. Providers
+  own their controls and results and clean up when unloaded. Saved project and
+  tab launchers migrate automatically. See
+  the [Actions guide](plugins/contexts/README.md).
+- **Terminal, Python Host, Home, Settings, Theme, and
   Workspace:** independently composed plugins. Drag blocks to stack or split them,
   and drag the rail icons to arrange the sidebar; a saved layout keeps both orders,
   and Restore default layout puts both back.

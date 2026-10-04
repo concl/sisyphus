@@ -1,3 +1,4 @@
+import { EventScheduleFields } from './event-schedule'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Planner, PlannerItem, PlannerChanges } from '@sisyphus/sdk'
 import { addDays, dateKey, fromDay } from './model'
@@ -166,71 +167,22 @@ export function Editor({
               </div>
             </div>
           ) : (
-            <>
-              {type === 'event' && (
-                <label className="cal-check">
-                  <input
-                    type="checkbox"
-                    checked={!timed}
-                    onChange={(e) => setTimed(!e.target.checked)}
-                  />
-                  All day
-                </label>
-              )}
-              <div className="cal-form-row">
-                <label>
-                  {type === 'todo' ? 'Due date (optional)' : 'Start date'}
-                  <input
-                    type="date"
-                    required={type === 'event'}
-                    value={date}
-                    onChange={(e) => {
-                      setDate(e.target.value)
-                      if (e.target.value > last) setLast(e.target.value)
-                    }}
-                  />
-                </label>
-                {type === 'event' && (
-                  <label>
-                    End date
-                    <input
-                      type="date"
-                      required
-                      min={date}
-                      value={last}
-                      onChange={(e) => setLast(e.target.value)}
-                    />
-                  </label>
-                )}
-              </div>
-              {type === 'event' && timed && (
-                <>
-                  <div className="cal-form-row">
-                    <label>
-                      Start time
-                      <input
-                        type="time"
-                        required
-                        value={start}
-                        onChange={(e) => setStart(e.target.value)}
-                      />
-                    </label>
-                    <label>
-                      End time
-                      <input
-                        type="time"
-                        required
-                        value={end}
-                        onChange={(e) => setEnd(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <p className="cal-footnote">
-                    {Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ')}
-                  </p>
-                </>
-              )}
-            </>
+            <EventScheduleFields
+              type={type}
+              timed={timed}
+              setTimed={setTimed}
+              date={date}
+              setDate={(value) => {
+                setDate(value)
+                if (value > last) setLast(value)
+              }}
+              last={last}
+              setLast={setLast}
+              start={start}
+              setStart={setStart}
+              end={end}
+              setEnd={setEnd}
+            />
           )}
           {type === 'event' ? (
             <label>

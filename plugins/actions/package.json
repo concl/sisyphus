@@ -1,0 +1,26 @@
+{
+  "name": "@sisyphus/plugin-actions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8"
+  },
+  "sisyphus": {
+    "frontend": {
+      "id": "feature.action-catalog",
+      "entry": "./frontend/index.ts",
+      "export": "actionCatalogPlugin",
+      "needs": [],
+      "order": 3
+    },
+    "backend": [
+      {
+        "id": "desktop.action-catalog",
+        "entry": "./backend/catalog.js",
+        "order": 1
+      }
+    ]
+  }
+}

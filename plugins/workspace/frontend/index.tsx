@@ -43,13 +43,27 @@ import shipIcon from './ship-lineart.svg'
 type StoredLayout = SerializedDockview | SavedLayout<SerializedDockview>
 
 function migrateLayout(layout: SerializedDockview): SerializedDockview {
-  return { ...layout, floatingGroups: [], popoutGroups: [],
-    panels: Object.fromEntries(Object.entries(layout.panels).map(([id, panel]) =>
-      [id, ['planner', 'todo'].includes(panel.params?.type) ? { ...panel, title: 'Calendar', params: { ...panel.params, type: 'calendar' } } : panel])),
+  return {
+    ...layout,
+    floatingGroups: [],
+    popoutGroups: [],
+    panels: Object.fromEntries(
+      Object.entries(layout.panels).map(([id, panel]) => [
+        id,
+        ['planner', 'todo'].includes(panel.params?.type)
+          ? { ...panel, title: 'Calendar', params: { ...panel.params, type: 'calendar' } }
+          : ['contexts', 'browser-tabs'].includes(panel.params?.type)
+            ? { ...panel, title: 'Actions', params: { ...panel.params, type: 'contexts' } }
+            : panel,
+      ]),
+    ),
   }
 }
 
-class PanelBoundary extends Component<{ children: ReactNode; version?: unknown }, { error: string }> {
+class PanelBoundary extends Component<
+  { children: ReactNode; version?: unknown },
+  { error: string }
+> {
   state = { error: '' }
   static getDerivedStateFromError(error: Error) {
     return { error: error.message }
@@ -672,8 +686,8 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                     ))}
                   <p className="drawer-note">
                     Turning off a feature removes its blocks. Turning off a desktop provider stops
-                    its processes. Reopen blocks after enabling a provider. Manage installed
-                    plugins in Plugins.
+                    its processes. Reopen blocks after enabling a provider. Manage installed plugins
+                    in Plugins.
                   </p>
                   <button className="reset-button" onClick={restoreDefaultLayout}>
                     Restore default layout ↗
@@ -689,7 +703,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                 </button>
               </div>
             )}
-            <footer className="workspace-status">
+            {/* <footer className="workspace-status">
               <span>
                 <i /> Local first. Yours to sync.
               </span>
@@ -697,7 +711,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                 {available.length} blocks available <b>·</b> Drag tabs and rail icons to arrange{' '}
                 <b>·</b> Layout saved on this device
               </span>
-            </footer>
+            </footer> */}
           </div>
         )
       }

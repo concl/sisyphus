@@ -1,11 +1,17 @@
 ;(async () => {
-  const waitFor = async (predicate, label = 'a smoke condition', timeout = 20000) => {
+  const waitFor = async (
+    predicate,
+    label = predicate.toString().slice(0, 160),
+    timeout = 20000,
+  ) => {
     const deadline = Date.now() + timeout
     while (Date.now() < deadline) {
       if (await predicate()) return
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
-    throw new Error(`Timed out waiting for ${label}`)
+    throw new Error(
+      `Timed out waiting for ${label}; Actions: ${document.querySelector('.action-feedback')?.textContent ?? 'no feedback'}; editing: ${Boolean(document.querySelector('.actions-panel.editing'))}; cards: ${[...document.querySelectorAll('.action-card h2')].map((card) => card.textContent).join(', ')}; title: ${document.querySelector('[aria-label="Card title"]')?.value ?? ''}`,
+    )
   }
   const assert = (value, message) => {
     if (!value) throw new Error(message)
@@ -150,62 +156,383 @@
   )
   const iconColors = new Set(masks.map((mask) => getComputedStyle(mask).backgroundColor))
   assert(iconColors.size === 1, `Block icons should share one color, got ${[...iconColors]}`)
-  document.querySelector('[aria-label="Open VS Code"]').click()
-  await waitFor(() => document.querySelector('.contexts-panel'))
+  document.querySelector('[aria-label="Open Actions"]').click()
+  await waitFor(() => document.querySelector('.actions-panel'))
   assert(
-    document.querySelector('.launcher-heading h1').textContent === 'VS Code',
-    'Editor launcher should be separate',
+    !document.querySelector('[aria-label="Open Browser Tabs"]'),
+    'Launchers should share one Actions panel',
   )
-  document.querySelector('.launcher-new').click()
-  await waitFor(() => document.querySelector('.launcher-folders'))
-  assert(
-    !document.querySelector('.launcher-editor textarea'),
-    'Editor form should not include browser pages',
-  )
-  document.querySelector('.launcher-editor-heading button').click()
-  document.querySelector('[aria-label="Open Browser Tabs"]').click()
-  await waitFor(
-    () => document.querySelector('.launcher-heading h1')?.textContent === 'Browser tabs',
-  )
-  document.querySelector('.launcher-new').click()
-  await waitFor(() => document.querySelector('.launcher-editor textarea'))
-  assert(
-    !document.querySelector('.launcher-folders'),
-    'Browser form should not include editor settings',
-  )
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent.includes('New action'))
+    .click()
+  await waitFor(() => document.querySelector('.action-canvas'))
   const nameSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
   const pagesSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
-  const entryName = document.querySelector('.launcher-editor input')
-  nameSetter.call(entryName, 'Reading')
+  const entryName = document.querySelector('[aria-label="Card title"]')
+  nameSetter.call(entryName, 'Pause briefly')
   entryName.dispatchEvent(new Event('input', { bubbles: true }))
-  const pages = document.querySelector('.launcher-editor textarea')
-  pagesSetter.call(pages, 'https://example.com/docs\nhttps://example.org/')
-  pages.dispatchEvent(new Event('input', { bubbles: true }))
-  document.querySelector('.launcher-editor button[type="submit"]').click()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  document.querySelector('[aria-label="green card"]').click()
+  document.querySelector('.action-add-button').click()
+  await waitFor(() => document.querySelector('.action-step-menu'))
+  ;[...document.querySelectorAll('.action-step-menu button')]
+    .find((button) => button.querySelector('strong')?.textContent === 'Wait')
+    .click()
+  await waitFor(() => document.querySelector('.action-inspector input[type="number"]'))
+  const seconds = document.querySelector('.action-inspector input[type="number"]')
+  nameSetter.call(seconds, '0')
+  seconds.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Save')
+    .click()
   await waitFor(
-    () => document.querySelector('.launcher-entry[aria-label="Open Reading"]'),
-    'saved browser entry',
+    async () =>
+      (await bridge.call('automations.list')).some((item) => item.title === 'Pause briefly'),
+    'saving the automation card',
   )
-  const tabSet = (await bridge.call('contexts.list')).find((item) => item.name === 'Reading')
+  const action = (await bridge.call('automations.list')).find(
+    (item) => item.title === 'Pause briefly',
+  )
   assert(
-    tabSet.actions.length === 1 && tabSet.actions[0].integration === 'browser',
-    'Browser save should only contain browser action',
+    action.color === 'green' && action.nodes[0].type === 'system.wait',
+    'Card settings and steps should persist',
   )
-  assert(tabSet.actions[0].urls.length === 2, 'Browser pages should persist')
-  assert(!document.querySelector('.launcher-editor'), 'Editor should close after saving')
-  document.querySelector('[aria-label="Edit Reading"]').click()
+  assert(action.edges[0].from === 'start', 'First step should be connected to Start')
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Back to cards')
+    .click()
+  await waitFor(() => document.querySelector('[aria-label="Run Pause briefly"]'))
+  document.querySelector('[aria-label="Run Pause briefly"]').click()
+  await waitFor(async () =>
+    (await bridge.call('automations.runs')).some(
+      (run) => run.id === action.id && run.status === 'succeeded',
+    ),
+  )
+  assert(document.querySelector('.action-card-results'), 'A card should show its result inline')
+  document.querySelector('[aria-label="Edit Pause briefly"]').click()
+  await waitFor(() => document.querySelector('.action-canvas'))
+  document.querySelector('[aria-label="Connect from Wait"]').click()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  document.querySelector('[aria-label="Connect to Wait"]').click()
+  await waitFor(() => document.querySelector('.action-error'))
+  assert(
+    document.querySelector('.action-error').textContent.includes('different step'),
+    'Self-connections should be rejected',
+  )
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Back to cards')
+    .click()
+  // Configure and duplicate a parameterized card without opening actual websites.
+  const inputCard = await bridge.call('automations.save', {
+    id: 'inputs-smoke',
+    title: 'My websites',
+    color: 'blue',
+    description: '',
+    inputs: [{ key: 'websites', label: 'Websites', kind: 'urls', value: ['https://example.org/'] }],
+    nodes: [
+      {
+        id: 'tabs',
+        title: 'Open websites',
+        type: 'open',
+        x: 320,
+        y: 60,
+        config: { targets: [], application: 'default' },
+        bindings: { targets: 'websites' },
+      },
+    ],
+    edges: [{ from: 'start', to: 'tabs' }],
+  })
+  await waitFor(() => document.querySelector('[aria-label="Run My websites"]'), 'input card')
+  const websites = document
+    .querySelector('[aria-label="Run My websites"]')
+    .closest('article')
+    .querySelector('textarea')
+  pagesSetter.call(websites, 'https://example.org/one\nhttps://example.org/two')
+  websites.dispatchEvent(new Event('input', { bubbles: true }))
+  await waitFor(
+    async () =>
+      (await bridge.call('automations.list')).find((flow) => flow.id === inputCard.id)?.inputs[0]
+        .value.length === 2,
+    'saving card inputs',
+  )
+  const inputArticle = document.querySelector('[aria-label="Run My websites"]').closest('article')
+  inputArticle.querySelector('.action-card-menu summary').click()
+  ;[...inputArticle.querySelectorAll('.action-card-menu button')]
+    .find((button) => button.textContent === 'Duplicate')
+    .click()
+  await waitFor(
+    () => document.querySelector('[aria-label="Card title"]')?.value === 'My websites copy',
+    'duplicated input card',
+  )
+  const copyCard = (await bridge.call('automations.list')).find(
+    (flow) => flow.title === 'My websites copy',
+  )
+  assert(copyCard.inputs[0].value.length === 2, 'Duplication should preserve input defaults')
+  assert(copyCard.programId === inputCard.programId, 'Duplicate cards should share their program')
+  assert(
+    [...document.querySelectorAll('.action-feedback')].some((element) =>
+      element.textContent.includes('Changing the graph creates an independent copy'),
+    ),
+    'The editor should explain how shared program edits behave',
+  )
+  document
+    .querySelector('[aria-label="Connect to Open websites"]')
+    .closest('.action-node')
+    .querySelector('.action-node-body')
+    .click()
   await waitFor(() =>
-    document.querySelector('.launcher-editor textarea')?.value.includes('example.org'),
+    document.querySelector('[aria-label="Source for Files, folders or websites"]'),
   )
-  document.querySelector('.launcher-delete').click()
   assert(
-    (await bridge.call('contexts.list')).some((item) => item.id === tabSet.id),
-    'Removal needs confirmation',
+    document.querySelector('[aria-label="Source for Files, folders or websites"]').value ===
+      'websites',
+    'The copied step should still use its card input',
   )
-  document.querySelector('.launcher-delete').click()
+  assert(
+    document.querySelector('.action-bound-value').textContent.includes('example.org/two'),
+    'The settings inspector should show the resolved websites',
+  )
+  document.querySelector('.action-start .action-node-body').click()
+  await waitFor(() => document.querySelector('.action-input-definition textarea'))
+  const copyWebsites = document.querySelector('.action-input-definition textarea')
+  pagesSetter.call(copyWebsites, 'https://example.org/copied')
+  copyWebsites.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Save')
+    .click()
   await waitFor(
-    async () => !(await bridge.call('contexts.list')).some((item) => item.id === tabSet.id),
+    async () =>
+      (await bridge.call('automations.list')).find((flow) => flow.id === copyCard.id)?.inputs[0]
+        .value[0] === 'https://example.org/copied',
+    'saving copied defaults',
   )
+  assert(
+    (await bridge.call('automations.list')).find((flow) => flow.id === inputCard.id).inputs[0].value
+      .length === 2,
+    'Editing a copy must preserve the original defaults',
+  )
+  assert(
+    (await bridge.call('automations.list')).find((flow) => flow.id === copyCard.id).programId ===
+      inputCard.programId,
+    'Changing copied card inputs should preserve the shared program',
+  )
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Back to cards')
+    .click()
+  const actionCatalog = await bridge.call('automations.types')
+  assert(
+    actionCatalog.some((action) => action.type === 'web.request' && action.service.name === 'Web'),
+    'Backend services should populate the action catalog',
+  )
+  assert(
+    actionCatalog.some((action) => action.type === 'calendar.createEvent'),
+    'Calendar should expose a service action',
+  )
+  assert(
+    actionCatalog.some((action) => action.type === 'scripts.runScript'),
+    'Scripts should expose an independent action',
+  )
+  // Create a card using the provider's controls, then edit those controls inline.
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent.includes('New action'))
+    .click()
+  await waitFor(() => document.querySelector('[aria-label="Card title"]'))
+  nameSetter.call(document.querySelector('[aria-label="Card title"]'), 'Create planning event')
+  document
+    .querySelector('[aria-label="Card title"]')
+    .dispatchEvent(new Event('input', { bubbles: true }))
+  document.querySelector('.action-add-button').click()
+  await waitFor(() =>
+    [...document.querySelectorAll('.action-step-menu strong')].some(
+      (item) => item.textContent === 'Create event',
+    ),
+  )
+  ;[...document.querySelectorAll('.action-step-menu button')]
+    .find((button) => button.textContent.includes('Create event'))
+    .click()
+  await waitFor(() => document.querySelector('[aria-label="Source for Event"]'))
+  document.querySelector('.action-start .action-node-body').click()
+  await waitFor(() => document.querySelector('[aria-label="Event title"]'))
+  const eventTitle = document.querySelector('[aria-label="Event title"]')
+  nameSetter.call(eventTitle, 'Planning from Actions')
+  eventTitle.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  const eventDate = document.querySelector('.action-provider-input input[type="date"]')
+  nameSetter.call(eventDate, '2026-10-05')
+  eventDate.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Save')
+    .click()
+  await waitFor(async () =>
+    (await bridge.call('automations.list')).some((card) => card.title === 'Create planning event'),
+  )
+  await waitFor(
+    () =>
+      [...document.querySelectorAll('.actions-heading-buttons button')].find(
+        (button) => button.textContent === 'Back to cards',
+      )?.disabled === false,
+    'Calendar card save to finish in the editor',
+  )
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Back to cards')
+    .click()
+  await waitFor(() => document.querySelector('[aria-label="Run Create planning event"]'))
+  const eventCard = document
+    .querySelector('[aria-label="Run Create planning event"]')
+    .closest('article')
+  nameSetter.call(eventCard.querySelector('[aria-label="Event title"]'), 'Changed on the card')
+  eventCard
+    .querySelector('[aria-label="Event title"]')
+    .dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  eventCard.querySelector('[aria-label="Run Create planning event"]').click()
+  await waitFor(async () =>
+    (await bridge.call('planner.get')).records.some((item) => item.title === 'Changed on the card'),
+  )
+  await waitFor(() => eventCard.querySelector('.action-event-result'))
+  assert(
+    eventCard.querySelector('.action-event-result').textContent.includes('Changed on the card'),
+    'Calendar should render its own observable result',
+  )
+  const plannerBeforeDisable = (await bridge.call('planner.get')).records.length
+  document.querySelector('.header-actions > button').click()
+  await waitFor(() => document.querySelector('[role="switch"][aria-label="Calendar actions"]'))
+  document.querySelector('[role="switch"][aria-label="Calendar actions"]').click()
+  await waitFor(() => !document.querySelector('[aria-label="Event title"]'))
+  const fallbackEvent = document
+    .querySelector('[aria-label="Run Create planning event"]')
+    .closest('article')
+    .querySelector('textarea')
+  assert(
+    JSON.parse(fallbackEvent.value).title === 'Changed on the card',
+    'Removing a custom editor should show the current value in its generic editor',
+  )
+  await waitFor(
+    () =>
+      document.querySelector('[role="switch"][aria-label="Calendar actions"]')?.disabled === false,
+  )
+  document.querySelector('[role="switch"][aria-label="Calendar actions"]').click()
+  await waitFor(() => document.querySelector('[aria-label="Event title"]'))
+  assert(
+    document.querySelector('[aria-label="Event title"]').value === 'Changed on the card',
+    'Provider controls should restore with the saved values',
+  )
+  document.querySelector('[aria-label="Close plugins"]').click()
+  await bridge.call('runtime.enable', { id: 'desktop.planner-data', enabled: false })
+  await waitFor(() => document.querySelector('[aria-label="Run Create planning event"]')?.disabled)
+  assert(
+    (await bridge.call('actions.list')).every((action) => action.type !== 'calendar.createEvent'),
+    'Unloading Calendar should remove its action',
+  )
+  await bridge.call('runtime.enable', { id: 'desktop.planner-data', enabled: true })
+  await waitFor(() => !document.querySelector('[aria-label="Run Create planning event"]')?.disabled)
+  assert(
+    (await bridge.call('planner.get')).records.length === plannerBeforeDisable,
+    'Provider reload should preserve domain data',
+  )
+  await bridge.call('runtime.enable', { id: 'desktop.automations', enabled: false })
+  assert(
+    (await bridge.call('actions.list')).some((action) => action.type === 'calendar.createEvent'),
+    'Catalog and Calendar should survive automation unloading',
+  )
+  assert(
+    (await bridge.call('runtime.list')).find((plugin) => plugin.id === 'desktop.scripts').state ===
+      'active',
+    'Script execution should survive automation unloading',
+  )
+  await bridge.call('runtime.enable', { id: 'desktop.automations', enabled: true })
+  await waitFor(() => document.querySelector('[aria-label="Run Create planning event"]'))
+  const dataFlow = await bridge.call('automations.save', {
+    id: 'data-smoke',
+    title: 'Make a greeting',
+    description: '',
+    color: 'purple',
+    inputs: [],
+    nodes: [
+      {
+        id: 'value',
+        title: 'Person',
+        type: 'data.value',
+        x: 320,
+        y: 60,
+        config: { value: { person: { name: 'Ada' } } },
+      },
+      {
+        id: 'format',
+        title: 'Greeting',
+        type: 'data.format',
+        x: 620,
+        y: 60,
+        config: { template: 'Hello {{name}}', values: {} },
+      },
+    ],
+    edges: [
+      { from: 'start', to: 'value' },
+      { from: 'start', to: 'format' },
+    ],
+  })
+  await waitFor(() => document.querySelector('[aria-label="Edit Make a greeting"]'))
+  document.querySelector('[aria-label="Edit Make a greeting"]').click()
+  await waitFor(() => document.querySelector('[aria-label="Connect to Greeting"]'))
+  document
+    .querySelector('[aria-label="Connect to Greeting"]')
+    .closest('.action-node')
+    .querySelector('.action-node-body')
+    .click()
+  await waitFor(() => document.querySelector('[aria-label="Values"]'))
+  const dataValues = document.querySelector('[aria-label="Values"]')
+  pagesSetter.call(dataValues, '{invalid')
+  dataValues.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Save')
+    .click()
+  await waitFor(() =>
+    [...document.querySelectorAll('.action-error')].some((item) =>
+      item.textContent.includes('Fix the invalid data'),
+    ),
+  )
+  pagesSetter.call(dataValues, '{}')
+  dataValues.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  const resultSource = document.querySelector('[aria-label="Source for Values"]')
+  const selectSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set
+  selectSetter.call(
+    resultSource,
+    [...resultSource.options].find((option) => option.textContent.includes('Person → Value')).value,
+  )
+  resultSource.dispatchEvent(new Event('change', { bubbles: true }))
+  await waitFor(() => document.querySelector('[aria-label="Property path for Values"]'))
+  const property = document.querySelector('[aria-label="Property path for Values"]')
+  nameSetter.call(property, 'person')
+  property.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent.includes('Save & run'))
+    .click()
+  await waitFor(
+    async () =>
+      (await bridge.call('automations.runs')).some(
+        (run) => run.id === dataFlow.id && run.status === 'succeeded',
+      ),
+    'data flowing between service actions',
+  )
+  const dataRun = (await bridge.call('automations.runs')).find((run) => run.id === dataFlow.id)
+  assert(
+    dataRun.nodes.format.result.text === 'Hello Ada',
+    'The result picker should pass the selected nested value',
+  )
+  const savedData = (await bridge.call('automations.list')).find((flow) => flow.id === dataFlow.id)
+  assert(
+    savedData.edges.some((edge) => edge.from === 'value' && edge.to === 'format'),
+    'Choosing a result should connect its dependency',
+  )
+  ;[...document.querySelectorAll('.actions-heading-buttons button')]
+    .find((button) => button.textContent === 'Back to cards')
+    .click()
   document.querySelector('[aria-label="Open Settings"]').click()
   await waitFor(() => document.querySelector('.settings-panel'))
   const themeButtons = [...document.querySelectorAll('.theme-options button')]
@@ -243,17 +570,33 @@
   )
   const settings = await bridge.call('chat.config.get')
   ;[...document.querySelectorAll('.settings-sections button')]
-    .find(button => button.textContent === 'Chat').click()
+    .find((button) => button.textContent === 'Chat')
+    .click()
   await waitFor(() => document.querySelector('[aria-label="Provider JSON"]'))
   const providerEditor = document.querySelector('[aria-label="Provider JSON"]')
-  pagesSetter.call(providerEditor, JSON.stringify({ providers: [
-    { id: 'smoke', baseURL: window.__smokeModelURL, apiKey: 'smoke-only-key', models: ['test-model'] },
-    { id: 'local', baseURL: window.__smokeModelURL, models: ['test-model', 'another-model'] },
-  ] }, null, 2))
+  pagesSetter.call(
+    providerEditor,
+    JSON.stringify(
+      {
+        providers: [
+          {
+            id: 'smoke',
+            baseURL: window.__smokeModelURL,
+            apiKey: 'smoke-only-key',
+            models: ['test-model'],
+          },
+          { id: 'local', baseURL: window.__smokeModelURL, models: ['test-model', 'another-model'] },
+        ],
+      },
+      null,
+      2,
+    ),
+  )
   providerEditor.dispatchEvent(new Event('input', { bubbles: true }))
-  await new Promise(resolve => setTimeout(resolve, 100))
+  await new Promise((resolve) => setTimeout(resolve, 100))
   ;[...document.querySelectorAll('.settings-card button')]
-    .find(button => button.textContent === 'Save providers').click()
+    .find((button) => button.textContent === 'Save providers')
+    .click()
   await waitFor(async () => (await bridge.call('chat.config.get')).providers.length === 2)
   const saved = await bridge.call('chat.config.save', {
     systemPrompt: settings.defaultSystemPrompt,
@@ -281,7 +624,10 @@
   document.querySelector('[aria-label="Open Chat"]').click()
   await waitFor(() => document.querySelector('.chat-composer .chat-editor'))
   const modelPicker = document.querySelector('.chat-composer-footer [aria-label="Chat model"]')
-  assert(modelPicker.querySelectorAll('optgroup').length === 2, 'Models should be grouped by provider')
+  assert(
+    modelPicker.querySelectorAll('optgroup').length === 2,
+    'Models should be grouped by provider',
+  )
   modelPicker.value = JSON.stringify(['local', 'test-model'])
   modelPicker.dispatchEvent(new Event('change', { bubbles: true }))
   await waitFor(async () => (await bridge.call('chat.config.get')).provider === 'local')
@@ -536,8 +882,8 @@
     systemTheme: true,
     chatStreamingAndTools: true,
     appContexts: true,
-    separateLaunchers: true,
-    browserEntryEditing: true,
+    automationCards: true,
+    graphEditing: true,
     shipIcon: true,
     providerJsonEditing: true,
     providerModelSelection: true,
