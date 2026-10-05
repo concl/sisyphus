@@ -8,6 +8,7 @@
     "@sisyphus/sdk": "*",
     "@sisyphus/ui": "*",
     "react": "^19.2.8",
+    "@streamdown/math": "^1.0.3",
     "@tiptap/core": "^3.31.3",
     "@tiptap/extension-mention": "^3.31.3",
     "@tiptap/extensions": "^3.31.3",

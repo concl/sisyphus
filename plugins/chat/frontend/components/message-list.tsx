@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react'
 import { Streamdown } from 'streamdown'
 import { code } from '../lib/code-highlight'
+import { math, texDelimiters } from '../lib/math'
 import { FileIcon, FolderIcon } from '@sisyphus/ui'
 import type {
   ChatConfig,
@@ -42,17 +43,19 @@ const SUGGESTIONS = ['Help me plan my day', 'What can you help me with?']
 // only the controls it should show are enabled here. The code plugin adds Shiki
 // syntax highlighting to fenced blocks; chat.css turns its token variables into
 // colors, since the app does not use the Tailwind utilities it otherwise emits.
+// The math plugin sets `$...$`, `$$...$$`, `\(...\)` and `\[...\]`, the last two
+// rewritten by hand because the Markdown parser does not know them.
 const CONTROLS = {
   code: { copy: true, download: false },
   table: { copy: true, download: false, fullscreen: false },
 }
-const PLUGINS = { code }
+const PLUGINS = { code, math }
 
 const Markdown = memo(function Markdown({ text }: { text: string }) {
   return (
     <div className="chat-markdown">
       <Streamdown controls={CONTROLS} plugins={PLUGINS}>
-        {text}
+        {texDelimiters(text)}
       </Streamdown>
     </div>
   )

@@ -735,6 +735,15 @@
   border-left: 2px solid var(--border-strong);
   color: var(--muted);
 }
+/* Math: KaTeX brings its own type and its own fonts (see lib/math.ts), so the app
+   only says how much room a display takes, and that a wide one scrolls instead
+   of widening the transcript. */
+.chat-markdown .katex-display {
+  margin: 12px 0;
+  padding: 2px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 .chat-markdown code {
   padding: 1px 4px;
   border-radius: 4px;

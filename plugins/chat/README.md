@@ -11,6 +11,18 @@ per-conversation history files, and the default system prompt
 
 Multiple conversations may run concurrently; one conversation has one active run.
 
+Replies are Markdown, and math in them is set with KaTeX. `$...$`, `$$...$$`,
+`\(...\)` and `\[...\]` all mean math: the last two are rewritten into dollar
+form before parsing (`frontend/lib/tex-delimiters.ts`), because the Markdown
+parser consumes the backslash. Code is left alone - nothing inside a fenced block
+or a code span is rewritten. Math standing on a line of its own is display math,
+centered, with limits set over and under sums; math inside a sentence stays
+inline. Since a single `$` opens math, a reply mentioning `$5 and $10` reads that
+as math too, which is Pandoc's behaviour. `frontend/lib/math.ts` holds the plugin
+and imports KaTeX's stylesheet with it; the stylesheet carries its fonts as data
+URLs, because a plugin stylesheet has no URL space to serve them from, and the
+host compiler inlines them.
+
 Automatic context compaction is configured under **Settings → Chat → Context
 memory**. It is on by default with an estimated 32,000-token budget; providers
 do not declare their context windows, so set this at or below the selected
