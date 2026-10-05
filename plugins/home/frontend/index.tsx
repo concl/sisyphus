@@ -39,7 +39,7 @@ export const homePlugin: AppPlugin = {
                   <span className="launch-icon">
                     <span
                       className="icon-mask"
-                      style={{ maskImage: `url("${panel.icon}")` }}
+                      style={{ maskImage: `url(${JSON.stringify(panel.icon)})` }}
                       aria-hidden="true"
                     />
                   </span>

@@ -94,6 +94,14 @@ Cordis, SDK, profile, and UI imports in renderer plugins resolve to explicit hos
 modules, ensuring one React instance. Other dependencies are bundled from the
 installed dependency tree. Plugins can carry their own dependencies in their
 folder. A distribution must include the dependencies its source packages need.
+Source files (JavaScript, TypeScript, JSX, JSON, and CSS) use esbuild's normal
+loaders. Other imported files are inlined as data URLs, with MIME detection left
+to esbuild; unfamiliar formats still carry their original bytes. CSS `url()`
+references to local files are always inlined, including extensionless assets.
+This applies to dependencies as well as the plugin's own files, so adding a font,
+image, or other asset format never requires a host loader entry. Stylesheets are
+injected as text and need no asset server. Imports return URL strings; when
+embedding one in an inline CSS value, escape it, e.g. `url(${JSON.stringify(icon)})`.
 The packaged host uses ordinary files (`asar: false`) because the native compiler
 and spawned executables need real filesystem paths.
 

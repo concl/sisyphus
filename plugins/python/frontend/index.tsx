@@ -64,7 +64,7 @@ export const pythonPlugin: AppPlugin = {
             <span className="python-mark">
               <span
                 className="icon-mask"
-                style={{ maskImage: `url("${icon}")` }}
+                style={{ maskImage: `url(${JSON.stringify(icon)})` }}
                 aria-hidden="true"
               />
             </span>

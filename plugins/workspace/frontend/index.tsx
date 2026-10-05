@@ -175,7 +175,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
             {definition && (
               <span
                 className="block-tab-icon icon-mask"
-                style={{ maskImage: `url("${definition.icon}")` }}
+                style={{ maskImage: `url(${JSON.stringify(definition.icon)})` }}
                 aria-hidden="true"
               />
             )}
@@ -446,7 +446,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
               <div className="brand">
                 <span
                   className="brand-symbol"
-                  style={{ maskImage: `url("${shipIcon}")` }}
+                  style={{ maskImage: `url(${JSON.stringify(shipIcon)})` }}
                   aria-hidden="true"
                 />
                 <strong>sisyphus</strong>
@@ -525,7 +525,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                           <span>
                             <span
                               className="icon-mask"
-                              style={{ maskImage: `url("${panel.icon}")` }}
+                              style={{ maskImage: `url(${JSON.stringify(panel.icon)})` }}
                               aria-hidden="true"
                             />
                           </span>
@@ -598,7 +598,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                     >
                       <span
                         className="icon-mask"
-                        style={{ maskImage: `url("${panel.icon}")` }}
+                        style={{ maskImage: `url(${JSON.stringify(panel.icon)})` }}
                         aria-hidden="true"
                       />
                     </button>

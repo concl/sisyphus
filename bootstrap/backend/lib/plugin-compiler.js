@@ -5,6 +5,33 @@ const Module = require('node:module')
 const { createHash } = require('node:crypto')
 const { build } = require('esbuild')
 
+// These are esbuild's source formats, not a list of permitted assets. Everything
+// else is an opaque file, including formats introduced by a plugin dependency.
+const sourceExtensions = new Set(['', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.json', '.css'])
+function inlineAssets() {
+  const resolvingAsset = {}
+  return { name: 'inline-assets', setup(builder) {
+    // A CSS url() always refers to bytes, even for extensionless files or files
+    // whose extension also names a source language. Keep normal URL resolution
+    // (including external URLs and query/fragment suffixes) in esbuild's hands.
+    builder.onResolve({ filter: /.*/, namespace: 'file' }, async args => {
+      if (args.kind !== 'url-token' || args.pluginData === resolvingAsset) return
+      const resolved = await builder.resolve(args.path, {
+        importer: args.importer, resolveDir: args.resolveDir, kind: args.kind,
+        namespace: args.namespace, pluginData: resolvingAsset,
+      })
+      if (resolved.external || resolved.errors.length) return resolved
+      return { ...resolved, namespace: 'asset' }
+    })
+    const load = async args => ({ contents: await fs.promises.readFile(args.path), loader: 'dataurl' })
+    builder.onLoad({ filter: /.*/, namespace: 'asset' }, load)
+    builder.onLoad({ filter: /.*/, namespace: 'file' }, args => {
+      if (sourceExtensions.has(path.extname(args.path)) || Object.keys(args.with).length) return
+      return load(args)
+    })
+  } }
+}
+
 const shared = {
   react: 'react', 'react/jsx-runtime': 'jsx', 'react-dom': 'reactDom',
   'react-dom/client': 'reactDomClient', '@sisyphus/sdk': 'sdk',
@@ -77,16 +104,12 @@ async function compile(entry) {
     outfile: path.join(entry.folder, '.runtime', `${entry.id}.js`),
     platform: renderer ? 'browser' : 'node', format: renderer ? 'iife' : 'cjs',
     globalName: renderer ? '__sisyphusPlugin' : undefined, target: 'es2022',
-    jsx: 'automatic', loader: { '.svg': 'dataurl', '.png': 'dataurl', '.woff2': 'dataurl' },
+    jsx: 'automatic',
     nodePaths: require.resolve.paths('react'),
     external: renderer ? [] : ['electron', 'node-pty', '@modelcontextprotocol/server-filesystem', '@modelcontextprotocol/server-filesystem/*'],
     define: renderer ? { 'process.env.NODE_ENV': '"production"', global: 'globalThis' } : {},
     footer: renderer ? { js: `SisyphusRuntime.register(${JSON.stringify(entry.id)}, __sisyphusPlugin);` } : {},
-    plugins: [{ name: 'host-contracts', setup(builder) {
-      builder.onLoad({ filter: /\.svg$/ }, args => ({
-        contents: `export default ${JSON.stringify(`data:image/svg+xml;base64,${fs.readFileSync(args.path).toString('base64')}`)}`,
-        loader: 'js',
-      }))
+    plugins: [inlineAssets(), { name: 'host-contracts', setup(builder) {
       if (renderer) {
         builder.onResolve({ filter: /.*/ }, args => args.path in shared ? { path: args.path, namespace: 'host' } : undefined)
         builder.onLoad({ filter: /.*/, namespace: 'host' }, args => ({ contents: `module.exports = SisyphusRuntime.${shared[args.path]}`, loader: 'js' }))

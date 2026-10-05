@@ -154,7 +154,7 @@ export const settingsPlugin: AppPlugin = {
             </div>
             <span
               className="icon-mask"
-              style={{ maskImage: `url("${icon}")` }}
+              style={{ maskImage: `url(${JSON.stringify(icon)})` }}
               aria-hidden="true"
             />
           </header>

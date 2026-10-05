@@ -321,7 +321,7 @@ export function MessageList({
     <div className="chat-messages" ref={scroller} onScroll={trackPosition} aria-live="polite">
       {!messages.length && !busy && (
         <div className="chat-welcome">
-          <span className="icon-mask" style={{ maskImage: `url("${icon}")` }} aria-hidden="true" />
+          <span className="icon-mask" style={{ maskImage: `url(${JSON.stringify(icon)})` }} aria-hidden="true" />
           <h2>Chat</h2>
           <p>A configurable assistant.</p>
           {config?.model ? (
