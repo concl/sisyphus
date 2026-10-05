@@ -516,6 +516,10 @@ i {
   border: 0;
   color: #dadada;
 }
+.panel-toolbar select option {
+  background: #262626;
+  color: #dadada;
+}
 .panel-toolbar button {
   margin-left: auto;
   font-size: 10px;
