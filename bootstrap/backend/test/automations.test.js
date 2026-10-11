@@ -6,16 +6,13 @@ const os = require('node:os')
 const path = require('node:path')
 const http = require('node:http')
 const { setTimeout: delay } = require('node:timers/promises')
-const {
-  Automations,
-  validateFlow,
-} = require('../../../plugins/contexts/backend/lib/automations.js')
+const { Automations, validateFlow } = require('../../../plugins/actions/backend/lib/automations.js')
 const {
   registerBuiltins,
   processRun,
-} = require('../../../plugins/contexts/backend/lib/action-runners.js')
-const { browserTabsFlow } = require('../../../plugins/contexts/backend/lib/action-examples.js')
-const { AutomationFiles } = require('../../../plugins/contexts/backend/lib/automation-files.js')
+} = require('../../../plugins/actions/backend/lib/action-runners.js')
+const { browserTabsFlow } = require('../../../plugins/actions/backend/lib/action-examples.js')
+const { AutomationFiles } = require('../../../plugins/actions/backend/lib/automation-files.js')
 
 const node = (id, type = 'test', config = {}) => ({ id, type, title: id, config, x: 300, y: 60 })
 const flow = (nodes, edges) => ({

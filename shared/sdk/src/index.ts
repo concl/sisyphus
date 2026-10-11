@@ -28,6 +28,7 @@ export interface PlannerChanges {
   description?: string
   location?: string
   list?: string
+  calendarId?: string
   starred?: boolean
   done?: boolean
 }
@@ -43,7 +44,19 @@ export interface PlannerItem extends Omit<PlannerChanges, 'kind' | 'title' | 'da
   updatedAt: string
   actor: string
 }
+export interface PlannerCalendar {
+  id: string
+  name: string
+  color: string
+  updatedAt: string
+  actor: string
+}
+export interface PlannerImportTarget {
+  calendarId?: string
+  newCalendar?: { name: string; color: string }
+}
 export interface PlannerSnapshot {
+  calendars?: PlannerCalendar[]
   records: PlannerItem[]
   folder: string | null
   error: string
@@ -54,8 +67,9 @@ export interface Planner {
   create(input: PlannerChanges & { title: string }): Promise<unknown>
   update(id: string, changes: PlannerChanges): Promise<unknown>
   remove(id: string): Promise<unknown>
-  importICS(text: string): Promise<{ added: number; skipped: number }>
-  exportICS(): Promise<string>
+  saveCalendar(input: { id?: string; name: string; color: string }): Promise<unknown>
+  importICS(text: string, target?: PlannerImportTarget): Promise<{ added: number; skipped: number }>
+  exportICS(calendarId?: string): Promise<string>
   chooseFolder(): Promise<void>
   sync(): Promise<void>
 }
@@ -70,8 +84,15 @@ export interface CalendarProvider {
     changes: Array<{ remoteId: string; etag?: string; deleted?: boolean; ics?: string }>
     cursor: string
   }>
-  push(input: { accountId: string; calendarId: string; operationId: string;
-    remoteId?: string; etag?: string; deleted?: boolean; ics?: string }): Promise<{ remoteId: string; etag?: string }>
+  push(input: {
+    accountId: string
+    calendarId: string
+    operationId: string
+    remoteId?: string
+    etag?: string
+    deleted?: boolean
+    ics?: string
+  }): Promise<{ remoteId: string; etag?: string }>
 }
 export interface PanelProps {
   instanceId: string
@@ -380,3 +401,10 @@ export interface IntegrationStatus {
   name: string
   available: boolean
 }
+
+export type {
+  ActionInputProps,
+  ActionResultProps,
+  ActionPresentation,
+  ActionPresentations,
+} from './actions'

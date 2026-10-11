@@ -1,17 +1,20 @@
 import { useMemo, useState } from 'react'
-import type { PlannerItem } from '@sisyphus/sdk'
+import type { PlannerItem, PlannerCalendar } from '@sisyphus/sdk'
+import { calendarStyle, itemCalendar } from './calendar-groups'
 import { Icon } from './icons'
 import { searchRecords } from './search'
 import { fromDay } from './model'
 
 export function SearchResults({
   records,
+  calendars,
   query,
   edit,
   reveal,
   back,
 }: {
   records: PlannerItem[]
+  calendars: PlannerCalendar[]
   query: string
   edit: (item: PlannerItem) => void
   reveal: (item: PlannerItem) => void
@@ -47,7 +50,10 @@ export function SearchResults({
         <div className="cal-result-list">
           {results.map((item) => (
             <article key={item.id} className="cal-result" data-done={item.done}>
-              <span className={`cal-result-icon cal-kind-${item.kind}`}>
+              <span
+                className={`cal-result-icon cal-kind-${item.kind}`}
+                style={calendarStyle(item, calendars)}
+              >
                 <Icon name={item.kind === 'event' ? 'calendar' : 'tasks'} />
               </span>
               <button className="cal-result-open" onClick={() => edit(item)}>
@@ -71,7 +77,7 @@ export function SearchResults({
                 {item.description && <p>{item.description}</p>}
               </button>
               <div className="cal-result-end">
-                <span>{item.kind === 'event' ? 'Event' : 'Task'}</span>
+                <span>{itemCalendar(item, calendars).name}</span>
                 {item.date && (
                   <button
                     className="cal-icon-button"

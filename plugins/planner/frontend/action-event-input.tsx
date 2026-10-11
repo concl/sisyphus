@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { PlannerItem } from '@sisyphus/sdk'
-import type { ActionInputProps } from '../../actions/frontend/presentations'
+import type { ActionInputProps } from '@sisyphus/sdk'
 import { EventScheduleFields } from './event-schedule'
 import { addDays, dateKey } from './model'
+
 export function EventInput({ value, change, disabled }: ActionInputProps) {
   const event = (value && typeof value === 'object' ? value : {}) as Partial<PlannerItem>
   const localTime = (value?: string | null) =>

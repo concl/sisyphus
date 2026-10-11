@@ -1,6 +1,7 @@
 'use strict'
 const fs = require('node:fs')
 const path = require('node:path')
+const { calendarSchema } = require('./calendars.js')
 
 const empty = () => ({ schema: 1, records: [] })
 
@@ -8,6 +9,25 @@ function validate(document) {
   if (!document || document.schema !== 1 || !Array.isArray(document.records))
     throw new Error('Unsupported planner document')
   if (document.records.length > 10000) throw new Error('Planner document is too large')
+  if (document.calendars !== undefined) {
+    if (!Array.isArray(document.calendars) || document.calendars.length > 1000)
+      throw new Error('Invalid calendars')
+    const ids = new Set()
+    for (const calendar of document.calendars) {
+      if (
+        !calendar ||
+        !calendarSchema.safeParse({ id: calendar.id, name: calendar.name, color: calendar.color })
+          .success ||
+        !calendar.id ||
+        ids.has(calendar.id) ||
+        typeof calendar.actor !== 'string' ||
+        typeof calendar.updatedAt !== 'string' ||
+        !Number.isFinite(Date.parse(calendar.updatedAt))
+      )
+        throw new Error('Invalid calendar')
+      ids.add(calendar.id)
+    }
+  }
   for (const item of document.records) {
     if (
       !item ||
@@ -35,7 +55,7 @@ function validate(document) {
           item[key] != null &&
           (typeof item[key] !== 'string' || !Number.isFinite(Date.parse(item[key]))),
       ) ||
-      ['uid', 'description', 'location', 'list', 'ical'].some(
+      ['uid', 'description', 'location', 'list', 'ical', 'calendarId'].some(
         (key) => item[key] !== undefined && typeof item[key] !== 'string',
       ) ||
       (item.ical && Buffer.byteLength(item.ical) > 5 * 1024 * 1024)
@@ -55,7 +75,22 @@ function merge(local, remote) {
     )
       result.set(record.id, record)
   }
-  return { schema: 1, records: [...result.values()].sort((a, b) => a.id.localeCompare(b.id)) }
+  const calendars = new Map()
+  for (const calendar of [...(remote.calendars || []), ...(local.calendars || [])]) {
+    const previous = calendars.get(calendar.id)
+    if (
+      !previous ||
+      `${calendar.updatedAt}:${calendar.actor}` > `${previous.updatedAt}:${previous.actor}`
+    )
+      calendars.set(calendar.id, calendar)
+  }
+  return {
+    schema: 1,
+    records: [...result.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    ...(calendars.size
+      ? { calendars: [...calendars.values()].sort((a, b) => a.id.localeCompare(b.id)) }
+      : {}),
+  }
 }
 
 // A cloud provider only needs to implement read() and write(document).

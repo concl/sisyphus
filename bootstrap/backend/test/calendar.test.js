@@ -15,6 +15,59 @@ const wrap = (content) =>
 const event = (uid = 'event@example.org') =>
   `BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTAMP:20260901T000000Z\r\nDTSTART;VALUE=DATE:20260926\r\nDTEND;VALUE=DATE:20260928\r\nSUMMARY:Weekend\r\nEND:VEVENT`
 
+test('calendars preserve legacy events, membership, colors and folder replication', () => {
+  const repo = fixture()
+  const old = repo.create({ kind: 'event', title: 'Old event', date: '2026-09-26' })
+  assert.equal(repo.document().calendars[0].id, 'default')
+  const work = repo.saveCalendar({ name: 'Work', color: '#ad1457' })
+  repo.update({ id: old.id, calendarId: work.id })
+  const renamed = repo.saveCalendar({ id: work.id, name: 'Team', color: '#008080' })
+  repo.create({ title: 'A task' })
+  repo.update({ id: old.id, title: 'Updated' })
+  assert.equal(repo.document().calendars.find((c) => c.id === work.id).color, '#008080')
+  assert.ok(renamed.updatedAt > work.updatedAt)
+  const other = fixture()
+  other.merge(repo.document())
+  assert.equal(other.list().find((item) => item.id === old.id).calendarId, work.id)
+  assert.equal(other.document().calendars.find((c) => c.id === work.id).name, 'Team')
+  assert.equal(importCalendar(repo.exportICS(work.id)).length, 1)
+  assert.equal(importCalendar(repo.exportICS('default'))[0].kind, 'todo')
+  assert.throws(() => repo.update({ id: old.id, calendarId: 'missing' }))
+  assert.throws(() => repo.saveCalendar({ name: ' ', color: '#008080' }))
+  assert.throws(() => repo.saveCalendar({ name: 'Bad', color: 'red' }))
+})
+
+test('imports target calendars atomically and deduplicate within their destination', () => {
+  const repo = fixture()
+  const source = wrap(event())
+  const before = repo.document()
+  assert.throws(() =>
+    repo.importICS('invalid', { newCalendar: { name: 'Work', color: '#008080' } }),
+  )
+  assert.deepEqual(repo.document(), before)
+  assert.throws(() => repo.importICS(source, { calendarId: 'missing' }))
+  repo.importICS(source, { newCalendar: { name: 'Work', color: '#008080' } })
+  const work = repo.document().calendars.find((c) => c.name === 'Work')
+  assert.equal(repo.list()[0].calendarId, work.id)
+  assert.deepEqual(repo.importICS(source, { calendarId: work.id }), { added: 0, skipped: 1 })
+  repo.importICS(source)
+  assert.equal(new Set(repo.list().map((item) => item.id)).size, 2)
+  assert.throws(() => repo.exportICS(), /separately/)
+  assert.equal(importCalendar(repo.exportICS(work.id)).length, 1)
+  const imported = repo.list().find((item) => item.calendarId === work.id)
+  repo.remove({ id: imported.id })
+  assert.equal(repo.importICS(source, { calendarId: work.id }).added, 0)
+})
+
+test('moving imported records cannot cause ID collisions when importing again', () => {
+  const repo = fixture()
+  const work = repo.saveCalendar({ name: 'Work', color: '#008080' })
+  repo.importICS(wrap(event()), { calendarId: work.id })
+  repo.update({ id: repo.list()[0].id, calendarId: 'default' })
+  repo.importICS(wrap(event()), { calendarId: work.id })
+  assert.equal(new Set(repo.list().map((item) => item.id)).size, 2)
+})
+
 test('existing tasks survive and new events have valid start/end semantics', () => {
   const repo = fixture()
   const task = repo.create({ title: 'Existing task', date: '2026-09-26' })

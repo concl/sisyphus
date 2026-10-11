@@ -4,7 +4,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { AppContexts } = require('../../../plugins/contexts/backend/lib/app-contexts.js')
+const { AppContexts } = require('../../../plugins/integrations/backend/lib/app-contexts.js')
 
 function setup() {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-context-'))

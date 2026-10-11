@@ -4,6 +4,7 @@ import type { Planner, PlannerItem, PlannerChanges } from '@sisyphus/sdk'
 import { addDays, dateKey, fromDay } from './model'
 import { PanelSurface } from './panel-surface'
 import { Icon } from './icons'
+import { defaultCalendars } from './calendar-groups'
 
 const localTime = (value?: string | null) =>
   value
@@ -18,6 +19,7 @@ export function Editor({
   day,
   kind,
   defaultList,
+  defaultCalendarId,
   planner,
   close,
   saved,
@@ -26,6 +28,7 @@ export function Editor({
   day: string
   kind: 'event' | 'todo'
   defaultList?: string
+  defaultCalendarId?: string
   planner: Planner
   close: () => void
   saved: (message: string) => void
@@ -48,6 +51,8 @@ export function Editor({
   const [location, setLocation] = useState(item?.location || '')
   const [description, setDescription] = useState(item?.description || '')
   const [list, setList] = useState(item?.list || defaultList || 'My tasks')
+  const calendars = planner.getSnapshot().calendars || defaultCalendars
+  const [calendarId, setCalendarId] = useState(item?.calendarId || defaultCalendarId || 'default')
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('')
   const [confirm, setConfirm] = useState<'discard' | 'delete' | null>(null)
@@ -68,6 +73,7 @@ export function Editor({
     location,
     description,
     list,
+    calendarId,
   ])
   const [initial] = useState(current)
   const requestClose = () => {
@@ -94,6 +100,7 @@ export function Editor({
           title,
           location,
           description,
+          calendarId,
           ...(type === 'todo' ? { list } : {}),
         }
         if (!item?.ical) {
@@ -184,6 +191,16 @@ export function Editor({
               setEnd={setEnd}
             />
           )}
+          <label>
+            Calendar
+            <select value={calendarId} onChange={(event) => setCalendarId(event.target.value)}>
+              {calendars.map((calendar) => (
+                <option key={calendar.id} value={calendar.id}>
+                  {calendar.name}
+                </option>
+              ))}
+            </select>
+          </label>
           {type === 'event' ? (
             <label>
               Location

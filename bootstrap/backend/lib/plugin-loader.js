@@ -148,21 +148,43 @@ class PluginLoader {
       if (error.code === 'ENOENT') return []
       throw error
     }
-    const sourceEntries = compiler.packages(this.directory).flatMap(entry => {
+    const discovered = compiler.packages(this.directory)
+    // A removed or now-empty package has no remembered entries to restore if a
+    // later edit is malformed. Invalid packages still appear in discovery.
+    const folders = new Set(discovered.map((entry) => entry.folder))
+    for (const folder of this.packageEntries.keys())
+      if (!folders.has(folder)) this.packageEntries.delete(folder)
+    const sourceEntries = discovered.flatMap((entry) => {
       if (!entry.target && entry.error && this.packageEntries.has(entry.folder))
-        return this.packageEntries.get(entry.folder).map(previous => ({ ...previous, error: entry.error }))
+        return this.packageEntries
+          .get(entry.folder)
+          .map((previous) => ({ ...previous, error: entry.error }))
       return [entry]
     })
-    for (const folder of new Set(sourceEntries.filter(entry => !entry.error).map(entry => entry.folder)))
-      this.packageEntries.set(folder, sourceEntries.filter(entry => entry.folder === folder))
-    const entries = sourceEntries.map(entry => ({ ...entry,
-      shipped: Boolean(this.meta(entry.id)), error: entry.error ?? this.errors.get(entry.id) }))
-    const claimed = new Set(entries.map(entry => `${entry.id}:${entry.target}`))
+    for (const folder of new Set(
+      sourceEntries.filter((entry) => !entry.error).map((entry) => entry.folder),
+    ))
+      this.packageEntries.set(
+        folder,
+        sourceEntries.filter((entry) => entry.folder === folder),
+      )
+    const entries = sourceEntries.map((entry) => ({
+      ...entry,
+      shipped: Boolean(this.meta(entry.id)),
+      error: entry.error ?? this.errors.get(entry.id),
+    }))
+    const claimed = new Set(entries.map((entry) => `${entry.id}:${entry.target}`))
     for (const name of names) {
       const parsed = parseName(name)
       if (!parsed) continue
       // A source package supersedes its legacy flat artifact.
-      if (entries.some(entry => entry.format === 'source' && entry.id === parsed.id && entry.target === parsed.target)) continue
+      if (
+        entries.some(
+          (entry) =>
+            entry.format === 'source' && entry.id === parsed.id && entry.target === parsed.target,
+        )
+      )
+        continue
       const file = path.join(this.directory, name)
       let mtime
       try {
@@ -255,18 +277,24 @@ class PluginLoader {
         const manifest = path.join(entry.folder, 'package.json')
         const pkg = JSON.parse(fs.readFileSync(manifest, 'utf8'))
         if (entry.target === 'renderer') {
-          delete pkg.sisyphus.frontend
-          delete pkg.sisyphus.entry
+          if (Array.isArray(pkg.sisyphus.frontend))
+            pkg.sisyphus.frontend = pkg.sisyphus.frontend.filter((item) => item.id !== id)
+          else {
+            delete pkg.sisyphus.frontend
+            delete pkg.sisyphus.entry
+          }
         } else {
           for (const key of ['backend', 'native']) {
             if (Array.isArray(pkg.sisyphus[key]))
-              pkg.sisyphus[key] = pkg.sisyphus[key].filter(item => item.id !== id)
+              pkg.sisyphus[key] = pkg.sisyphus[key].filter((item) => item.id !== id)
           }
         }
         fs.writeFileSync(manifest, JSON.stringify(pkg, null, 2))
       } else fs.rmSync(entry.file, { force: true })
     }
     this.versions.delete(id)
+    this.compiled.delete(id)
+    this.errors.delete(id)
   }
 
   /**
@@ -331,7 +359,9 @@ class PluginLoader {
         const built = await compiler.compile(entry)
         this.compiled.set(entry.id, { ...built, mtime: entry.mtime })
         this.errors.delete(entry.id)
-      } catch (error) { this.errors.set(entry.id, error.message) }
+      } catch (error) {
+        this.errors.set(entry.id, error.message)
+      }
     }
   }
 
@@ -348,14 +378,18 @@ class PluginLoader {
   watch(onChange) {
     this.stop()
     try {
-      this.watcher = fs.watch(this.directory, { persistent: false, recursive: true }, (_event, name) => {
-        if (name && compiler.ignoredPath(name)) return
-        clearTimeout(this.timer)
-        this.timer = setTimeout(() => {
-          this.timer = null
-          onChange()
-        }, DEBOUNCE_MS)
-      })
+      this.watcher = fs.watch(
+        this.directory,
+        { persistent: false, recursive: true },
+        (_event, name) => {
+          if (name && compiler.ignoredPath(name)) return
+          clearTimeout(this.timer)
+          this.timer = setTimeout(() => {
+            this.timer = null
+            onChange()
+          }, DEBOUNCE_MS)
+        },
+      )
     } catch {
       this.watcher = null
       return false

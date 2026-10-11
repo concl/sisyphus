@@ -25,11 +25,23 @@ app-wide modal treatment for actions that genuinely require an app-wide decision
 
 ## Portable calendars
 
+Use **My calendars → +** to create named calendars with their own colors. The
+adjacent menu edits a calendar's name and color. Sidebar checkboxes show or hide
+each calendar, and the event/task editor can move items between calendars.
+Existing records belong to **My calendar**. Calendars and membership are retained
+in folder replicas; visibility is remembered on this device.
+
+Import lets you choose a destination or create a calendar, select an `.ics` file,
+then explicitly import it. Creating the calendar and importing its items is atomic.
+Duplicate UIDs are skipped within the destination (including deleted records).
+Export can include one calendar or all calendars. When calendars contain copies
+of the same UID, export them separately to preserve valid iCalendar identities.
+
 Import/export uses **RFC 5545 iCalendar 2.0**, parsed by `ical.js`. VEVENT and VTODO
 are supported. Stable UIDs prevent duplicates, including after local deletion.
 Imports validate before saving, skip existing UIDs (they do not refresh them), and
 limit files to 5 MB / 2,000 items. Existing native tasks need no data migration.
-Export includes all undeleted items, irrespective of view filters.
+Export includes all undeleted items in the chosen calendar(s), irrespective of view filters.
 
 Native timed events store UTC instants. All-day dates remain date-only with an
 exclusive end. The editor accepts an inclusive final date and converts it at the
@@ -73,3 +85,11 @@ covers grid boundaries, recurrence exceptions, and missing-zone behavior.
 
 References: [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545),
 [ICAL.js](https://github.com/kewisch/ical.js).
+
+## Optional Actions integration
+
+Calendar and its Actions presentations are independent frontend entries in this
+package. The backend adapter also lives here and injects `planner.v1` and
+`actions.v1`. It calls `validateEvent(event)` for side-effect-free validation and
+`createEvent(event)` to save. Both frontends share the same scheduling controls.
+Calendar stays usable when Actions is disabled; no folder split is required.

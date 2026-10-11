@@ -4,9 +4,9 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { AutomationFiles } = require('../../../plugins/contexts/backend/lib/automation-files.js')
-const { Automations } = require('../../../plugins/contexts/backend/lib/automations.js')
-const { browserTabsFlow } = require('../../../plugins/contexts/backend/lib/action-examples.js')
+const { AutomationFiles } = require('../../../plugins/actions/backend/lib/automation-files.js')
+const { Automations } = require('../../../plugins/actions/backend/lib/automations.js')
+const { browserTabsFlow } = require('../../../plugins/actions/backend/lib/action-examples.js')
 
 function setup(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sisyphus-automation-files-'))

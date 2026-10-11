@@ -4,6 +4,8 @@
   "private": true,
   "exports": {
     "./folder": "./chat-folder.js",
-    "./backends": "./backends.js"
+    "./backends": "./backends.js",
+    "./vscode-launcher": "./vscode-launcher.js",
+    "./process-run": "./process-run.js"
   }
 }

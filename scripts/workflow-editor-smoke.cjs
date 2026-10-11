@@ -15,7 +15,7 @@ async function prepare() {
       contents: `
         import React from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Actions } from './plugins/contexts/frontend/actions';
+        import { Actions } from './plugins/actions/frontend/actions';
         import { ActionPresentations } from './plugins/actions/frontend/presentations';
         import './plugins/theme/frontend/theme.css';
         import './bootstrap/frontend/src/index.css';
@@ -54,12 +54,12 @@ async function run() {
   const { app, BrowserWindow, ipcMain } = require('electron')
   app.setPath('userData', fs.mkdtempSync(path.join(output, 'profile-')))
   await app.whenReady()
-  const { Automations } = require('../plugins/contexts/backend/lib/automations.js')
-  const { AutomationFiles } = require('../plugins/contexts/backend/lib/automation-files.js')
-  const { checkProgram } = require('../plugins/contexts/backend/lib/workflow-engine.js')
-  const { dataActions } = require('../plugins/contexts/backend/lib/data-actions.js')
-  const { localActions } = require('../plugins/contexts/backend/lib/action-runners.js')
-  const { networkActions } = require('../plugins/contexts/backend/lib/network-actions.js')
+  const { Automations } = require('../plugins/actions/backend/lib/automations.js')
+  const { AutomationFiles } = require('../plugins/actions/backend/lib/automation-files.js')
+  const { checkProgram } = require('../plugins/actions/backend/lib/workflow-engine.js')
+  const { dataActions } = require('../plugins/actions/backend/lib/data-actions.js')
+  const { localActions } = require('../plugins/actions/backend/lib/action-runners.js')
+  const { networkActions } = require('../plugins/actions/backend/lib/network-actions.js')
   const window = new BrowserWindow({
     show: false,
     width: 1280,

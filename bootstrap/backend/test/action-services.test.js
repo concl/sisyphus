@@ -4,8 +4,8 @@ const { setTimeout: delay } = require('node:timers/promises')
 const { ActionServices } = require('../../../plugins/actions/backend/lib/catalog.js')
 const { Scripts } = require('../../../plugins/scripts/backend/lib/scripts.js')
 const { PlannerRepository } = require('../../../plugins/planner/backend/lib/planner-data.js')
-const calendarActions = require('../../../plugins/planner-actions/backend/actions.js')
-const { WorkflowEngine } = require('../../../plugins/contexts/backend/lib/workflow-engine.js')
+const calendarActions = require('../../../plugins/planner/backend/actions.js')
+const { WorkflowEngine } = require('../../../plugins/actions/backend/lib/workflow-engine.js')
 
 test('an uncooperative provider still settles cancelled and re-registration gets a fresh lifetime', async () => {
   const actions = new ActionServices()
@@ -111,4 +111,44 @@ test('Calendar action uses the domain service, publishes changes and returns bin
   cleanup.forEach((off) => off())
   assert.equal(actions.has('calendar.createEvent'), false)
   assert.equal(planner.list().length, 1)
+})
+
+test('Calendar draft validation calls the injected planner and never writes', () => {
+  const data = new Map()
+  let changes = 0
+  const planner = new PlannerRepository(
+    {
+      get: (scope, key) => data.get(scope + '/' + key),
+      set: (scope, key, value) => data.set(scope + '/' + key, value),
+    },
+    () => changes++,
+  )
+  const actions = new ActionServices()
+  let validations = 0
+  calendarActions().apply({
+    get: (name) =>
+      name === 'planner.v1'
+        ? {
+            validateEvent(input) {
+              validations++
+              return planner.validateEvent(input)
+            },
+            createEvent() {
+              throw new Error('Validation must not create an event')
+            },
+          }
+        : actions,
+    effect: (fn) => fn(),
+  })
+  const validate = (event) => actions.get('calendar.createEvent').validate({ event })
+  validate({ title: 'Draft', date: '2026-10-10' })
+  assert.throws(() => validate({ title: 'Draft', date: '2026-02-30' }), /valid calendar date/)
+  assert.throws(
+    () => validate({ title: 'Draft', date: '2026-10-10', calendarId: 'missing' }),
+    /existing calendar/,
+  )
+  assert.equal(validations, 3)
+  assert.deepEqual(planner.list(), [])
+  assert.equal(changes, 0)
+  actions.dispose()
 })

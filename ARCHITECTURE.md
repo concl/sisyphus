@@ -54,11 +54,14 @@ claim to support live replacement of the transport carrying a reload.
   "name": "@sisyphus/plugin-example",
   "type": "module",
   "sisyphus": {
-    "frontend": {
-      "id": "feature.example",
-      "entry": "./frontend/index.tsx",
-      "export": "examplePlugin"
-    },
+    "frontend": [
+      { "id": "feature.example", "entry": "./frontend/index.tsx", "export": "examplePlugin" },
+      {
+        "id": "feature.example-actions",
+        "entry": "./frontend/actions.tsx",
+        "export": "exampleActionsPlugin"
+      }
+    ],
     "backend": [{ "id": "desktop.example", "entry": "./backend/index.js" }]
   }
 }
@@ -70,6 +73,19 @@ CommonJS backend source has its own `backend/package.json` with `type: commonjs`
 Backend implementation, prompts, worker code, and frontend assets stay in the same
 feature package. Shared libraries are `shared/sdk`, `ui`, `runtime`, and `backend`;
 features communicate through injected services rather than importing each other.
+
+A package may declare any number of frontend entries. A single frontend object is
+also accepted. Each entry has its own ID, export, injected dependencies, toggle,
+compiled JavaScript, and stylesheet. Removing an entry retains its siblings.
+Malformed declarations and duplicate IDs are rejected before any part of the
+package is discovered; a running app retains the last valid entries on errors.
+
+Folders describe features, not activation units: `planner` owns Calendar and its
+optional Actions adapter; `actions` owns its catalog, editor, workflow engine,
+and built-in adapters; `integrations` owns application integrations and saved
+integration presets. Presentation contracts live in the SDK. The editor retains
+plugin ID `feature.contexts` and panel ID `contexts` because they identify saved
+state, not source folders. Calendar remains independent of the Actions catalog.
 
 Frontend entries map to the existing `renderer` IPC target; backend entries map
 to `main`. Those wire names and plugin IDs remain stable. Legacy `entry`/`native`
@@ -194,7 +210,7 @@ process-tree cancellation use asynchronous OS calls.
 | Contract                     | Provider     | Consumers                                  |
 | ---------------------------- | ------------ | ------------------------------------------ |
 | `ui.panels.v1`               | panels       | workspace, every visual feature            |
-| `planner.v1` (renderer)      | planner      | unified Calendar views                             |
+| `planner.v1` (renderer)      | planner      | unified Calendar views                     |
 | `planner.v1` (native)        | planner-data | planner-sync, planner tool adapter         |
 | `agent.tools.v1`             | agent-tools  | files, shell, planner, plugin loader, chat |
 | `runtime.workers.v1`         | host         | chat native adapter                        |

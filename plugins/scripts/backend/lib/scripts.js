@@ -1,6 +1,6 @@
 'use strict'
 const path = require('node:path')
-const { processRun } = require('./process-run.js')
+const { processRun } = require('@sisyphus/native/process-run')
 
 function validateProgram(input) {
   for (const key of ['program', 'cwd', 'stdin']) {

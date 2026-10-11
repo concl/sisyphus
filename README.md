@@ -109,7 +109,8 @@ App-data edits are preserved unless `--force` is explicitly supplied.
 `SISYPHUS_USER_DATA` selects an alternate app-data root for both Electron and sync.
 Host or shared-library changes still require rebuilding/restarting the host.
 
-Existing plugin IDs and npm imports are unchanged. Legacy manifests still load;
+Existing plugin IDs and shared-library npm imports remain stable. Feature packages
+are grouped by domain and can declare multiple independent frontends. Legacy manifests still load;
 edited app-data packages keep their old source layout until explicitly restored
 or force-synced. Untouched packages migrate to `frontend/` and `backend/` automatically.
 
@@ -139,7 +140,7 @@ service contracts in Electron.
   web requests, and other cards, passing their results between steps. Providers
   own their controls and results and clean up when unloaded. Saved project and
   tab launchers migrate automatically. See
-  the [Actions guide](plugins/contexts/README.md).
+  the [Actions guide](plugins/actions/README.md).
 - **Terminal, Python Host, Home, Settings, Theme, and
   Workspace:** independently composed plugins. Drag blocks to stack or split them,
   and drag the rail icons to arrange the sidebar; a saved layout keeps both orders,

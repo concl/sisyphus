@@ -11,13 +11,22 @@
     "@sisyphus/ui": "*"
   },
   "sisyphus": {
-    "frontend": {
-      "id": "feature.planner",
-      "entry": "./frontend/index.tsx",
-      "export": "plannerPlugin",
-      "needs": [],
-      "order": 10
-    },
+    "frontend": [
+      {
+        "id": "feature.planner",
+        "entry": "./frontend/index.tsx",
+        "export": "plannerPlugin",
+        "needs": [],
+        "order": 10
+      },
+      {
+        "id": "feature.planner-actions",
+        "entry": "./frontend/actions.tsx",
+        "export": "plannerActionsPlugin",
+        "needs": [],
+        "order": 11
+      }
+    ],
     "backend": [
       {
         "id": "desktop.planner-data",
@@ -28,6 +37,11 @@
         "id": "desktop.planner-sync",
         "entry": "./backend/planner-sync.js",
         "order": 6
+      },
+      {
+        "id": "desktop.planner-actions",
+        "entry": "./backend/actions.js",
+        "order": 7
       }
     ]
   }

@@ -1,0 +1,34 @@
+{
+  "name": "@sisyphus/plugin-integrations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sisyphus": {
+    "backend": [
+      {
+        "id": "desktop.app-contexts",
+        "entry": "./backend/app-contexts.js",
+        "order": 1
+      },
+      {
+        "id": "desktop.integrations",
+        "entry": "./backend/integrations.js",
+        "order": 2
+      },
+      {
+        "id": "desktop.integration.browser",
+        "entry": "./backend/integration-browser.js",
+        "order": 3
+      },
+      {
+        "id": "desktop.integration.vscode",
+        "entry": "./backend/integration-vscode.js",
+        "order": 4
+      }
+    ]
+  },
+  "dependencies": {
+    "@sisyphus/native": "*",
+    "zod": "^4.6.5"
+  }
+}

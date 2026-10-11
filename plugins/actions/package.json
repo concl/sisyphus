@@ -5,22 +5,55 @@
   "type": "module",
   "dependencies": {
     "@sisyphus/sdk": "*",
-    "react": "^19.2.8"
+    "react": "^19.2.8",
+    "@sisyphus/native": "*",
+    "zod": "^4.6.5",
+    "react-dom": "^19.2.8"
   },
   "sisyphus": {
-    "frontend": {
-      "id": "feature.action-catalog",
-      "entry": "./frontend/index.ts",
-      "export": "actionCatalogPlugin",
-      "needs": [],
-      "order": 3
-    },
+    "frontend": [
+      {
+        "id": "feature.action-catalog",
+        "entry": "./frontend/catalog.ts",
+        "export": "actionCatalogPlugin",
+        "needs": [],
+        "order": 3
+      },
+      {
+        "id": "feature.contexts",
+        "entry": "./frontend/index.tsx",
+        "export": "actionsPlugin",
+        "needs": [],
+        "order": 4
+      }
+    ],
     "backend": [
       {
         "id": "desktop.action-catalog",
         "entry": "./backend/catalog.js",
         "order": 1
+      },
+      {
+        "id": "desktop.automations",
+        "entry": "./backend/automations.js",
+        "order": 5
+      },
+      {
+        "id": "desktop.local-actions",
+        "entry": "./backend/local-actions.js",
+        "order": 6
+      },
+      {
+        "id": "desktop.network-actions",
+        "entry": "./backend/network-actions.js",
+        "order": 7
+      },
+      {
+        "id": "desktop.data-actions",
+        "entry": "./backend/data-actions.js",
+        "order": 8
       }
     ]
-  }
+  },
+  "exports": "./frontend/index.tsx"
 }

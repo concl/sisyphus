@@ -16,5 +16,8 @@
         "order": 3
       }
     ]
+  },
+  "dependencies": {
+    "@sisyphus/native": "*"
   }
 }

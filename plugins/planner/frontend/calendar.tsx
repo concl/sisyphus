@@ -1,5 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import type { Planner, PlannerItem } from '@sisyphus/sdk'
+import type { Planner, PlannerItem, PlannerCalendar } from '@sisyphus/sdk'
+import { CalendarEditor } from './calendars'
+import { calendarStyle, defaultCalendars, itemCalendar } from './calendar-groups'
 import { ResizableSidebar } from '@sisyphus/ui'
 import { Editor } from './editor'
 import { Icon } from './icons'
@@ -25,6 +27,7 @@ type Surface =
   | { type: 'edit'; item?: PlannerItem; day: string; kind: 'event' | 'todo' }
   | { type: 'day'; day: string }
   | { type: 'transfer'; mode: TransferMode }
+  | { type: 'calendar'; calendar?: PlannerCalendar }
 const fullDate = (day: string) =>
   fromDay(day).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 const monthOf = (day: string) => new Date(fromDay(day).getFullYear(), fromDay(day).getMonth(), 1)
@@ -39,6 +42,26 @@ const readSidebar = () => {
 
 export function Calendar({ planner }: { planner: Planner }) {
   const state = useSyncExternalStore(planner.subscribe, planner.getSnapshot)
+  const calendars = state.calendars || defaultCalendars
+  const [hiddenCalendars, setHiddenCalendars] = useState<Set<string>>(() => {
+    try {
+      const ids = JSON.parse(localStorage.getItem('sisyphus.calendar.hidden') || '[]')
+      return new Set(
+        Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [],
+      )
+    } catch {
+      return new Set()
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('sisyphus.calendar.hidden', JSON.stringify([...hiddenCalendars]))
+    } catch {
+      /* optional persistence */
+    }
+  }, [hiddenCalendars])
+  const selectedCalendars = calendars.filter((calendar) => !hiddenCalendars.has(calendar.id))
+  const defaultCalendarId = selectedCalendars.length === 1 ? selectedCalendars[0].id : 'default'
   const root = useRef<HTMLDivElement>(null),
     searchInput = useRef<HTMLInputElement>(null),
     sidebarToggle = useRef<HTMLButtonElement>(null),
@@ -98,10 +121,12 @@ export function Calendar({ planner }: { planner: Planner }) {
   const days = useMemo(() => monthDays(month), [month])
   const visible = useMemo(
     () =>
-      state.records.filter((item) =>
-        item.kind === 'event' ? events : tasks && !hiddenLists.has(item.list || 'My tasks'),
+      state.records.filter(
+        (item) =>
+          !hiddenCalendars.has(item.calendarId || 'default') &&
+          (item.kind === 'event' ? events : tasks && !hiddenLists.has(item.list || 'My tasks')),
       ),
-    [state.records, events, tasks, hiddenLists],
+    [state.records, events, tasks, hiddenLists, hiddenCalendars],
   )
   const schedule = useMemo(
     () => occurrences(visible, days[0], days[days.length - 1]),
@@ -114,6 +139,7 @@ export function Calendar({ planner }: { planner: Planner }) {
   const taskItems = state.records.filter(
     (item) =>
       item.kind === 'todo' &&
+      !hiddenCalendars.has(item.calendarId || 'default') &&
       !hiddenLists.has(item.list || 'My tasks') &&
       (taskFilter.type === 'all' || item.starred),
   )
@@ -174,7 +200,8 @@ export function Calendar({ planner }: { planner: Planner }) {
       key={entry.key}
       className={`cal-chip cal-kind-${entry.item.kind}`}
       data-done={entry.item.done}
-      title={`${timeLabel(entry)} · ${entry.item.title}`}
+      style={calendarStyle(entry.item, calendars)}
+      title={`${itemCalendar(entry.item, calendars).name} · ${timeLabel(entry)} · ${entry.item.title}`}
       onClick={() => edit(state.records.find((i) => i.id === entry.item.id)!)}
     >
       {entry.item.kind === 'todo' ? (
@@ -194,7 +221,10 @@ export function Calendar({ planner }: { planner: Planner }) {
       key={entry.key}
       onClick={() => edit(state.records.find((i) => i.id === entry.item.id)!)}
     >
-      <span className={`cal-entry-marker cal-kind-${entry.item.kind}`} />
+      <span
+        className={`cal-entry-marker cal-kind-${entry.item.kind}`}
+        style={calendarStyle(entry.item, calendars)}
+      />
       <span className="cal-entry-time">
         {timeLabel(entry)}
         {entry.end && (
@@ -203,6 +233,7 @@ export function Calendar({ planner }: { planner: Planner }) {
       </span>
       <span className="cal-entry-description">
         <strong>{entry.item.title}</strong>
+        <small>{itemCalendar(entry.item, calendars).name}</small>
         {entry.item.location && <small>{entry.item.location}</small>}
       </span>
       <Icon name="right" size={14} />
@@ -440,6 +471,63 @@ export function Calendar({ planner }: { planner: Planner }) {
                   </label>
                 </section>
                 <section className="cal-sidebar-section">
+                  <div className="cal-calendars-heading">
+                    <h3>My calendars</h3>
+                    <button
+                      className="cal-icon-button"
+                      aria-label="Create calendar"
+                      title="Create calendar"
+                      onClick={() => {
+                        closeDrawer()
+                        setSurface({ type: 'calendar' })
+                      }}
+                    >
+                      <Icon name="plus" size={16} />
+                    </button>
+                  </div>
+                  {calendars.map((calendar) => (
+                    <div className="cal-calendar-row" key={calendar.id}>
+                      <label className="cal-check">
+                        <input
+                          type="checkbox"
+                          checked={!hiddenCalendars.has(calendar.id)}
+                          style={{ accentColor: calendar.color }}
+                          onChange={() =>
+                            setHiddenCalendars((previous) => {
+                              const next = new Set(previous)
+                              if (next.has(calendar.id)) next.delete(calendar.id)
+                              else next.add(calendar.id)
+                              return next
+                            })
+                          }
+                        />
+                        <span className="cal-swatch" style={{ background: calendar.color }} />
+                        <span className="cal-calendar-name">{calendar.name}</span>
+                      </label>
+                      <button
+                        className="cal-icon-button"
+                        aria-label={`Edit ${calendar.name}`}
+                        title={`Edit ${calendar.name}`}
+                        onClick={() => {
+                          closeDrawer()
+                          setSurface({ type: 'calendar', calendar })
+                        }}
+                      >
+                        <Icon name="more" size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="cal-side-link"
+                    onClick={() => {
+                      closeDrawer()
+                      setSurface({ type: 'transfer', mode: 'import' })
+                    }}
+                  >
+                    <Icon name="import" size={16} /> Import calendar
+                  </button>
+                </section>
+                <section className="cal-sidebar-section">
                   <h3>Task lists</h3>
                   <button
                     className="cal-side-link"
@@ -544,7 +632,6 @@ export function Calendar({ planner }: { planner: Planner }) {
                     >
                       <Icon name="right" />
                     </button>
-
                   </div>
                 )}
                 <h2>
@@ -552,7 +639,7 @@ export function Calendar({ planner }: { planner: Planner }) {
                     ? taskTitle
                     : month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                 </h2>
-                
+
                 <select
                   aria-label="Calendar view"
                   value={view}
@@ -597,12 +684,18 @@ export function Calendar({ planner }: { planner: Planner }) {
               <SearchResults
                 key={query}
                 records={state.records}
+                calendars={calendars}
                 query={query}
                 edit={edit}
                 back={endSearch}
                 reveal={(item) => {
                   const day = item.start ? dateKey(new Date(item.start)) : item.date!
                   selectDay(day)
+                  setHiddenCalendars((previous) => {
+                    const next = new Set(previous)
+                    next.delete(item.calendarId || 'default')
+                    return next
+                  })
                   if (item.kind === 'event') setEvents(true)
                   else {
                     setTasks(true)
@@ -771,6 +864,7 @@ export function Calendar({ planner }: { planner: Planner }) {
           planner={planner}
           folder={state.folder}
           mode={surface.mode}
+          defaultCalendarId={defaultCalendarId}
           close={() => setSurface(null)}
         />
       )}
@@ -778,12 +872,20 @@ export function Calendar({ planner }: { planner: Planner }) {
         <Editor
           {...surface}
           defaultList={selectedLists.length === 1 ? selectedLists[0] : undefined}
+          defaultCalendarId={defaultCalendarId}
           planner={planner}
           close={() => setSurface(null)}
           saved={(message) => {
             setNotice(message)
             setSurface(null)
           }}
+        />
+      )}
+      {surface?.type === 'calendar' && (
+        <CalendarEditor
+          calendar={surface.calendar}
+          planner={planner}
+          close={() => setSurface(null)}
         />
       )}
       {surface?.type === 'day' && (

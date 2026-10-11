@@ -1,5 +1,6 @@
+import './actions.css'
 import { services, type AppPlugin, type Panels, type PlannerItem } from '@sisyphus/sdk'
-import type { ActionPresentations } from '../../actions/frontend/presentations'
+import type { ActionPresentations } from '@sisyphus/sdk'
 import { EventInput } from './action-event-input'
 export const plannerActionsPlugin: AppPlugin = {
   id: 'feature.planner-actions',

@@ -6,7 +6,7 @@ import {
   compatibleInput,
   type Flow,
   type Step,
-} from '../../../plugins/contexts/frontend/action-model'
+} from '../../../plugins/actions/frontend/action-model'
 
 const node = (id: string): Step => ({ id, title: id, type: 'data.value', config: {}, x: 0, y: 0 })
 const flow = (): Flow => ({

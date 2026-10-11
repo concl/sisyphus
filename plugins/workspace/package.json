@@ -10,7 +10,7 @@
   "dependencies": {
     "@sisyphus/sdk": "*",
     "react": "^19.2.8",
-    "dockview-react": "^4.0.0",
+    "dockview-react": "^8.4.1",
     "@sisyphus/profile": "*"
   },
   "sisyphus": {

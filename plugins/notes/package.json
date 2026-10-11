@@ -1,0 +1,35 @@
+{
+  "name": "@sisyphus/plugin-notes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "@sisyphus/ui": "*",
+    "react": "^19.2.8",
+    "streamdown": "^2.6.0",
+    "zod": "^4.3.6"
+  },
+  "sisyphus": {
+    "frontend": {
+      "id": "feature.notes",
+      "entry": "./frontend/index.tsx",
+      "export": "notesPlugin",
+      "order": 12
+    },
+    "backend": [
+      {
+        "id": "desktop.notes",
+        "entry": "./backend/index.js"
+      },
+      {
+        "id": "desktop.notes-actions",
+        "entry": "./backend/actions.js"
+      },
+      {
+        "id": "desktop.notes-tools",
+        "entry": "./backend/tools.js"
+      }
+    ]
+  }
+}

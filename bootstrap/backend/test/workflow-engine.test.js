@@ -5,10 +5,10 @@ const { setTimeout: delay } = require('node:timers/promises')
 const {
   WorkflowEngine,
   validateProgram,
-} = require('../../../plugins/contexts/backend/lib/workflow-engine.js')
-const { ActionServices } = require('../../../plugins/contexts/backend/lib/action-services.js')
-const { dataActions } = require('../../../plugins/contexts/backend/lib/data-actions.js')
-const { networkActions } = require('../../../plugins/contexts/backend/lib/network-actions.js')
+} = require('../../../plugins/actions/backend/lib/workflow-engine.js')
+const { ActionServices } = require('../../../plugins/actions/backend/lib/catalog.js')
+const { dataActions } = require('../../../plugins/actions/backend/lib/data-actions.js')
+const { networkActions } = require('../../../plugins/actions/backend/lib/network-actions.js')
 
 async function finished(engine) {
   for (let index = 0; index < 200; index++) {

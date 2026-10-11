@@ -1,19 +1,6 @@
-import type { ComponentType } from 'react'
+import type { ActionPresentation, ActionPresentations as PresentationRegistry } from '@sisyphus/sdk'
 
-export interface ActionInputProps {
-  value: unknown
-  change: (value: unknown) => void
-  disabled?: boolean
-}
-export interface ActionResultProps {
-  value: unknown
-}
-export interface ActionPresentation {
-  summary?: ComponentType<ActionResultProps>
-  input?: ComponentType<ActionInputProps>
-  result?: ComponentType<ActionResultProps>
-}
-export class ActionPresentations {
+export class ActionPresentations implements PresentationRegistry {
   private entries = new Map<string, ActionPresentation>()
   private listeners = new Set<() => void>()
   private revision = 0

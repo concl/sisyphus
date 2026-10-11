@@ -2,7 +2,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const path = require('node:path')
-const { workspaceDocument } = require('../../../plugins/contexts/backend/lib/vscode-launcher.js')
+const { workspaceDocument } = require('../../../shared/backend/vscode-launcher.js')
 
 test('generated VS Code workspaces preserve multi-root folder identity', () => {
   const folders = [path.resolve('client'), path.resolve('server')]

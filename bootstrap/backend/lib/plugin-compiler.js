@@ -7,41 +7,78 @@ const { build } = require('esbuild')
 
 // These are esbuild's source formats, not a list of permitted assets. Everything
 // else is an opaque file, including formats introduced by a plugin dependency.
-const sourceExtensions = new Set(['', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.json', '.css'])
+const sourceExtensions = new Set([
+  '',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.jsx',
+  '.ts',
+  '.mts',
+  '.cts',
+  '.tsx',
+  '.json',
+  '.css',
+])
 function inlineAssets() {
   const resolvingAsset = {}
-  return { name: 'inline-assets', setup(builder) {
-    // A CSS url() always refers to bytes, even for extensionless files or files
-    // whose extension also names a source language. Keep normal URL resolution
-    // (including external URLs and query/fragment suffixes) in esbuild's hands.
-    builder.onResolve({ filter: /.*/, namespace: 'file' }, async args => {
-      if (args.kind !== 'url-token' || args.pluginData === resolvingAsset) return
-      const resolved = await builder.resolve(args.path, {
-        importer: args.importer, resolveDir: args.resolveDir, kind: args.kind,
-        namespace: args.namespace, pluginData: resolvingAsset,
+  return {
+    name: 'inline-assets',
+    setup(builder) {
+      // A CSS url() always refers to bytes, even for extensionless files or files
+      // whose extension also names a source language. Keep normal URL resolution
+      // (including external URLs and query/fragment suffixes) in esbuild's hands.
+      builder.onResolve({ filter: /.*/, namespace: 'file' }, async (args) => {
+        if (args.kind !== 'url-token' || args.pluginData === resolvingAsset) return
+        const resolved = await builder.resolve(args.path, {
+          importer: args.importer,
+          resolveDir: args.resolveDir,
+          kind: args.kind,
+          namespace: args.namespace,
+          pluginData: resolvingAsset,
+        })
+        if (resolved.external || resolved.errors.length) return resolved
+        return { ...resolved, namespace: 'asset' }
       })
-      if (resolved.external || resolved.errors.length) return resolved
-      return { ...resolved, namespace: 'asset' }
-    })
-    const load = async args => ({ contents: await fs.promises.readFile(args.path), loader: 'dataurl' })
-    builder.onLoad({ filter: /.*/, namespace: 'asset' }, load)
-    builder.onLoad({ filter: /.*/, namespace: 'file' }, args => {
-      if (sourceExtensions.has(path.extname(args.path)) || Object.keys(args.with).length) return
-      return load(args)
-    })
-  } }
+      const load = async (args) => ({
+        contents: await fs.promises.readFile(args.path),
+        loader: 'dataurl',
+      })
+      builder.onLoad({ filter: /.*/, namespace: 'asset' }, load)
+      builder.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
+        if (sourceExtensions.has(path.extname(args.path)) || Object.keys(args.with).length) return
+        return load(args)
+      })
+    },
+  }
 }
 
 const shared = {
-  react: 'react', 'react/jsx-runtime': 'jsx', 'react-dom': 'reactDom',
-  'react-dom/client': 'reactDomClient', '@sisyphus/sdk': 'sdk',
-  '@sisyphus/profile': 'profile', '@sisyphus/profile/preferences': 'preferences',
-  '@sisyphus/ui': 'ui', '@deepseek-ai/cordis': 'cordis',
+  react: 'react',
+  'react/jsx-runtime': 'jsx',
+  'react-dom': 'reactDom',
+  'react-dom/client': 'reactDomClient',
+  '@sisyphus/sdk': 'sdk',
+  '@sisyphus/profile': 'profile',
+  '@sisyphus/profile/preferences': 'preferences',
+  '@sisyphus/ui': 'ui',
+  '@deepseek-ai/cordis': 'cordis',
 }
-const excluded = new Set(['node_modules', '.git', '.runtime', 'dist', '.venv', '__pycache__', '.pytest_cache'])
-const ignoredPath = name => String(name).split(/[\\/]/).some(part => excluded.has(part))
+const excluded = new Set([
+  'node_modules',
+  '.git',
+  '.runtime',
+  'dist',
+  '.venv',
+  '__pycache__',
+  '.pytest_cache',
+])
+const ignoredPath = (name) =>
+  String(name)
+    .split(/[\\/]/)
+    .some((part) => excluded.has(part))
 function filesIn(directory) {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     if (excluded.has(entry.name) || entry.isSymbolicLink()) return []
     const file = path.join(directory, entry.name)
     return entry.isDirectory() ? filesIn(file) : entry.isFile() ? [file] : []
@@ -49,7 +86,8 @@ function filesIn(directory) {
 }
 function inside(directory, relative) {
   const file = path.resolve(directory, relative)
-  if (!file.startsWith(path.resolve(directory) + path.sep)) throw new Error('Plugin entry escapes its folder')
+  if (!file.startsWith(path.resolve(directory) + path.sep))
+    throw new Error('Plugin entry escapes its folder')
   return file
 }
 function packages(directory) {
@@ -67,63 +105,165 @@ function packages(directory) {
       const files = filesIn(folder)
       // Existing editable installations may still use entry/native manifests.
       // Keep the wire targets stable while source packages use frontend/backend.
-      const frontend = meta.frontend ?? (meta.entry ? meta : null)
+      const frontend = meta.frontend ?? (meta.entry ? meta : [])
+      const frontends = Array.isArray(frontend) ? frontend : [frontend]
       const backend = meta.backend ?? meta.native ?? []
-      if (frontend && (typeof frontend !== 'object' || !frontend.entry))
-        throw new Error('sisyphus.frontend must declare an entry')
       if (!Array.isArray(backend)) throw new Error('sisyphus.backend must be an array')
-      const entries = [...(frontend ? [{ ...frontend, target: 'renderer' }] : []),
-        ...backend.map(entry => ({ ...entry, target: 'main' }))]
-      for (const entry of entries) {
-        const stamp = createHash('sha256').update(files.filter(file => {
-          const relative = path.relative(folder, file).replaceAll('\\', '/')
-          // UI edits must not restart native jobs in the same feature package.
-          if (entry.target === 'renderer')
-            return !['native/', 'backend/', 'worker/', 'service/'].some(prefix => relative.startsWith(prefix))
-          const separateBackend = /^\.\/(native|backend)\//.test(entry.entry)
-          return !separateBackend || !['src/', 'frontend/'].some(prefix => relative.startsWith(prefix))
-        }).map(file => {
-          const stat = fs.statSync(file)
-          return `${path.relative(folder, file)}:${stat.mtimeMs}:${stat.size}`
-        }).join('|')).digest('hex')
-        if (!/^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$/.test(entry.id)) throw new Error('Invalid plugin id')
-        result.push({ ...entry, file: inside(folder, entry.entry), folder, package: child.name,
-          format: 'source', mtime: stamp, export: entry.export ?? 'default' })
+      for (const [key, entries] of [
+        ['frontend', frontends],
+        ['backend', backend],
+      ]) {
+        if (
+          entries.some(
+            (entry) =>
+              !entry ||
+              typeof entry !== 'object' ||
+              Array.isArray(entry) ||
+              typeof entry.entry !== 'string' ||
+              !entry.entry.trim(),
+          )
+        )
+          throw new Error(`sisyphus.${key} entries must declare an entry path`)
       }
+      const entries = [
+        ...frontends.map((entry) => ({ ...entry, target: 'renderer' })),
+        ...backend.map((entry) => ({ ...entry, target: 'main' })),
+      ]
+      const claimed = new Set()
+      const discovered = []
+      for (const entry of entries) {
+        const key = `${entry.id}:${entry.target}`
+        if (claimed.has(key))
+          throw new Error(`Duplicate plugin entry: ${entry.id} (${entry.target})`)
+        claimed.add(key)
+        const stamp = createHash('sha256')
+          .update(
+            files
+              .filter((file) => {
+                const relative = path.relative(folder, file).replaceAll('\\', '/')
+                // UI edits must not restart native jobs in the same feature package.
+                if (entry.target === 'renderer')
+                  return !['native/', 'backend/', 'worker/', 'service/'].some((prefix) =>
+                    relative.startsWith(prefix),
+                  )
+                const separateBackend = /^\.\/(native|backend)\//.test(entry.entry)
+                return (
+                  !separateBackend ||
+                  !['src/', 'frontend/'].some((prefix) => relative.startsWith(prefix))
+                )
+              })
+              .map((file) => {
+                const stat = fs.statSync(file)
+                return `${path.relative(folder, file)}:${stat.mtimeMs}:${stat.size}`
+              })
+              .join('|'),
+          )
+          .digest('hex')
+        if (!/^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$/.test(entry.id))
+          throw new Error('Invalid plugin id')
+        discovered.push({
+          ...entry,
+          file: inside(folder, entry.entry),
+          folder,
+          package: child.name,
+          format: 'source',
+          mtime: stamp,
+          export: entry.export ?? 'default',
+        })
+      }
+      result.push(...discovered)
     } catch (error) {
       result.push({ id: child.name, target: null, folder, file: manifest, error: error.message })
     }
   }
-  return result
+  // Discovery is atomic per package, including collisions with other packages.
+  const owners = new Map()
+  const conflicts = new Map()
+  for (const entry of result.filter((entry) => entry.target)) {
+    const key = `${entry.id}:${entry.target}`
+    const previous = owners.get(key)
+    if (previous) {
+      const error = `Plugin ${entry.id} (${entry.target}) is claimed by ${previous.package} and ${entry.package}`
+      conflicts.set(previous.folder, error)
+      conflicts.set(entry.folder, error)
+    } else owners.set(key, entry)
+  }
+  const reported = new Set()
+  return result.flatMap((entry) => {
+    if (!conflicts.has(entry.folder)) return [entry]
+    if (reported.has(entry.folder)) return []
+    reported.add(entry.folder)
+    return [
+      {
+        id: entry.package,
+        target: null,
+        folder: entry.folder,
+        file: path.join(entry.folder, 'package.json'),
+        error: conflicts.get(entry.folder),
+      },
+    ]
+  })
 }
 
 async function compile(entry) {
   const renderer = entry.target === 'renderer'
   const result = await build({
-    absWorkingDir: entry.folder, entryPoints: [entry.file], bundle: true, write: false,
+    absWorkingDir: entry.folder,
+    entryPoints: [entry.file],
+    bundle: true,
+    write: false,
     outfile: path.join(entry.folder, '.runtime', `${entry.id}.js`),
-    platform: renderer ? 'browser' : 'node', format: renderer ? 'iife' : 'cjs',
-    globalName: renderer ? '__sisyphusPlugin' : undefined, target: 'es2022',
+    platform: renderer ? 'browser' : 'node',
+    format: renderer ? 'iife' : 'cjs',
+    globalName: renderer ? '__sisyphusPlugin' : undefined,
+    target: 'es2022',
     jsx: 'automatic',
     nodePaths: require.resolve.paths('react'),
-    external: renderer ? [] : ['electron', 'node-pty', '@modelcontextprotocol/server-filesystem', '@modelcontextprotocol/server-filesystem/*'],
+    external: renderer
+      ? []
+      : [
+          'electron',
+          'node-pty',
+          '@modelcontextprotocol/server-filesystem',
+          '@modelcontextprotocol/server-filesystem/*',
+        ],
     define: renderer ? { 'process.env.NODE_ENV': '"production"', global: 'globalThis' } : {},
-    footer: renderer ? { js: `SisyphusRuntime.register(${JSON.stringify(entry.id)}, __sisyphusPlugin);` } : {},
-    plugins: [inlineAssets(), { name: 'host-contracts', setup(builder) {
-      if (renderer) {
-        builder.onResolve({ filter: /.*/ }, args => args.path in shared ? { path: args.path, namespace: 'host' } : undefined)
-        builder.onLoad({ filter: /.*/, namespace: 'host' }, args => ({ contents: `module.exports = SisyphusRuntime.${shared[args.path]}`, loader: 'js' }))
-      } else {
-        builder.onLoad({ filter: /\.js$/ }, args => {
-          if (!args.path.startsWith(entry.folder + path.sep)) return
-          return { contents: fs.readFileSync(args.path, 'utf8').replace(/\b__dirname\b/g, JSON.stringify(path.dirname(args.path))), loader: 'js' }
-        })
-      }
-    }}],
+    footer: renderer
+      ? { js: `SisyphusRuntime.register(${JSON.stringify(entry.id)}, __sisyphusPlugin);` }
+      : {},
+    plugins: [
+      inlineAssets(),
+      {
+        name: 'host-contracts',
+        setup(builder) {
+          if (renderer) {
+            builder.onResolve({ filter: /.*/ }, (args) =>
+              args.path in shared ? { path: args.path, namespace: 'host' } : undefined,
+            )
+            builder.onLoad({ filter: /.*/, namespace: 'host' }, (args) => ({
+              contents: `module.exports = SisyphusRuntime.${shared[args.path]}`,
+              loader: 'js',
+            }))
+          } else {
+            builder.onLoad({ filter: /\.js$/ }, (args) => {
+              if (!args.path.startsWith(entry.folder + path.sep)) return
+              return {
+                contents: fs
+                  .readFileSync(args.path, 'utf8')
+                  .replace(/\b__dirname\b/g, JSON.stringify(path.dirname(args.path))),
+                loader: 'js',
+              }
+            })
+          }
+        },
+      },
+    ],
     logLevel: 'silent',
   })
-  return { source: result.outputFiles.find(file => file.path.endsWith('.js')).text,
-    css: result.outputFiles.find(file => file.path.endsWith('.css'))?.text }
+  return {
+    source: result.outputFiles.find((file) => file.path.endsWith('.js')).text,
+    css: result.outputFiles.find((file) => file.path.endsWith('.css'))?.text,
+  }
 }
 function evaluateNative(entry, source, options) {
   const loaded = new Module(entry.file, module)

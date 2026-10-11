@@ -48,14 +48,29 @@ module.exports = () => ({
       ctx.effect(() => tools.register(name, { description, access, inputSchema, execute }))
     ctx.effect(() =>
       transport.handle('planner.importICS', (input) => {
-        const { text } = z
-          .object({ text: z.string().max(5 * 1024 * 1024) })
+        const { text, ...target } = z
+          .object({
+            text: z.string().max(5 * 1024 * 1024),
+            calendarId: z.string().optional(),
+            newCalendar: z.unknown().optional(),
+          })
           .strict()
           .parse(input)
-        return repository.importICS(text)
+        return repository.importICS(text, target)
       }),
     )
-    ctx.effect(() => transport.handle('planner.exportICS', () => repository.exportICS()))
+    ctx.effect(() =>
+      transport.handle('planner.exportICS', (input) => {
+        const { calendarId } = z
+          .object({ calendarId: z.string().optional() })
+          .strict()
+          .parse(input || {})
+        return repository.exportICS(calendarId)
+      }),
+    )
+    ctx.effect(() =>
+      transport.handle('planner.saveCalendar', (input) => repository.saveCalendar(input)),
+    )
     ctx.effect(() => transport.handle('planner.get', () => repository.document()))
     for (const method of ['create', 'update', 'remove'])
       ctx.effect(() => transport.handle(`planner.${method}`, (input) => repository[method](input)))

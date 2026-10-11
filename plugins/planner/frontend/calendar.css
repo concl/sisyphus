@@ -575,6 +575,56 @@
   align-self: stretch;
   background: var(--item-accent);
 }
+
+.cal-calendars-heading,
+.cal-calendar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.cal-calendar-row .cal-check {
+  flex: 1;
+  min-width: 0;
+}
+.cal-calendar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-calendar-fields,
+.cal-calendar-fields label,
+.cal-transfer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-calendar-fields {
+  gap: 16px;
+}
+.cal-calendar-fields input:not([type='color']),
+.cal-transfer-field select,
+.cal-editor-form select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.cal-calendar-fields input[type='color'] {
+  width: 60px;
+  height: 36px;
+  cursor: pointer;
+}
+.cal-import-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
 .cal-entry-time {
   width: 72px;
   flex-shrink: 0;

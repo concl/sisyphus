@@ -6,6 +6,7 @@ import {
   type Desktop,
   type Planner,
   type PlannerItem,
+  type PlannerCalendar,
   type PlannerSnapshot,
   type Panels,
 } from '@sisyphus/sdk'
@@ -49,13 +50,17 @@ export const plannerPlugin: AppPlugin = {
       create: (input) => call('planner.create', { kind: 'todo', ...input }),
       update: (id, changes) => call('planner.update', { id, ...changes }),
       remove: (id) => call('planner.remove', { id }),
+      saveCalendar: (input) => call('planner.saveCalendar', input),
       async chooseFolder() {
         const result = (await call('planner.sync.chooseFolder')) as { folder: string | null }
         update({ folder: result.folder })
       },
-      importICS: (text) =>
-        call('planner.importICS', { text }) as Promise<{ added: number; skipped: number }>,
-      exportICS: () => call('planner.exportICS') as Promise<string>,
+      importICS: (text, target) =>
+        call('planner.importICS', { text, ...target }) as Promise<{
+          added: number
+          skipped: number
+        }>,
+      exportICS: (calendarId) => call('planner.exportICS', { calendarId }) as Promise<string>,
       async sync() {
         await call('planner.sync.now')
       },
@@ -75,17 +80,26 @@ export const plannerPlugin: AppPlugin = {
       }),
     )
     ctx.effect(() =>
-      desktop.on<{ records: PlannerItem[] }>('planner.changed', (document) => {
-        revision++
-        update({ records: document.records.filter((item) => !item.deleted) })
-      }),
+      desktop.on<{ records: PlannerItem[]; calendars?: PlannerCalendar[] }>(
+        'planner.changed',
+        (document) => {
+          revision++
+          update({
+            records: document.records.filter((item) => !item.deleted),
+            calendars: document.calendars,
+          })
+        },
+      ),
     )
     const initial = revision
     void desktop
-      .call<{ records: PlannerItem[] }>('planner.get')
+      .call<{ records: PlannerItem[]; calendars?: PlannerCalendar[] }>('planner.get')
       .then((document) => {
         if (revision === initial)
-          update({ records: document.records.filter((item) => !item.deleted) })
+          update({
+            records: document.records.filter((item) => !item.deleted),
+            calendars: document.calendars,
+          })
       })
       .catch((error) => update({ error: String(error) }))
     void desktop
