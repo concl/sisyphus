@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "smoke": "electron . --smoke",
+    "start": "node ../../scripts/desktop-launch.mjs",
+    "smoke": "node ../../scripts/desktop-launch.mjs --smoke",
     "test": "node --test test/*.test.js",
     "prepackage": "node ../../scripts/plugin-deps.mjs",
     "package": "electron-builder"

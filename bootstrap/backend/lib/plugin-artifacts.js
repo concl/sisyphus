@@ -147,13 +147,23 @@ class PluginArtifacts {
         continue
       }
       const dest = path.join(this.directory, name)
-      const stale =
-        record[name] !== undefined && fs.existsSync(dest) && sha256(dest) === record[name]
-      if (fs.existsSync(dest) && !force && !stale && name !== MANIFEST) {
+      const source = path.join(this.shippedDir, name)
+      const exists = fs.existsSync(dest)
+      const known = record[name] !== undefined
+      const current = exists ? sha256(dest) : null
+      // What this build actually carries, not what its manifest says about
+      // itself: the manifest has no entry for its own bytes.
+      const incoming = fs.existsSync(source) ? sha256(source) : null
+      const edited = known && current !== record[name]
+      const unchanged = known && current === record[name] && incoming === record[name]
+      // Keep a user's file, a user's edit, and a copy that already matches this
+      // build. Only a changed shipped file is written again, so restarting the
+      // app (which seeds) does not rewrite every plugin every time.
+      if (exists && !force && (!known || edited || unchanged)) {
         kept.push(name)
         continue
       }
-      if (this.copy(name, { force: force || stale })) {
+      if (this.copy(name, { force: force || known })) {
         record[name] = sha256(path.join(this.directory, name))
         seeded.push(name)
       }

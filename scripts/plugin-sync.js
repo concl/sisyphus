@@ -100,7 +100,7 @@ function copy(parsed) {
   console.log(`\n  ${parsed.source}  ->  ${parsed.destination}`)
   console.log(`    copied      ${result.seeded.length}  ${list(result.seeded)}`)
   console.log(
-    `    kept        ${result.kept.length}  ${list(result.kept)}  (edited in the app's folder)`,
+    `    kept        ${result.kept.length}  ${list(result.kept)}  (already in step or edited in the app's folder)`,
   )
   console.log(`    removed     ${result.removed.length}  ${list(result.removed)}`)
   if (!result.seeded.length && !result.removed.length)

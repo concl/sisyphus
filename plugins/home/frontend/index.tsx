@@ -13,16 +13,6 @@ export const homePlugin: AppPlugin = {
       return (
         <article className="home-panel">
           <div className="eyebrow">YOUR PERSONAL WORKSPACE</div>
-          <h1>
-            A place to make
-            <br />
-            <em>things happen.</em>
-          </h1>
-          <p className="home-intro">
-            Start with a few useful pieces.
-            <br />
-            Make room for whatever comes next.
-          </p>
           <div className="section-label">
             OPEN A BLOCK <span>{String(available.length - 1).padStart(2, '0')}</span>
           </div>

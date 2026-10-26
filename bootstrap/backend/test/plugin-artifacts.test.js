@@ -109,7 +109,8 @@ test('an edit in the user folder is kept, and reported as an edit', () => {
   artifacts.seed()
   fs.writeFileSync(path.join(artifacts.directory, 'feature.notes.renderer.js'), 'my change')
   const again = artifacts.seed()
-  assert.deepEqual(again.kept, ['feature.notes.renderer.js'])
+  assert(again.kept.includes('feature.notes.renderer.js'))
+  assert.deepEqual(again.seeded, [])
   assert.equal(
     fs.readFileSync(path.join(artifacts.directory, 'feature.notes.renderer.js'), 'utf8'),
     'my change',
@@ -120,8 +121,14 @@ test('an edit in the user folder is kept, and reported as an edit', () => {
 test('a rebuild replaces an untouched copy and leaves an edited one alone', () => {
   const artifacts = artifactsFor({ 'feature.notes.renderer.js': 'code v1' })
   artifacts.seed()
-  // A new build arrives in the same folder the app already has.
-  fs.writeFileSync(path.join(artifacts.shippedDir, 'feature.notes.renderer.js'), 'code v2')
+  // A new build arrives in the same folder the app already has. A real build
+  // writes both the file and the manifest that records its bytes.
+  const file = path.join(artifacts.shippedDir, 'feature.notes.renderer.js')
+  fs.writeFileSync(file, 'code v2')
+  const manifestFile = path.join(artifacts.shippedDir, 'manifest.json')
+  const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
+  manifest.plugins[0].files[0].sha256 = sha256(file)
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2))
   const result = artifacts.seed()
   assert(result.seeded.includes('feature.notes.renderer.js'))
   assert(result.seeded.includes('manifest.json'), 'the build record is refreshed too')
@@ -129,6 +136,14 @@ test('a rebuild replaces an untouched copy and leaves an edited one alone', () =
     fs.readFileSync(path.join(artifacts.directory, 'feature.notes.renderer.js'), 'utf8'),
     'code v2',
   )
+})
+
+test('seeding the same build again changes nothing', () => {
+  const artifacts = artifactsFor({ 'feature.notes.renderer.js': 'code v1' })
+  artifacts.seed()
+  const again = artifacts.seed()
+  assert.deepEqual(again.seeded, [])
+  assert.deepEqual(again.kept.sort(), ['feature.notes.renderer.js', 'manifest.json'])
 })
 
 test('a shipped plugin can be put back after an edit', () => {
