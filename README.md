@@ -19,6 +19,11 @@ Chat keeps its frontend, backend, and worker code together. Cordis composes each
 process at runtime, and explicit messages connect frontend and backend. Mobile
 is out of scope for this version.
 
+Open the repository root in VS Code. The root `tsconfig.json` uses the plugin
+type-check configuration so IntelliSense understands frontend relative imports,
+JSX, assets, and shared packages. If an open editor still shows stale errors, run
+**TypeScript: Restart TS Server** from the Command Palette.
+
 ## Run
 
 Requires Node.js 22+ and Python 3.10+.

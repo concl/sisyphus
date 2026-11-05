@@ -1,0 +1,3 @@
+{
+  "extends": "./bootstrap/frontend/tsconfig.plugins.json"
+}
