@@ -29,6 +29,7 @@ import {
 } from '@sisyphus/sdk'
 import './workspace.css'
 import {
+  duplicateSingletonPanels,
   dropPanel,
   movePanel,
   orderedPanels,
@@ -120,6 +121,8 @@ const switchable = (id: string) => id.startsWith('feature.') || id.startsWith('u
  * meant to be derived from each other, so nothing here matches one against the other.
  */
 function pruneBlocks(api: DockviewApi, panels: Panels) {
+  for (const duplicate of duplicateSingletonPanels(api.panels, panels.list(), api.activePanel?.id))
+    api.removePanel(duplicate)
   for (const panel of [...api.panels]) {
     const type = panel.params?.type
     const definition = panels.list().find((item) => item.id === type)
@@ -450,13 +453,8 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                   aria-hidden="true"
                 />
                 <strong>sisyphus</strong>
-                <span className="brand-divider" />
-                <span className="workspace-name">Personal workspace</span>
               </div>
               <div className="header-actions">
-                <span className="local-indicator">
-                  <i /> LOCAL
-                </span>
                 <button
                   className={`header-action ${showPlugins ? 'selected' : ''}`}
                   onClick={() => setShowPlugins(!showPlugins)}
@@ -703,15 +701,6 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                 </button>
               </div>
             )}
-            {/* <footer className="workspace-status">
-              <span>
-                <i /> Local first. Yours to sync.
-              </span>
-              <span>
-                {available.length} blocks available <b>·</b> Drag tabs and rail icons to arrange{' '}
-                <b>·</b> Layout saved on this device
-              </span>
-            </footer> */}
           </div>
         )
       }

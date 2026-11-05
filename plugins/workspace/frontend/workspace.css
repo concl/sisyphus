@@ -13,7 +13,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 156px 0 14px;
-  border-bottom: 1px solid var(--border);
+  /* border-bottom: var(--border-thickness) solid var(--border); */
   background: var(--surface);
   -webkit-app-region: drag;
   user-select: none;
@@ -25,8 +25,7 @@
   -webkit-app-region: no-drag;
 }
 .brand,
-.header-actions,
-.panel-toolbar {
+.header-actions {
   display: flex;
   align-items: center;
   gap: 18px;
@@ -225,6 +224,7 @@ i {
   padding: 16px 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
+  border-top: 1px solid var(--border);
 }
 .rail-top {
   display: flex;
@@ -305,7 +305,7 @@ i {
   --dv-group-view-border-radius: 7px;
 }
 .dockview-theme-dark .dv-groupview {
-  border: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   border-radius: 0px;
   overflow: hidden;
 }
@@ -492,49 +492,6 @@ i {
   font-family: Georgia, serif;
   font-style: italic;
   font-size: 11px;
-}
-/* The console and its toolbar are dark whatever the theme is, so they carry the same
-   neutral greys as the dark palette instead of a token: a terminal is its own colours
-   inside, and its chrome should not read as navy next to a neutral window. */
-.terminal-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #262626;
-  color: #e1e1e1;
-}
-.panel-toolbar {
-  gap: 10px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #3a3a3a;
-  font-size: 10px;
-}
-.panel-toolbar select {
-  max-width: 150px;
-  font-size: 11px;
-  background: transparent;
-  border: 0;
-  color: #dadada;
-}
-.panel-toolbar select option {
-  background: #262626;
-  color: #dadada;
-}
-.panel-toolbar button {
-  margin-left: auto;
-  font-size: 10px;
-  padding: 4px 8px;
-}
-.terminal-host {
-  flex: 1;
-  min-height: 0;
-  padding: 13px 8px 4px 16px;
-}
-.xterm {
-  height: 100%;
-}
-.xterm-viewport {
-  scrollbar-width: thin;
 }
 .python-panel {
   height: 100%;

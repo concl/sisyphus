@@ -24,6 +24,29 @@ export interface OpenableLayout<T> {
   rail: string[] | null
 }
 
+/** Keep one block for a singleton contribution, including layouts saved when it allowed multiples. */
+export function duplicateSingletonPanels<T extends { id: string; params?: { type?: string } }>(
+  blocks: readonly T[],
+  definitions: readonly { id: string; multiple?: boolean }[],
+  activeId?: string,
+): T[] {
+  const singletonTypes = new Set(
+    definitions.filter((item) => !item.multiple).map((item) => item.id),
+  )
+  const kept = new Map<string, T>()
+  const duplicates: T[] = []
+  // Prefer the active block so migrating a layout does not switch its current view.
+  const active = blocks.find((block) => block.id === activeId)
+  const ordered = active ? [active, ...blocks.filter((block) => block !== active)] : blocks
+  for (const block of ordered) {
+    const type = block.params?.type
+    if (!type || !singletonTypes.has(type)) continue
+    if (kept.has(type)) duplicates.push(block)
+    else kept.set(type, block)
+  }
+  return duplicates
+}
+
 /** The panel ids a stored value holds, ignoring anything that is not a panel id. */
 export function readRailOrder(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []
