@@ -1,5 +1,17 @@
 # Working on Sisyphus
 
+## UI text
+
+Use plain, functional language throughout the app. Name the setting or action
+directly, and add a short explanation only when it helps someone use it.
+Do not add slogans, taglines, motivational copy, decorative uppercase eyebrows,
+marketing language, or conversational filler to menus, headings, empty states,
+and status messages. For example, use "Settings" instead of "Make it yours",
+"No results" instead of a playful empty-state slogan, and "Remove limits"
+instead of "Work until the task is done". Preserve useful descriptions of
+behavior, storage, and consequences. Apply this rule to new UI and copy touched
+while changing existing UI; do not introduce unrelated copy rewrites.
+
 ## Make app changes available at runtime
 
 Sisyphus runs editable plugins from its app data directory. This is a defining
