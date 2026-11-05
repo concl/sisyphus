@@ -2,6 +2,8 @@
   --app-bg: #f3f4f8;
   --surface: #ffffff;
   --panel: #fbfaf8;
+  /* Conversation canvas, separate from panel chrome and input surfaces. */
+  --chat-bg: var(--panel);
   --subtle: #f1f3f9;
   --hover: #edf0f9;
   --text: #293047;
@@ -23,6 +25,7 @@
      for focus, selection, and hover - and a plugin that wants a tinted icon sets
      this for its own subtree. */
   --icon: var(--muted);
+  --border-thickness: 2px;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
@@ -32,6 +35,7 @@
   --app-bg: #141414;
   --surface: #1a1a1a;
   --panel: #202020;
+  --chat-bg: #161616;
   --subtle: #282828;
   --hover: #313131;
   --text: #e2e2e2;
