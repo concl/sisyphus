@@ -8,6 +8,7 @@ export const services = {
   desktop: 'desktop.v1',
   workspace: 'ui.workspace.v1',
   theme: 'ui.theme.v1',
+  settings: 'ui.settings.v1',
   planner: 'planner.v1',
   /**
    * The plugins the app is running, and the folder they came from. Every panel
@@ -113,6 +114,26 @@ export interface Panels {
   subscribe(listener: () => void): () => void
   open(id: string): void
   onOpen(listener: (id: string) => void): () => void
+}
+/** A searchable settings contribution. The contributing plugin owns persistence. */
+export interface SettingsSection {
+  /** Stable, namespaced ID, for example "terminal.font". */
+  id: string
+  title: string
+  category: string
+  description: string
+  /** Include field labels and common synonyms so search can find individual options. */
+  keywords?: readonly string[]
+  /** Lower numbers appear first. Equal values are ordered by category and title. */
+  order?: number
+  component: ComponentType
+}
+export interface Settings {
+  /** Register in ctx.effect so disabling or reloading the owner removes its section. */
+  register(section: SettingsSection): () => void
+  /** Stable between changes; suitable for useSyncExternalStore. */
+  getSnapshot(): readonly SettingsSection[]
+  subscribe(listener: () => void): () => void
 }
 export interface Storage {
   get<T>(scope: string, key: string): Promise<T | undefined>
