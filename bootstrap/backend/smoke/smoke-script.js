@@ -70,6 +70,84 @@
   await waitFor(() => output.includes('SISYPHUS_SMOKE_OK'))
   await bridge.call('terminal.kill', { id })
   off()
+  // Terminal is one workspace block with its own shell sessions.
+  document.querySelector('[aria-label="Open Terminal"]').click()
+  const terminalTabs = () => [...document.querySelectorAll('.terminal-tabs [role="tab"]')]
+  const terminalState = (tab) => tab.parentElement.dataset.state
+  await waitFor(() => terminalTabs().length === 1 && terminalState(terminalTabs()[0]) === 'running')
+  const originalTab = terminalTabs()[0].id
+  const { backends: terminalShells } = await bridge.call('terminal.backends')
+  const nextShell = terminalShells.find((shell) => shell.id !== defaultId) ?? terminalShells[0]
+  const shellPicker = document.querySelector('[aria-label="Select shell"]')
+  shellPicker.click()
+  await waitFor(() => document.querySelector('[role="menu"][aria-label="Shell profiles"]'))
+  document
+    .querySelector('[role="menu"]')
+    .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await waitFor(() => !document.querySelector('[role="menu"][aria-label="Shell profiles"]'))
+  shellPicker.click()
+  await waitFor(() => document.querySelector(`[role="menuitem"][data-shell-id="${nextShell.id}"]`))
+  assert(
+    terminalTabs().length === 1 && terminalTabs()[0].id === originalTab,
+    'Opening the shell menu must not replace an existing session',
+  )
+  document.querySelector(`[role="menuitem"][data-shell-id="${nextShell.id}"]`).click()
+  await waitFor(() => terminalTabs().length === 2 && terminalState(terminalTabs()[1]) === 'running')
+  assert(
+    terminalTabs()[1].textContent.includes(nextShell.name),
+    'New tabs should use the chosen shell',
+  )
+  const newTab = terminalTabs()[1].id
+  assert(
+    !document.querySelector('[role="menu"][aria-label="Shell profiles"]'),
+    'Choosing a shell should close its menu',
+  )
+  document.querySelector('[aria-label="New terminal"]').click()
+  await waitFor(() => terminalTabs().length === 3 && terminalState(terminalTabs()[2]) === 'running')
+  assert(
+    terminalTabs()[2].textContent.includes(nextShell.name),
+    'The + button should use the last selected shell',
+  )
+  terminalTabs()[2].parentElement.querySelector('.terminal-close').click()
+  await waitFor(() => terminalTabs().length === 2)
+  document.getElementById(originalTab).click()
+  await waitFor(() => document.getElementById(originalTab).getAttribute('aria-selected') === 'true')
+  document.querySelector('[aria-label="Open Home"]').click()
+  await waitFor(() => document.querySelector('.home-panel'))
+  document.querySelector('[aria-label="Open Terminal"]').click()
+  await waitFor(
+    () => document.getElementById(originalTab)?.getAttribute('aria-selected') === 'true',
+  )
+  assert(
+    terminalTabs().length === 2,
+    'Opening Terminal again must retain its tabs without creating another session',
+  )
+  assert(
+    [...document.querySelectorAll('.block-tab')].filter((tab) => tab.textContent === 'Terminal')
+      .length === 1,
+    'Terminal should occupy a single workspace block',
+  )
+  document.getElementById(newTab).parentElement.querySelector('.terminal-close').click()
+  await waitFor(() => terminalTabs().length === 1)
+  assert(
+    terminalTabs()[0].id === originalTab && terminalState(terminalTabs()[0]) === 'running',
+    'Closing a tab must leave the other shell running',
+  )
+  document.querySelector('[aria-label="Restart terminal"]').click()
+  await waitFor(() => terminalState(terminalTabs()[0]) === 'starting')
+  await waitFor(() => terminalState(terminalTabs()[0]) === 'running')
+  assert(terminalTabs()[0].id === originalTab, 'Restarting should preserve the selected tab')
+  console.info(
+    'TERMINAL_SMOKE_RESULT ' +
+      JSON.stringify({
+        singleton: true,
+        shellPicker: true,
+        verticalTabs: true,
+        navigation: true,
+        close: true,
+        restart: true,
+      }),
+  )
   const servers = await bridge.call('python.start', { id: 'workspace-api' })
   assert(servers[0].state === 'running', JSON.stringify(servers))
   const info = await bridge.call('python.call', { id: 'workspace-api', path: '/api/info' })
@@ -590,9 +668,45 @@
     'Built-in integrations should register',
   )
   const settings = await bridge.call('chat.config.get')
-  ;[...document.querySelectorAll('.settings-sections button')]
-    .find((button) => button.textContent === 'Chat')
+  const openSettingsSection = (title) =>
+    [...document.querySelectorAll('.settings-sections button')]
+      .find((button) => button.textContent === title)
+      .click()
+  const settingsSearch = document.querySelector('[aria-label="Search settings"]')
+  nameSetter.call(settingsSearch, 'CHAT timeout')
+  settingsSearch.dispatchEvent(new Event('input', { bubbles: true }))
+  await waitFor(() => document.querySelectorAll('.settings-result').length === 1)
+  assert(
+    document.querySelector('.settings-result').textContent.includes('Reply limits'),
+    'Settings search should match field keywords and categories',
+  )
+  document.querySelector('.settings-result').click()
+  await waitFor(() => document.querySelector('[aria-label="Retries per model call"]'))
+  openSettingsSection('Assistant')
+  await waitFor(() => document.querySelector('[aria-label="System prompt"]'))
+  pagesSetter.call(
+    document.querySelector('[aria-label="System prompt"]'),
+    'Unsaved smoke instructions',
+  )
+  document
+    .querySelector('[aria-label="System prompt"]')
+    .dispatchEvent(new Event('input', { bubbles: true }))
+  await waitFor(() => document.querySelector('.settings-footer'))
+  openSettingsSection('Appearance')
+  await waitFor(() => document.querySelector('.theme-options'))
+  openSettingsSection('Assistant')
+  await waitFor(
+    () =>
+      document.querySelector('[aria-label="System prompt"]')?.value ===
+      'Unsaved smoke instructions',
+  )
+  ;[...document.querySelectorAll('.settings-footer button')]
+    .find((button) => button.textContent === 'Discard changes')
     .click()
+  await waitFor(
+    () => document.querySelector('[aria-label="System prompt"]')?.value === settings.systemPrompt,
+  )
+  openSettingsSection('Model providers')
   await waitFor(() => document.querySelector('[aria-label="Provider JSON"]'))
   const providerEditor = document.querySelector('[aria-label="Provider JSON"]')
   pagesSetter.call(
@@ -910,4 +1024,7 @@
     providerModelSelection: true,
     credentialRedaction: true,
   }
-})()
+})().catch((error) => {
+  console.error(error.stack)
+  throw error
+})
