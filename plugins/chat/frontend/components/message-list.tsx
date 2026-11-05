@@ -27,7 +27,6 @@ interface MessageListProps {
   folder: string | null
   /** The message currently being edited, so its turn opens into its own editor. */
   editingId: string | null
-  onSuggestion(text: string): void
   onChooseFolder(): void
   onConfigure(): void
   onEdit(message: ChatMessage): void
@@ -36,8 +35,6 @@ interface MessageListProps {
   onSubmitEdit(text: string): void
   onCancelEdit(): void
 }
-
-const SUGGESTIONS = ['Help me plan my day', 'What can you help me with?']
 
 // Streamdown renders semantic HTML; the module chrome comes from chat.css, so
 // only the controls it should show are enabled here. The code plugin adds Shiki
@@ -283,7 +280,6 @@ export function MessageList({
   live,
   folder,
   editingId,
-  onSuggestion,
   onChooseFolder,
   onConfigure,
   onEdit,
@@ -298,6 +294,9 @@ export function MessageList({
   const follow = useRef(new Follow())
   // Only the branch on screen is rendered.
   const messages = activePath(thread)
+  // An empty conversation shows only the welcome block, which is centred in the
+  // panel; any content below returns the transcript to the top edge.
+  const empty = !messages.length && !busy
   const newest = messages.at(-1)
   const newestId = newest?.id ?? ''
   const newestRole = newest?.role ?? ''
@@ -321,21 +320,19 @@ export function MessageList({
   }
 
   return (
-    <div className="chat-messages" ref={scroller} onScroll={trackPosition} aria-live="polite">
-      {!messages.length && !busy && (
+    <div
+      className={`chat-messages${empty ? ' chat-messages-empty' : ''}`}
+      ref={scroller}
+      onScroll={trackPosition}
+      aria-live="polite"
+    >
+      {empty && (
         <div className="chat-welcome">
           <span className="icon-mask" style={{ maskImage: `url(${JSON.stringify(icon)})` }} aria-hidden="true" />
           <h2>Chat</h2>
           <p>A configurable assistant.</p>
           {config?.model ? (
             <>
-              <div className="chat-suggestions">
-                {SUGGESTIONS.map((text) => (
-                  <button key={text} onClick={() => onSuggestion(text)}>
-                    {text}
-                  </button>
-                ))}
-              </div>
               <button className="chat-welcome-folder" onClick={onChooseFolder}>
                 <FolderIcon />
                 {folder

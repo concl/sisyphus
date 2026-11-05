@@ -166,7 +166,6 @@ export function ChatPanel({ panels, desktop }: ChatPanelProps) {
           live={chat.live}
           folder={chat.folder}
           editingId={editingId}
-          onSuggestion={(text) => composer.current?.insert(text)}
           onChooseFolder={() => void chat.chooseFolder()}
           onConfigure={openSettings}
           onEdit={(message) => chat.startEdit(message)}

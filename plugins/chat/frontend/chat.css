@@ -185,6 +185,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
+  background: var(--chat-bg, var(--panel));
 }
 .chat-toolbar {
   display: flex;
@@ -193,6 +194,7 @@
   padding: 9px 14px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  background: var(--panel);
 }
 .chat-title {
   flex: 1;
@@ -207,16 +209,21 @@
   padding: 5px 9px;
   font-size: 10px;
 }
-/* `safe center` centres the welcome block when it fits and falls back to the top
-   edge (scrollable) instead of clipping the button when the block is short. */
+/* A transcript starts at the top edge and grows downwards; it only scrolls once
+   there is more of it than fits. */
 .chat-messages {
   display: flex;
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  justify-content: safe center;
+  justify-content: flex-start;
   overflow: auto;
   padding: 20px clamp(16px, 5%, 48px);
+}
+/* With nothing to read, the welcome block is the whole panel and sits in its
+   middle; `safe` keeps it reachable in a pane too short to hold it. */
+.chat-messages-empty {
+  justify-content: safe center;
 }
 .chat-panel[data-compact='true'] .chat-messages {
   padding: 20px 18px;
@@ -245,17 +252,6 @@
 }
 .chat-welcome > button {
   margin-top: 15px;
-}
-.chat-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 9px;
-  margin-top: 30px;
-}
-.chat-suggestions button {
-  font-size: 11px;
-  padding: 10px 13px;
 }
 .chat-message {
   width: 100%;
