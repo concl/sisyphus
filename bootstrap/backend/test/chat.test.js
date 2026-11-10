@@ -264,7 +264,7 @@ test('a task can be scheduled, completed, and unscheduled without changing ident
 test('AI SDK streams a real compatible protocol and executes a planner tool', async () => {
   const server = await mockModel()
   try {
-    const { chat, planner } = fixture(server.baseURL)
+    const { chat, planner, history } = fixture(server.baseURL)
     const events = []
     const result = await chat.send({ runId: 'run-1', text: 'Create a task' }, 1, (event) =>
       events.push(event),
@@ -278,6 +278,11 @@ test('AI SDK streams a real compatible protocol and executes a planner tool', as
     assert.ok(events.some((event) => event.type === 'text'))
     assert.ok(events.some((event) => event.type === 'tool' && event.tool.status === 'complete'))
     assert.equal(chat.get(result.id).messages.length, 2)
+    assert.equal(
+      history.get(result.id).messages.at(-1).harness,
+      'vercel-ai',
+      'the reply records the harness that produced it',
+    )
     // The reply records what happened in order: the tool call, then the text the
     // model wrote after reading the result.
     const assistant = result.messages.at(-1)

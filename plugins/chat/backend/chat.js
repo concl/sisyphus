@@ -3,6 +3,7 @@ const path = require('node:path')
 const { EncryptedKeyStore } = require('./lib/chat-config.js')
 const { ProviderChatConfig } = require('./lib/provider-config.js')
 const { ChatHistory } = require('./lib/chat-history.js')
+const { createHarnessRegistry } = require('./harness/registry')
 const { WorkerChat } = require('./worker-client')
 const { validateFolder } = require('@sisyphus/native/folder')
 
@@ -15,10 +16,14 @@ module.exports = ({ userData }) => ({
     const transport = ctx.get('transport.v1')
     const registry = ctx.get('agent.tools.v1')
     const storage = ctx.get('storage.v1')
+    // The same registry the worker builds: ids and names shown in Settings are
+    // the adapter names the worker can run.
+    const harnesses = createHarnessRegistry()
     const config = new ProviderChatConfig(
       storage,
       new EncryptedKeyStore(path.join(userData, 'secrets', 'llm-key.enc'), safeStorage),
       path.join(userData, 'chat.providers.json'),
+      harnesses.list(),
     )
     // One file per conversation, under userData/storage/chat.threads. The
     // directory is the only index, so there is nothing to keep in sync.

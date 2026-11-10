@@ -245,12 +245,27 @@ Arrows within each context show service provision to consumers. The matching
 ## Chat
 
 `plugins/chat/backend/chat.js` owns Electron integration, encrypted keys, and tool
-access checks. Its `WorkerChat` client starts `native/worker.js` through the worker
-service. The worker owns model streams, the message tree, and per-conversation
-history files. Tool definitions travel as JSON schemas; execution returns through
-RPC to the injected tool registry. Abort signals cross this boundary explicitly.
-Changing tool access is checked again when a tool executes. Worker errors reject
-pending calls; disposal aborts work and terminates the worker after a bounded wait.
+access checks. Its `WorkerChat` client starts `backend/worker.js` through the worker
+service. The worker owns the message tree, per-conversation history files, and the
+conversation runtime. Tool definitions travel as JSON schemas; execution returns
+through RPC to the injected tool registry. Abort signals cross this boundary
+explicitly. Changing tool access is checked again when a tool executes. Worker
+errors reject pending calls; disposal aborts work and terminates the worker after a
+bounded wait.
+
+The model loop is a replaceable agent harness behind
+`plugins/chat/backend/harness/contract.js`. `ChatService` builds a normalized
+branch (user text and attachments, assistant text/reasoning/tool activity) and
+gives it to the selected harness with JSON Schema tools whose execution it already
+wraps with access checks, auditing, budgets, and cancellation. The harness streams
+normalized text, reasoning, notices, and usage events back, and may return opaque
+replay data that is stored with the reply. Settings > Chat selects among the
+adapters registered in `harness/registry.js`; `harnesses/vercel-ai.js` is the
+shipped adapter. A reply's harness id is saved with it, so a later harness reads
+that adapter's replay data only when the ids match and otherwise falls back to the
+normalized transcript. The silence watchdog surrounds the normalized event stream,
+not a particular SDK, and is suspended while tools or harness preparation run.
+See [Chat harness contract](plugins/chat/HARNESS.md).
 
 ```mermaid
 sequenceDiagram
@@ -283,7 +298,7 @@ sequenceDiagram
     Native-->>UI: Update conversation without changing selection
 ```
 
-The worker owns model streams and history I/O; the native adapter owns host
+The worker owns harness execution and history I/O; the native adapter owns host
 integration and permission checks. Cancellation can occur while a run is active.
 
 Runs are keyed by request ID, with at most one run per conversation, not one per
@@ -292,9 +307,10 @@ stream. Background completion updates that conversation without changing the ope
 view. Token events publish UI updates at most about 30 times per second; completed
 Markdown is memoized. Cancellation checks the request's window owner.
 
-`ChatService` stores the SDK's accumulated `responseMessages`, including every
-assistant/tool step and provider options. Completed steps are also retained if a
-later step fails. Branch selection replays only the chosen path. Compatible APIs
+`ChatService` stores the selected harness's replay transcript, including every
+assistant/tool step and provider options the harness records. Completed steps are
+also retained if a later step fails. Branch selection replays only the chosen
+path, and another harness reads normalized messages instead. Compatible APIs
 receive `reasoning_content`; provider-specific reasoning metadata is preserved for
 Responses APIs. The stable system prefix no longer inserts a changing timestamp.
 Caching still depends on the provider and on an unchanged prompt/tool definition

@@ -106,6 +106,8 @@ const config: ChatConfig = {
   limits,
   defaultLimits: limits,
   compaction: { enabled: true, contextTokens: 32000 },
+  harness: 'vercel-ai',
+  harnesses: [{ id: 'vercel-ai', name: 'Vercel AI SDK', description: 'Default harness.' }],
   hasApiKey: false,
 }
 function desktopWith(call: (method: string, input?: unknown) => Promise<unknown>): Desktop {
@@ -168,6 +170,7 @@ describe('chat settings state', () => {
       access: 'read',
       limits,
       compaction: config.compaction,
+      harness: 'vercel-ai',
     })
     expect(store.getSnapshot().dirty).toBe(false)
     store.edit({ access: 'write' })

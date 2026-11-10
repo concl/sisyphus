@@ -1,7 +1,7 @@
 import type { Desktop, SettingsSection, Theme } from '@sisyphus/sdk'
 import type { ChatSettingsStore } from './chat-store'
 import { AppearanceSettings } from './sections/appearance'
-import { AssistantSettings, ContextSettings } from './sections/chat'
+import { AssistantSettings, ContextSettings, HarnessSettings } from './sections/chat'
 import { DataSettings } from './sections/data'
 import { LimitSettings } from './sections/limits'
 import { ProviderSettings } from './sections/providers'
@@ -41,10 +41,19 @@ export function builtinSections(
       component: () => <ProviderSettings store={store} />,
     },
     {
+      id: 'chat.harness',
+      category: 'Chat',
+      title: 'Agent harness',
+      order: 11,
+      description: 'The agent loop that runs model calls and tools.',
+      keywords: ['harness', 'agent loop', 'adapter', 'model loop', 'swap harness'],
+      component: () => <HarnessSettings store={store} />,
+    },
+    {
       id: 'chat.assistant',
       category: 'Chat',
       title: 'Assistant',
-      order: 11,
+      order: 12,
       description: 'System prompt and default instructions.',
       keywords: ['behavior', 'restore default prompt'],
       component: () => <AssistantSettings store={store} />,
@@ -53,7 +62,7 @@ export function builtinSections(
       id: 'chat.tools',
       category: 'Chat',
       title: 'Tools and access',
-      order: 12,
+      order: 13,
       description: 'Tool permissions and available tools.',
       keywords: [
         'access level',
@@ -71,7 +80,7 @@ export function builtinSections(
       id: 'chat.limits',
       category: 'Chat',
       title: 'Reply limits',
-      order: 13,
+      order: 14,
       description: 'Tool steps, retries, and timeouts.',
       keywords: [
         'tool steps per reply',
@@ -88,7 +97,7 @@ export function builtinSections(
       id: 'chat.context',
       category: 'Chat',
       title: 'Context memory',
-      order: 14,
+      order: 15,
       description: 'Automatic compaction and context token budget.',
       keywords: ['summarize', 'history', 'model context window'],
       component: () => <ContextSettings store={store} />,

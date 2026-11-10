@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, PlusIcon, type IconProps } from '@sisyphus/ui'
+import { ChevronLeftIcon, PlusIcon, FolderIcon, type IconProps } from '@sisyphus/ui'
 import type { ThreadSummary } from '../types'
 import { formatDay } from '../lib/format'
 import { threadGroups } from '../lib/thread-groups'
@@ -60,7 +60,7 @@ export function ConversationSidebar({
                 <div className="chat-folder-head">
                   <span className="chat-folder-label">
                     <span className="chat-folder-name" title={folder ?? undefined}>
-                      {group.label}
+                      <FolderIcon /> {group.label}
                     </span>
                     {group.detail && <small title={group.detail}>{group.detail}</small>}
                   </span>

@@ -47,8 +47,8 @@ function parseProviders(text) {
 
 /** Provider keys stay in this file; ordinary config responses contain only metadata. */
 class ProviderChatConfig extends ChatConfig {
-  constructor(storage, secrets, file) {
-    super(storage, secrets)
+  constructor(storage, secrets, file, harnesses = []) {
+    super(storage, secrets, harnesses)
     this.file = file
     if (!fs.existsSync(file)) {
       const previous = super.get()
@@ -152,9 +152,32 @@ class ProviderChatConfig extends ChatConfig {
   save(input) {
     // General settings cannot overwrite provider selection or credentials.
     const previous = super.get()
+    const raw = input && typeof input === 'object' ? { ...input } : {}
+    // The renderer reads metadata alongside the editable fields; never store it.
+    for (const key of [
+      'harnesses',
+      'providers',
+      'providerConfigPath',
+      'providerError',
+      'hasApiKey',
+      'defaultSystemPrompt',
+      'defaultLimits',
+    ])
+      delete raw[key]
     const settings = settingsSchema
-      .pick({ systemPrompt: true, access: true, limits: true, compaction: true })
-      .parse({ ...input, limits: input?.limits ?? previous.limits, compaction: input?.compaction ?? previous.compaction })
+      .pick({
+        systemPrompt: true,
+        access: true,
+        limits: true,
+        compaction: true,
+        harness: true,
+      })
+      .parse({
+        ...raw,
+        limits: raw.limits ?? previous.limits,
+        compaction: raw.compaction ?? previous.compaction,
+        harness: raw.harness || previous.harness,
+      })
     this.storage.set('chat.config', 'provider.v1', {
       baseURL: previous.baseURL,
       model: previous.model,

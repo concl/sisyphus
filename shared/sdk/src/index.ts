@@ -275,9 +275,19 @@ export interface ChatLimits {
   /** Seconds one tool call may run before it fails. 0 lets it take as long as it needs. */
   toolSeconds: number
 }
+/** One agent-loop adapter the backend can run. */
+export interface ChatHarness {
+  id: string
+  name: string
+  description: string
+}
 export interface ChatConfig {
   provider?: string
   providers?: Array<{ id: string; baseURL: string; models: string[] }>
+  /** The harness that runs new replies. */
+  harness: string
+  /** Harnesses installed in the backend, for the Settings selector. */
+  harnesses?: ChatHarness[]
   providerConfigPath?: string
   providerError?: string
   baseURL: string

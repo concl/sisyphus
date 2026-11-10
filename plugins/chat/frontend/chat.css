@@ -4,6 +4,7 @@
   height: 100%;
   background: var(--panel);
   color: var(--text);
+  border-top: 1px solid var(--border);
 }
 /* Sidebar chrome only; size and drag behaviour come from the shared shell. */
 .chat-sidebar {
@@ -109,6 +110,9 @@
   letter-spacing: 0.3px;
   white-space: nowrap;
   text-overflow: ellipsis;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
 }
 .chat-folder-label small {
   overflow: hidden;

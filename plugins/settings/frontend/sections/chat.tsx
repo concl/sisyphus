@@ -52,6 +52,43 @@ export function AssistantSettings({ store }: ChatSectionProps) {
   )
 }
 
+export function HarnessSettings({ store }: ChatSectionProps) {
+  return (
+    <ChatSection store={store}>
+      {(config) => {
+        const available = config.harnesses ?? []
+        const selected = available.find((harness) => harness.id === config.harness)
+        return (
+          <>
+            <label>
+              Agent harness
+              <select
+                aria-label="Agent harness"
+                value={config.harness}
+                onChange={(event) => store.edit({ harness: event.target.value })}
+              >
+                {available.map((harness) => (
+                  <option key={harness.id} value={harness.id}>
+                    {harness.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="settings-hint">
+              The agent loop that runs model calls and tools. New replies use the selected
+              harness; a running reply finishes with the one it started with.
+            </p>
+            {selected?.description && <p className="settings-hint">{selected.description}</p>}
+            {!available.length && (
+              <p role="alert">No harness is available. Reload the Chat plugin or check its install.</p>
+            )}
+          </>
+        )
+      }}
+    </ChatSection>
+  )
+}
+
 export function ContextSettings({ store }: ChatSectionProps) {
   return (
     <ChatSection store={store}>

@@ -1,6 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { z } = require('zod')
+const { DEFAULT_HARNESS } = require('../harness/contract')
 const { DEFAULT_COMPACTION } = require('./compaction')
 const compactionSchema = z.object({
   enabled: z.boolean(),
@@ -68,6 +69,9 @@ const settingsSchema = z
     model: z.string().trim().max(200),
     systemPrompt: z.string().trim().min(1).max(20000),
     access: z.enum(['none', 'read', 'write']),
+    // The agent loop that runs new replies. Persisted here rather than in the
+    // provider document: it is a behavior choice, not an endpoint.
+    harness: z.string().trim().min(1).max(100).optional(),
     limits: limitsSchema,
     compaction: compactionSchema,
     // `get()` reports the defaults next to the saved values so a form can offer
@@ -79,9 +83,10 @@ const settingsSchema = z
   .strict()
 
 class ChatConfig {
-  constructor(storage, secrets) {
+  constructor(storage, secrets, harnesses = []) {
     this.storage = storage
     this.secrets = secrets
+    this.harnesses = harnesses
   }
   get() {
     const saved = this.storage.get('chat.config', 'provider.v1') || {}
@@ -92,6 +97,8 @@ class ChatConfig {
       systemPrompt: DEFAULT_PROMPT,
       access: 'none',
       ...rest,
+      harness: saved.harness || DEFAULT_HARNESS,
+      harnesses: this.harnesses,
       limits: readLimits(limits),
       compaction: readCompaction(saved.compaction),
       hasApiKey: this.secrets.has(),
@@ -104,10 +111,24 @@ class ChatConfig {
     // A caller that does not send limits (an older form, a partial update)
     // keeps the stored ones instead of resetting them to the defaults.
     const limits = input?.limits === undefined ? previous.limits : limitsSchema.parse(input.limits)
+    // `get()` reports metadata (available harnesses, whether a key exists) that
+    // must not be written back as settings.
+    const raw = input && typeof input === 'object' ? { ...input } : {}
+    for (const key of [
+      'harnesses',
+      'hasApiKey',
+      'defaultSystemPrompt',
+      'defaultLimits',
+      'providers',
+      'providerConfigPath',
+      'providerError',
+    ])
+      delete raw[key]
     const { apiKey, clearApiKey, defaultLimits, ...settings } = settingsSchema.parse({
-      ...input,
+      ...raw,
       limits,
-      compaction: input?.compaction ?? previous.compaction,
+      harness: raw.harness || previous.harness,
+      compaction: raw.compaction ?? previous.compaction,
     })
     if (apiKey?.trim()) this.secrets.write(apiKey.trim())
     else if (clearApiKey || settings.baseURL !== previous.baseURL) this.secrets.clear()

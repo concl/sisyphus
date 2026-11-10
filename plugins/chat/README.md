@@ -4,10 +4,17 @@
 the conversation sidebar. `backend/` owns Electron integration, encrypted
 provider keys, and tool access checks, together with the worker: `WorkerChat`
 (`backend/worker-client.js`) starts `backend/worker.js` through
-`runtime.workers.v1`, and the worker holds the model loops, the message tree,
+`runtime.workers.v1`, and the worker holds the agent loop, the message tree,
 per-conversation history files, and the default system prompt
 (`backend/prompts/chat-system.md`). Cross-feature tools come from
 `agent.tools.v1`.
+
+`backend/lib/chat-service.js` is the conversation runtime: it validates messages
+and attachments, persists the tree, applies stop and tool budgets, and streams
+events to the panel. The model loop lives behind the harness contract in
+`backend/harness/contract.js`. Settings > Chat > Agent harness selects one of the
+registered adapters; only `vercel-ai` is shipped. See [HARNESS.md](./HARNESS.md)
+for the API and how to add another open-source harness.
 
 Multiple conversations may run concurrently; one conversation has one active run.
 
@@ -66,9 +73,12 @@ encrypted storage and is used only for that provider's original endpoint when
 `apiKey` is omitted. An explicit empty `apiKey` disables that inherited key.
 Ordinary configuration responses and change notifications never contain keys.
 
-Switching views does not cancel work. The worker stores every SDK response step,
-including tool messages and supported reasoning metadata. The context indicator
-uses provider input/output usage or explicitly labeled estimates.
+Switching views does not cancel work. Each reply records the harness that produced
+it and that harness's opaque replay data, including provider tool messages and
+supported reasoning metadata. A reply continues from that data only when the same
+harness is selected; another harness reads the normalized transcript instead.
+The context indicator uses provider input/output usage or explicitly labeled
+estimates.
 
 The conversation sidebar groups stored conversations by the folder they work in.
 A group is titled with the folder's own name, and carries its path below when two

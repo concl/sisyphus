@@ -30,6 +30,7 @@ function editable(config: ChatConfig) {
     access: config.access,
     limits: config.limits,
     compaction: config.compaction,
+    harness: config.harness,
   }
 }
 
@@ -122,7 +123,11 @@ export function createChatSettings(desktop: Desktop) {
       )
       return loading
     },
-    edit(patch: Partial<Pick<ChatConfig, 'systemPrompt' | 'access' | 'limits' | 'compaction'>>) {
+    edit(
+      patch: Partial<
+        Pick<ChatConfig, 'systemPrompt' | 'access' | 'limits' | 'compaction' | 'harness'>
+      >,
+    ) {
       if (state.config) update({ config: { ...state.config, ...patch }, message: '', error: '' })
     },
     discard() {

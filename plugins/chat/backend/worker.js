@@ -26,10 +26,10 @@ parentPort.on('message', async message => {
   if (message.type !== 'call') return
   try {
     if (message.settings) {
-      const { jsonSchema } = await import('ai')
       settings = message.settings
+      // Definitions cross from the desktop process as JSON Schema. The harness
+      // receives them in that form; execution returns through this RPC.
       definitions = message.definitions.map(definition => ({ ...definition,
-        inputSchema: jsonSchema(definition.schema),
         execute: (input, { signal, ...context }) => new Promise((resolve, reject) => {
           const id = ++next
           const cancel = () => {
