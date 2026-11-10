@@ -1,4 +1,17 @@
 :root {
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-body: 15px;
+  --font-weight-normal: 450;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.5;
+  -webkit-font-smoothing: auto;
   --app-bg: #f3f4f8;
   --surface: #ffffff;
   --panel: #fbfaf8;
@@ -66,8 +79,13 @@
 input,
 select,
 textarea {
+  font-family: inherit;
+  font-weight: inherit;
   color: var(--text);
   background: var(--surface);
+}
+small {
+  font-size: var(--font-size-xs);
 }
 input:focus-visible,
 textarea:focus-visible {

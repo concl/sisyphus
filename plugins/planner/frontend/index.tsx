@@ -1,4 +1,5 @@
 import { Calendar } from './calendar'
+import type { GoogleSync } from './google-sync'
 import icon from './icon.svg'
 import {
   services,
@@ -67,8 +68,20 @@ export const plannerPlugin: AppPlugin = {
     }
     ctx.provide(services.planner, planner)
     const panels = ctx.get(services.panels) as Panels
+    const googleSync: GoogleSync = {
+      status: () => desktop.call('planner.google.status'),
+      subscribe: (listener) => desktop.on('planner.google.changed', listener),
+      openSetupPage: (page) => desktop.call('planner.google.openSetupPage', page),
+      connect: () => desktop.call('planner.google.connect'),
+      cancelConnect: () => desktop.call('planner.google.cancelConnect'),
+      calendars: () => desktop.call('planner.google.calendars'),
+      link: (id) => desktop.call('planner.google.link', id),
+      sync: () => desktop.call('planner.google.sync'),
+      setAutomatic: (enabled) => desktop.call('planner.google.setAutomatic', enabled),
+      disconnect: () => desktop.call('planner.google.disconnect'),
+    }
     function CalendarPanel() {
-      return <Calendar planner={planner} />
+      return <Calendar planner={planner} googleSync={googleSync} />
     }
     ctx.effect(() =>
       panels.register({

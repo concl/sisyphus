@@ -13,8 +13,8 @@
 .action-kicker {
   display: block;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 1.6px;
   margin-bottom: 6px;
 }
@@ -77,7 +77,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--muted);
 }
 .action-statusbar > span {
@@ -184,7 +184,7 @@
   margin-bottom: 22px;
 }
 .workflow-outline-heading p {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   color: var(--muted);
   line-height: 1.6;
   margin: 0;
@@ -236,7 +236,7 @@
 .workflow-start strong,
 .workflow-step strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
 }
 .workflow-start small,
@@ -244,13 +244,13 @@
 .workflow-step small,
 .workflow-step-copy > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .workflow-step-copy > span {
-  font-size: 12px;
-  max-height: 34px;
+  font-size: var(--font-size-base);
+  max-height: 2.8em;
   overflow: hidden;
 }
 .workflow-step-number,
@@ -263,12 +263,12 @@
   background: var(--surface);
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 .workflow-step-status {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   max-width: 80px;
 }
 .workflow-step .needs-attention {
@@ -297,12 +297,12 @@
 }
 .workflow-welcome h2 {
   font-size: 18px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   line-height: 1.4;
 }
 .workflow-welcome p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-size-base);
   line-height: 1.7;
 }
 
@@ -344,7 +344,7 @@
 .action-library > header p {
   margin: 8px 0 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.5;
 }
 .action-library > header button {
@@ -367,7 +367,7 @@
 }
 .action-library-search > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 .action-library-categories {
@@ -431,14 +431,14 @@
 }
 .action-library-list strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 .action-library-list small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
 }
 .action-library-list > button > span:nth-child(2) > span {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--muted);
 }
@@ -467,7 +467,7 @@
 .action-library > footer > span {
   margin-right: auto;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -477,7 +477,7 @@
   flex-shrink: 0;
 }
 .action-reference {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -487,25 +487,25 @@
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
 }
 .action-reference h2 {
   margin: 12px 0 8px;
   font-size: 20px;
 }
 .action-reference .action-reference-purpose {
-  font-size: 13px;
+  font-size: var(--font-size-base);
   color: var(--muted);
   line-height: 1.7;
 }
 .action-reference h3 {
   margin: 0 0 10px;
   color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 .action-reference h4 {
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-reference section {
   border-top: 1px solid var(--border);
@@ -519,13 +519,13 @@
   margin: 14px 0;
 }
 .action-reference dt {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--text);
 }
 .action-reference dt > span {
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 400;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
   margin-left: 6px;
 }
 .action-reference dd {
@@ -536,14 +536,14 @@
   margin: 4px 0;
 }
 .action-reference code {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   background: var(--surface);
   border-radius: 3px;
   padding: 2px 4px;
   white-space: pre-wrap;
 }
 .action-reference-default {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .action-reference ul {
   margin: 0;

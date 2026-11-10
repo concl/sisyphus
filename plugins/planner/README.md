@@ -55,27 +55,64 @@ can be edited without rewriting their schedule. Export remains a portable file,
 not an invitation or a live subscription. Google Calendar's support for importing
 tasks varies; preserving VTODO does not imply that a particular provider accepts it.
 
+## Google Calendar sync
+
+Open **Calendar options → Google Calendar sync → Google Calendar setup** for
+the Cloud Console steps, links, and required permissions.
+
+Enable the Calendar API in a Google Cloud project and create a **Desktop app**
+OAuth client. Download its JSON file. If the OAuth consent screen is in testing,
+add your Google account as a test user. Google expires Calendar authorization
+after seven days in Testing. [Google Cloud setup](https://developers.google.com/workspace/calendar/api/quickstart/python) · [Google OAuth audiences](https://support.google.com/cloud/answer/15549945)
+
+To open Google sign-in directly, save the downloaded file as
+`google-calendar.oauth.json` in Sisyphus app data (`%APPDATA%\Sisyphus` on
+Windows, or the directory selected by `SISYPHUS_USER_DATA`). You can also select
+the file once from **Calendar options → Google Calendar sync → Connect Google account**.
+Sisyphus remembers the client in encrypted storage for future sign-ins.
+
+Choose **Connect Google account** and approve access in your browser. Select a
+Google calendar you can edit, then choose **Link calendar**. Sisyphus creates a
+separate local calendar and syncs immediately. Automatic sync runs every five
+minutes while Sisyphus is open. You can turn it off in the sync dialog or choose
+**Sync now** at any time. Connections created before automatic sync was added
+keep manual sync until you enable it.
+
+Sync exchanges additions, edits, and deletions. Move an event
+out of the linked calendar to remove its Google copy on the next sync. Single
+events without guests are supported. Recurring events, invitations, special
+event types, imported schedules, and tasks stay in their source calendar. The
+sync result reports skipped entries.
+
+When an event changed on both sides, the linked calendar uses Google's version
+and Sisyphus keeps a copy of the local edit in **My calendar**. A local deletion
+in conflict with a Google edit leaves the Google event in place. Reconnect the
+same account if authorization expires. Automatic sync pauses until you reconnect.
+Disconnecting removes the account authorization from Sisyphus and keeps the
+OAuth client, local calendar, and events.
+
 ## Provider integration boundary
 
-The UI talks only to the injected `Planner` contract. The backend repository owns
+The UI uses the injected `Planner` contract for local data. The backend repository owns
 local IDs, stable iCalendar UIDs, persistence, and tombstones. `CalendarProvider`
-in the SDK sketches a separate backend adapter contract with capabilities,
-account/calendar-scoped remote IDs, cursors, ETags, and idempotency keys. It is a
-contract for future implementation, not a working Google connection.
+in the SDK sketches an adapter contract for future providers. The Google adapter
+uses the Calendar API, conditional writes, and a separate mapping of local event
+IDs to Google event IDs. Each sync reads the selected calendar in pages.
+OAuth credentials are encrypted with Electron safe storage.
 
 The current manual folder adapter merges a portable **JSON replica**, retaining
 tombstones and local metadata. ICS is an exchange format and intentionally does
 not masquerade as the replication database. Existing sync folders keep working.
 
-For Google Calendar/Tasks, Microsoft Graph, CalDAV, or another service, add a
-backend plugin that implements the adapter; don't put account-specific fields or
-credentials in the UI or shared calendar records. Persist remote bindings in a
+For Google Tasks, Microsoft Graph, CalDAV, or another service, add a
+backend adapter. Keep account-specific fields and credentials in the backend.
+Persist remote bindings in a
 separate mapping keyed by provider/account/calendar/local ID. Store credentials
 in the operating system's credential store. A sync coordinator still needs an
 outbox, conditional writes, incremental cursors, conflict reporting, token refresh,
 and retry/backoff. Account removal must detach its bindings without deleting
-local records. Capabilities must distinguish event/task/recurrence support;
-unsupported data must stay local and be reported, never silently discarded.
+local records. Capabilities must distinguish event, task, and recurrence support
+and report any entries left in the source calendar.
 Register adapters through Cordis and dispose subscriptions on plugin unload.
 
 Tests: backend `calendar.test.js` covers preservation, atomic import, duplicates,

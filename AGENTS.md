@@ -35,13 +35,13 @@ For every change to app behavior, UI, styles, assets, or plugin packages:
    intended changes. Files reported as `kept` may contain edits made in the app;
    compare and reconcile affected files while preserving unrelated work. Do not
    blindly use `--force` across the installation.
-5. Activate the affected plugins through the available runtime reload mechanism
-   and verify the changed behavior when possible. A successful copy does not
-   prove the new code is mounted: by default changes remain pending until
-   **Plugins → Reload** / **Reload all**, or `plugin_reload`. **Reload on
-   save** applies changes automatically only when already enabled. If runtime
-   reload is unavailable, explicitly report that the files are synced and a
-   reload is still needed; do not claim the running app has been updated.
+5. Activate the affected plugins through a non-UI reload mechanism such as
+   `plugin_reload` when available. Use automated checks to verify behavior
+   when practical. Use interactive computer use to reload or verify the app
+   only when the user explicitly requests it. **Reload on save** applies
+   changes automatically when already enabled. If the files are synced and
+   still pending, report that the user can apply them with **Plugins → Reload**
+   or **Reload all**.
 
 `npm run plugins:watch` and `npm run dev:app` provide continuous plugin syncing
 while iterating. Even when a watcher is running, verify that the final changes

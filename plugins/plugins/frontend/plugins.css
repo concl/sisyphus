@@ -18,13 +18,13 @@
   gap: 10px;
   margin: 0 0 6px;
   font-size: 22px;
-  font-weight: 550;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -0.5px;
 }
 .plugins-quiet {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.6;
 }
 .plugins-tools {
@@ -39,14 +39,14 @@
 .plugins-panel button:not(.toggle) {
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .plugins-switch {
   display: flex;
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 .plugins-switch input {
@@ -63,12 +63,12 @@
 }
 .plugins-summary {
   margin: 0;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
 }
 .plugins-summary span {
   color: var(--muted);
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
 }
 .plugins-browse input {
   width: 230px;
@@ -80,7 +80,7 @@
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .plugins-grid {
   display: grid;
@@ -115,21 +115,21 @@
   overflow-wrap: anywhere;
 }
 .plugins-meta strong {
-  font-size: 13px;
-  font-weight: 550;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 .plugins-meta small {
   display: block;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   line-height: 1.6;
 }
 .plugins-card-status {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   color: var(--muted);
 }
 .plugins-card-status > span {
@@ -155,7 +155,7 @@
 .plugins-error,
 .plugins-card-error {
   color: var(--danger);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -171,7 +171,7 @@
   border-radius: 10px;
   color: var(--muted);
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .plugins-editor {
   margin-top: 22px;
@@ -189,13 +189,13 @@
   border-bottom: 1px solid var(--border);
 }
 .plugins-editor header strong {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   overflow-wrap: anywhere;
 }
 .plugins-editor header span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
 }
 .plugins-editor header button {
   margin-left: auto;
@@ -211,7 +211,7 @@
   color: var(--text);
   padding: 12px;
   font:
-    12px/1.75 Consolas,
+    var(--font-weight-normal) var(--font-size-base)/1.75 Consolas,
     monospace;
   tab-size: 2;
 }
@@ -231,7 +231,7 @@
   margin: 0;
   padding: 0 12px 12px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   line-height: 1.6;
   overflow-wrap: anywhere;
 }

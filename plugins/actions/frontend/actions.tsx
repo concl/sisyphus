@@ -513,7 +513,6 @@ export function Actions({
     >
       <header className="actions-heading">
         <div>
-          <span className="action-kicker">{draft ? 'WORKFLOW BUILDER' : 'YOUR SHORTCUTS'}</span>
           <h1>{draft ? 'Build a workflow' : 'Actions'}</h1>
         </div>
         <div className="actions-heading-buttons">

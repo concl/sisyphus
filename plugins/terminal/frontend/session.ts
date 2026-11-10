@@ -15,8 +15,9 @@ export function terminalSessionFactory(desktop: Desktop): SessionFactory {
     element.className = 'terminal-emulator'
     const term = new Terminal({
       fontFamily: '"Cascadia Code", Consolas, monospace',
-      fontSize: 13,
-      lineHeight: 1.35,
+      fontSize: 14,
+      fontWeight: 500,
+      lineHeight: 1.4,
       cursorBlink: true,
       scrollback: 5000,
       theme: {

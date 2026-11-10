@@ -4,16 +4,17 @@
   flex-direction: column;
   background: var(--app-bg);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-size-base);
 }
 .workspace-header {
-  height: 44px;
+  position: relative;
+  z-index: 35;
+  height: 34px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 156px 0 14px;
-  /* border-bottom: var(--border-thickness) solid var(--border); */
+  gap: 8px;
+  padding: 0 156px 0 12px;
   background: var(--surface);
   -webkit-app-region: drag;
   user-select: none;
@@ -21,83 +22,88 @@
 :root[data-platform='darwin'] .workspace-header {
   padding: 0 14px 0 86px;
 }
-.workspace-header .header-actions {
+.workspace-menubar,
+.layout-control {
   -webkit-app-region: no-drag;
-}
-.brand,
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-.brand strong {
-  font-size: 17px;
-  font-weight: 550;
-  letter-spacing: -1px;
 }
 .brand-symbol {
   display: block;
   flex-shrink: 0;
-  width: 29px;
-  height: 29px;
+  width: 18px;
+  height: 18px;
   background: var(--accent);
   mask-size: contain;
   mask-repeat: no-repeat;
   mask-position: center;
 }
-.brand-divider {
-  height: 20px;
-  width: 1px;
-  background: var(--border);
-  margin: 0 3px;
+.workspace-menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
-.workspace-name {
-  color: var(--muted);
-  font-size: 12px;
-}
-.header-actions {
-  gap: 7px;
-}
-.header-actions button {
-  font-size: 11px;
-}
-.header-actions .header-action {
+.workspace-menu-entry {
   position: relative;
-  height: 44px;
+}
+.workspace-header .workspace-menu-trigger {
+  height: 26px;
   padding: 0 9px;
   border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--muted);
-}
-.header-actions .header-action:hover {
+  border-radius: 4px;
   background: transparent;
   color: var(--text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
 }
-.header-actions .header-action::after {
-  content: '';
+.workspace-header .workspace-menu-trigger:hover,
+.workspace-header .workspace-menu-trigger[aria-expanded='true'] {
+  background: var(--hover);
+}
+.workspace-dropdown {
   position: absolute;
-  right: 9px;
-  bottom: 0;
-  left: 9px;
-  height: 1px;
+  top: calc(100% + 3px);
+  left: 0;
+  min-width: 192px;
+  max-height: calc(100vh - 44px);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px var(--shadow);
+}
+.workspace-dropdown button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
-}
-.header-actions .header-action.selected {
-  background: transparent !important;
   color: var(--text);
+  font-size: var(--font-size-base);
+  text-align: left;
+  white-space: nowrap;
 }
-.header-actions .header-action.selected::after,
-.header-actions .header-add-action::after {
-  background: var(--accent);
+.workspace-dropdown button:hover,
+.workspace-dropdown button:focus-visible {
+  background: var(--hover);
 }
-.header-actions .header-add-action {
-  color: var(--accent);
-  font-weight: 600;
+.workspace-dropdown kbd {
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--font-size-xs);
+}
+.workspace-dropdown hr {
+  margin: 4px;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 .local-indicator {
   font:
-    10px Consolas,
+    var(--font-weight-normal) var(--font-size-xs) Consolas,
     monospace;
   letter-spacing: 1.4px;
   color: var(--muted);
@@ -117,7 +123,7 @@ i {
   background: var(--accent) !important;
   color: var(--on-accent) !important;
   border-color: var(--accent) !important;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 .primary:hover {
   background: var(--accent-hover) !important;
@@ -125,27 +131,24 @@ i {
 .selected {
   background: var(--accent-soft) !important;
 }
-.add-block {
-  position: relative;
-}
 .layout-control {
   position: relative;
+  margin-left: auto;
 }
 .layout-menu {
   position: absolute;
   right: 0;
-  top: 32px;
+  top: calc(100% + 3px);
   width: 235px;
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 2px;
-  box-shadow: 0 15px 35px var(--shadow);
-  z-index: 30;
+  border-radius: 6px;
+  box-shadow: 0 8px 20px var(--shadow);
 }
 .layout-menu strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--font-size-base);
   margin-bottom: 10px;
 }
 .layout-menu > button {
@@ -157,7 +160,7 @@ i {
 }
 .layout-menu p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .layout-menu form {
   display: flex;
@@ -175,30 +178,6 @@ i {
 .layout-menu form button {
   padding: 6px 9px;
 }
-.block-menu {
-  position: absolute;
-  right: 0;
-  top: 32px;
-  width: 220px;
-  padding: 7px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  z-index: 30;
-  box-shadow: 0 15px 35px var(--shadow);
-}
-.block-menu button {
-  width: 100%;
-  border: 0;
-  text-align: left;
-  display: flex;
-  gap: 12px;
-}
-.block-menu button span {
-  width: 25px;
-  color: var(--accent);
-}
-.block-menu .icon-mask,
 .rail button .icon-mask,
 .launch-icon .icon-mask,
 .python-mark .icon-mask {
@@ -297,7 +276,7 @@ i {
   --dv-paneview-header-border-color: var(--border);
   --dv-tab-divider-color: transparent;
   --dv-tabs-and-actions-container-height: 30px;
-  --dv-tab-font-size: 12px;
+  --dv-tab-font-size: var(--font-size-sm);
   --dv-drag-over-background-color: var(--drag-overlay);
   --dv-drag-over-border-color: var(--accent);
   --dv-sash-color: transparent;
@@ -317,7 +296,7 @@ i {
   box-shadow: inset 0 2px var(--accent);
 }
 /* A block's tab carries its plugin's own line-art icon, drawn with the same mask as the
-   rail and the Add block menu so one asset names a block everywhere it appears. The
+   rail so one asset names a block everywhere it appears. The
    default tab keeps its title, close button, and drag behaviour; the icon sits in front
    of it, and both are centred on the tab's row. */
 .block-tab {
@@ -349,7 +328,7 @@ i {
   align-items: center;
   padding: 0 22px;
   border-top: 1px solid var(--border);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   color: var(--faint);
   letter-spacing: 0.15px;
 }
@@ -359,7 +338,7 @@ i {
   align-items: center;
 }
 .workspace-status b {
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   margin: 0 12px;
   color: var(--faint);
 }
@@ -370,32 +349,32 @@ i {
   container-type: inline-size;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: var(--font-size-xs);
   letter-spacing: 2px;
   color: var(--accent);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 .home-panel h1 {
   font-size: clamp(27px, 6cqw, 40px);
   line-height: 1.2;
-  font-weight: 450;
+  font-weight: var(--font-weight-medium);
   letter-spacing: -1.5px;
   color: var(--text);
   margin: 20px 0 14px;
 }
 .home-panel h1 em {
   font-family: Georgia, 'Times New Roman', serif;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   color: var(--accent);
 }
 .home-intro {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.85;
   margin: 0 0 20px;
 }
 .section-label {
-  font-size: 9px;
+  font-size: var(--font-size-xs);
   letter-spacing: 1.4px;
   color: var(--muted);
   margin: 24px 0 13px;
@@ -436,12 +415,12 @@ i {
   margin-bottom: 15px;
 }
 .launch-card strong {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-size-base);
 }
 .launch-card > span:last-of-type {
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   color: var(--muted);
   margin-top: 7px;
   line-height: 1.5;
@@ -451,7 +430,7 @@ i {
   right: 16px;
   top: 17px;
   font-size: 18px;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   color: var(--faint);
 }
 .home-note {
@@ -466,12 +445,12 @@ i {
   font-size: 21px;
 }
 .home-note strong {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--text);
 }
 .home-note p {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   line-height: 1.8;
   color: var(--muted);
   margin: 7px 0 0;
@@ -483,7 +462,7 @@ i {
   margin-top: 10px;
   gap: 15px;
   color: var(--faint);
-  font-size: 9px;
+  font-size: var(--font-size-xs);
 }
 .home-footer span:first-child {
   letter-spacing: 1.2px;
@@ -491,7 +470,7 @@ i {
 .home-footer span:last-child {
   font-family: Georgia, serif;
   font-style: italic;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .python-panel {
   height: 100%;
@@ -503,7 +482,7 @@ i {
   font-size: 22px;
   letter-spacing: -0.6px;
   margin: 14px 0 8px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -519,7 +498,7 @@ i {
 }
 .muted {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   line-height: 1.7;
 }
 .server-card {
@@ -536,14 +515,14 @@ i {
   gap: 12px;
 }
 .server-heading strong {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
 }
 .status-pill {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: var(--font-size-xs);
   color: var(--muted);
   padding: 4px 7px;
   border: 1px solid var(--border);
@@ -562,7 +541,7 @@ i {
 .server-url {
   color: var(--muted);
   font:
-    10px Consolas,
+    var(--font-weight-normal) var(--font-size-xs) Consolas,
     monospace;
   overflow-wrap: anywhere;
   line-height: 1.8;
@@ -573,7 +552,7 @@ i {
   gap: 8px;
 }
 .server-actions button {
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   padding: 8px 11px;
 }
 details {
@@ -584,7 +563,7 @@ details {
 summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
 }
 summary span {
   float: right;
@@ -592,7 +571,7 @@ summary span {
 }
 .python-panel pre {
   font:
-    10px/1.8 Consolas,
+    var(--font-weight-normal) var(--font-size-xs)/1.8 Consolas,
     monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -607,7 +586,7 @@ summary span {
   display: flex;
   gap: 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   line-height: 1.9;
   margin-top: 24px;
 }
@@ -618,7 +597,7 @@ summary span {
 .error {
   color: var(--danger) !important;
   overflow-wrap: anywhere;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .api-response {
   margin-top: 25px;
@@ -638,7 +617,7 @@ summary span {
 }
 .drawer-title h2 {
   font-size: 18px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   letter-spacing: -0.5px;
   margin: 0;
 }
@@ -656,12 +635,12 @@ summary span {
   gap: 15px;
 }
 .plugin-row strong {
-  font-weight: 500;
-  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
 }
 .plugin-row small {
   display: block;
-  font-size: 9px;
+  font-size: var(--font-size-xs);
   color: var(--muted);
   margin-top: 5px;
   overflow-wrap: anywhere;
@@ -691,18 +670,18 @@ summary span {
   background: var(--surface);
 }
 .infra-label {
-  font-size: 9px;
+  font-size: var(--font-size-xs);
   color: var(--faint);
 }
 .drawer-note {
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   line-height: 1.8;
   color: var(--muted);
   margin-top: 22px;
 }
 .reset-button {
   width: 100%;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   margin-top: 15px;
 }
 .empty-workspace {
@@ -719,11 +698,11 @@ summary span {
 }
 .empty-workspace h2 {
   font-size: 19px;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   color: var(--accent);
 }
 .empty-workspace p {
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .workspace-message {
   position: absolute;
@@ -735,7 +714,7 @@ summary span {
   border: 1px solid var(--border-strong);
   border-radius: 2px;
   padding: 13px 17px;
-  font-size: 12px;
+  font-size: var(--font-size-base);
   display: flex;
   gap: 20px;
 }
@@ -745,13 +724,12 @@ summary span {
 }
 .panel-error {
   padding: 30px;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .panel-error h2 {
   font-size: 17px;
 }
 @media (max-width: 1100px) {
-  .workspace-name,
   .local-indicator {
     display: none;
   }
@@ -765,13 +743,7 @@ summary span {
     width: 255px;
   }
   .workspace-status span:last-child {
-    font-size: 9px;
-  }
-  .header-actions {
-    gap: 9px;
-  }
-  .brand-divider {
-    display: none;
+    font-size: var(--font-size-xs);
   }
 }
 @container (max-width:330px) {

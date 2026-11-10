@@ -38,7 +38,8 @@ import {
   rememberArrangement,
   type SavedLayout,
 } from './layout'
-import shipIcon from './ship-lineart.svg'
+import sisyphusIcon from './sisyphus.svg'
+import { MenuBar, type WorkspaceMenu } from './menu-bar'
 
 /** A layout a previous session saved: the dock arrangement, and the rail order of the time. */
 type StoredLayout = SerializedDockview | SavedLayout<SerializedDockview>
@@ -167,7 +168,7 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
        * The default tab is kept rather than re-drawn so the title, its change
        * subscription, the close button, and tab dragging stay dockview's, and the
        * block's identity is added in front of it. `params.type` is the panel id the
-       * plugin registered, so the icon the rail and Add block menu already draw is
+       * plugin registered, so the icon the rail already draws is
        * found in the same registry the block's content comes from.
        */
       function BlockTab(props: IDockviewPanelHeaderProps<{ type?: string }>) {
@@ -190,8 +191,10 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
         const available = useSyncExternalStore(panels.subscribe, panels.list)
         const dock = useRef<DockviewApi | null>(null)
         const dispose = useRef<() => void>(() => {})
+        const lastContentFocus = useRef<HTMLElement | null>(null)
+        const layoutsControl = useRef<HTMLDivElement>(null)
+        const layoutsTrigger = useRef<HTMLButtonElement>(null)
         const [showPlugins, setShowPlugins] = useState(false)
-        const [addMenu, setAddMenu] = useState(false)
         const [showLayouts, setShowLayouts] = useState(false)
         const [layoutName, setLayoutName] = useState('')
         const [savedLayouts, setSavedLayouts] = useState<Record<string, StoredLayout>>({})
@@ -242,6 +245,15 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           }
         }, [])
         useEffect(() => () => dispose.current(), [])
+        useEffect(() => {
+          if (!showLayouts) return
+          layoutsControl.current?.querySelector('input')?.focus()
+          const dismiss = (event: PointerEvent) => {
+            if (!layoutsControl.current?.contains(event.target as Node)) setShowLayouts(false)
+          }
+          document.addEventListener('pointerdown', dismiss)
+          return () => document.removeEventListener('pointerdown', dismiss)
+        }, [showLayouts])
 
         function addPanel(type: string) {
           const api = dock.current
@@ -443,96 +455,143 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
           }
         }
 
+        function rememberContentFocus(target: EventTarget | null) {
+          if (target instanceof HTMLElement && target.closest('.workspace-body'))
+            lastContentFocus.current = target
+        }
+
+        function edit(command: string) {
+          const target = lastContentFocus.current
+          if (target?.isConnected) target.focus({ preventScroll: true })
+          void desktop.call('window.edit', command).catch((error) => setMessage(String(error)))
+        }
+
+        const mac = document.documentElement.dataset.platform === 'darwin'
+        const modifier = mac ? '⌘' : 'Ctrl+'
+        const menus: WorkspaceMenu[] = [
+          {
+            label: 'File',
+            items: [
+              { label: 'Save layout…', run: () => setShowLayouts(true) },
+              {
+                label: 'Close block',
+                run: () => {
+                  const api = dock.current
+                  if (api?.activePanel) api.removePanel(api.activePanel)
+                },
+              },
+            ],
+          },
+          {
+            label: 'Edit',
+            items: [
+              { label: 'Undo', shortcut: `${modifier}Z`, run: () => edit('undo') },
+              { label: 'Redo', shortcut: mac ? '⇧⌘Z' : 'Ctrl+Y', run: () => edit('redo') },
+              {
+                label: 'Cut',
+                shortcut: `${modifier}X`,
+                run: () => edit('cut'),
+                separatorBefore: true,
+              },
+              { label: 'Copy', shortcut: `${modifier}C`, run: () => edit('copy') },
+              { label: 'Paste', shortcut: `${modifier}V`, run: () => edit('paste') },
+              { label: 'Select all', shortcut: `${modifier}A`, run: () => edit('selectAll') },
+            ],
+          },
+          {
+            label: 'View',
+            items: [
+              { label: 'Plugin controls', run: () => setShowPlugins(!showPlugins) },
+              ...available.map((panel, index) => ({
+                id: panel.id,
+                label: panel.title,
+                run: () => addPanel(panel.id),
+                separatorBefore: index === 0,
+              })),
+            ],
+          },
+          {
+            label: 'Help',
+            items: [
+              {
+                label: 'Sisyphus documentation',
+                run: () =>
+                  void desktop.call('window.openHelp').catch((error) => setMessage(String(error))),
+              },
+            ],
+          },
+        ]
+
         return (
-          <div className="workspace">
-            <header className="workspace-header">
-              <div className="brand">
-                <span
-                  className="brand-symbol"
-                  style={{ maskImage: `url(${JSON.stringify(shipIcon)})` }}
-                  aria-hidden="true"
-                />
-                <strong>sisyphus</strong>
-              </div>
-              <div className="header-actions">
+          <div className="workspace" onFocusCapture={(event) => rememberContentFocus(event.target)}>
+            <header
+              className="workspace-header"
+              onPointerDownCapture={() => rememberContentFocus(document.activeElement)}
+              onClickCapture={() => rememberContentFocus(document.activeElement)}
+            >
+              <span
+                className="brand-symbol"
+                style={{ maskImage: `url(${JSON.stringify(sisyphusIcon)})` }}
+                aria-hidden="true"
+              />
+              <MenuBar menus={menus} />
+              <div
+                className="layout-control"
+                ref={layoutsControl}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Escape' || !showLayouts) return
+                  event.stopPropagation()
+                  setShowLayouts(false)
+                  layoutsTrigger.current?.focus()
+                }}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setShowLayouts(false)
+                }}
+              >
                 <button
-                  className={`header-action ${showPlugins ? 'selected' : ''}`}
-                  onClick={() => setShowPlugins(!showPlugins)}
+                  type="button"
+                  ref={layoutsTrigger}
+                  aria-label="Saved layouts"
+                  aria-expanded={showLayouts}
+                  aria-controls={showLayouts ? 'workspace-layout-menu' : undefined}
+                  className="workspace-menu-trigger"
+                  onClick={() => setShowLayouts(!showLayouts)}
                 >
-                  Plugins
+                  Layouts
                 </button>
-                <div className="layout-control">
-                  <button
-                    aria-label="Saved layouts"
-                    className={`header-action ${showLayouts ? 'selected' : ''}`}
-                    onClick={() => setShowLayouts(!showLayouts)}
-                  >
-                    Layouts
-                  </button>
-                  {showLayouts && (
-                    <div className="layout-menu">
-                      <strong>Saved layouts</strong>
-                      {Object.keys(savedLayouts).length ? (
-                        Object.keys(savedLayouts)
-                          .sort()
-                          .map((name) => (
-                            <button key={name} onClick={() => openNamedLayout(name)}>
-                              {name}
-                            </button>
-                          ))
-                      ) : (
-                        <p>No saved layouts yet.</p>
-                      )}
-                      <form
-                        onSubmit={(event) => {
-                          event.preventDefault()
-                          void saveNamedLayout()
-                        }}
-                      >
-                        <input
-                          aria-label="Layout name"
-                          placeholder="Name this layout"
-                          maxLength={60}
-                          value={layoutName}
-                          onChange={(event) => setLayoutName(event.target.value)}
-                        />
-                        <button className="primary" type="submit">
-                          Save
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-                <div className="add-block">
-                  <button
-                    className={`header-action header-add-action ${addMenu ? 'selected' : ''}`}
-                    onClick={() => setAddMenu(!addMenu)}
-                  >
-                    Add block
-                  </button>
-                  {addMenu && (
-                    <div className="block-menu">
-                      {available.map((panel) => (
-                        <button
-                          key={panel.id}
-                          onClick={() => {
-                            addPanel(panel.id)
-                            setAddMenu(false)
-                          }}
-                        >
-                          <span>
-                            <span
-                              className="icon-mask"
-                              style={{ maskImage: `url(${JSON.stringify(panel.icon)})` }}
-                              aria-hidden="true"
-                            />
-                          </span>
-                          {panel.title}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {showLayouts && (
+                  <div className="layout-menu" id="workspace-layout-menu">
+                    <strong>Saved layouts</strong>
+                    {Object.keys(savedLayouts).length ? (
+                      Object.keys(savedLayouts)
+                        .sort()
+                        .map((name) => (
+                          <button key={name} onClick={() => openNamedLayout(name)}>
+                            {name}
+                          </button>
+                        ))
+                    ) : (
+                      <p>No saved layouts yet.</p>
+                    )}
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        void saveNamedLayout()
+                      }}
+                    >
+                      <input
+                        aria-label="Layout name"
+                        placeholder="Name this layout"
+                        maxLength={60}
+                        value={layoutName}
+                        onChange={(event) => setLayoutName(event.target.value)}
+                      />
+                      <button className="primary" type="submit">
+                        Save
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             </header>
             <div className="workspace-body">
@@ -623,8 +682,8 @@ export function workspacePlugin(runtime: RuntimeControl, defaults: DefaultPanel[
                   watermarkComponent={() => (
                     <div className="empty-workspace">
                       <span>⊞</span>
-                      <h2>Make space for your next idea.</h2>
-                      <p>Choose a block from the rail or Add block.</p>
+                      <h2>No blocks open</h2>
+                      <p>Choose a block from the rail or View menu.</p>
                     </div>
                   )}
                 />

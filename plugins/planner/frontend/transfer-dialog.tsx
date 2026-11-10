@@ -4,7 +4,7 @@ import { PanelSurface } from './panel-surface'
 import { Icon } from './icons'
 import { CalendarFields } from './calendars'
 import { defaultCalendars } from './calendar-groups'
-export type TransferMode = 'import' | 'export' | 'sync'
+export type TransferMode = 'import' | 'export' | 'sync' | 'google'
 
 export function TransferDialog({
   planner,
@@ -15,7 +15,7 @@ export function TransferDialog({
 }: {
   planner: Planner
   folder: string | null
-  mode: TransferMode
+  mode: Exclude<TransferMode, 'google'>
   close: () => void
   defaultCalendarId?: string
 }) {

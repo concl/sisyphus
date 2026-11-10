@@ -5,12 +5,12 @@
   min-width: 0;
 }
 .action-event-summary strong {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   overflow-wrap: anywhere;
 }
 .action-event-summary small {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   color: var(--muted);
 }
 
@@ -29,5 +29,5 @@
 .action-provider-input .cal-footnote {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }

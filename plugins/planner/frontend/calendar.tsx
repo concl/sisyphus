@@ -9,6 +9,7 @@ import { MoreActions } from './more-actions'
 import { PanelSurface } from './panel-surface'
 import { SearchResults } from './search-results'
 import { TransferDialog, type TransferMode } from './transfer-dialog'
+import { GoogleSyncDialog, type GoogleSync } from './google-sync'
 import {
   dateKey,
   fromDay,
@@ -40,7 +41,7 @@ const readSidebar = () => {
   }
 }
 
-export function Calendar({ planner }: { planner: Planner }) {
+export function Calendar({ planner, googleSync }: { planner: Planner; googleSync: GoogleSync }) {
   const state = useSyncExternalStore(planner.subscribe, planner.getSnapshot)
   const calendars = state.calendars || defaultCalendars
   const [hiddenCalendars, setHiddenCalendars] = useState<Set<string>>(() => {
@@ -860,13 +861,17 @@ export function Calendar({ planner }: { planner: Planner }) {
         </div>
       </div>
       {surface?.type === 'transfer' && (
-        <TransferDialog
-          planner={planner}
-          folder={state.folder}
-          mode={surface.mode}
-          defaultCalendarId={defaultCalendarId}
-          close={() => setSurface(null)}
-        />
+        surface.mode === 'google' ? (
+          <GoogleSyncDialog api={googleSync} close={() => setSurface(null)} />
+        ) : (
+          <TransferDialog
+            planner={planner}
+            folder={state.folder}
+            mode={surface.mode}
+            defaultCalendarId={defaultCalendarId}
+            close={() => setSurface(null)}
+          />
+        )
       )}
       {surface?.type === 'edit' && (
         <Editor

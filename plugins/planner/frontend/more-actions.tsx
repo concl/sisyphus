@@ -38,6 +38,7 @@ export function MoreActions({ choose }: { choose: (mode: TransferMode) => void }
     { mode: 'import', label: 'Import .ics file', icon: 'import' },
     { mode: 'export', label: 'Export calendar', icon: 'export' },
     { mode: 'sync', label: 'Folder sync', icon: 'sync' },
+    { mode: 'google', label: 'Google Calendar sync', icon: 'sync' },
   ]
   return (
     <div ref={root} className="cal-more-actions" onKeyDown={keys}>

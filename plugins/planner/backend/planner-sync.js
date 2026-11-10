@@ -1,7 +1,9 @@
-const { dialog, BrowserWindow } = require('electron')
+const electron = require('electron')
+const { dialog, BrowserWindow } = electron
 const { FolderDocumentTransport, syncDocument } = require('./lib/planner-sync.js')
+const { registerGoogleSync } = require('./lib/google-connection.js')
 
-module.exports = () => ({
+module.exports = ({ userData }) => ({
   id: 'desktop.planner-sync',
   inject: ['transport.v1', 'storage.v1', 'planner.v1'],
   apply(ctx) {
@@ -31,5 +33,6 @@ module.exports = () => ({
         return planner.merge(document)
       }),
     )
+    registerGoogleSync(ctx, { transport, storage, planner, userData, electron })
   },
 })

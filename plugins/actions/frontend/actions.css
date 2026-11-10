@@ -5,7 +5,7 @@
   padding: 20px;
   background: var(--panel);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-size-base);
   container: actions / inline-size;
 }
 .actions-panel * {
@@ -18,7 +18,7 @@
 }
 .actions-panel button {
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .actions-panel button:disabled {
   opacity: 0.5;
@@ -30,7 +30,7 @@
   border: 0;
 }
 .actions-panel summary {
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .actions-panel summary span {
   float: none;
@@ -52,7 +52,7 @@
   color: var(--text);
   background: var(--surface);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-base);
 }
 .actions-panel input[aria-invalid='true'],
 .actions-panel textarea[aria-invalid='true'],
@@ -74,7 +74,7 @@
 .actions-heading h1 {
   margin: 0;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -0.3px;
 }
 .actions-heading-buttons {
@@ -93,7 +93,7 @@
   margin-bottom: 16px;
 }
 .actions-list-bar > span {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   color: var(--muted);
 }
 .actions-list-bar input {
@@ -140,7 +140,7 @@
 .action-card-header h2 {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
 }
 .actions-panel .action-card-run {
@@ -150,7 +150,7 @@
 .action-card-description {
   margin: 0 14px 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.5;
 }
 .action-card-inputs {
@@ -168,7 +168,7 @@
 }
 .action-card-controls > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   margin-right: auto;
 }
 .actions-panel .action-card-controls > button {
@@ -219,13 +219,13 @@
 .action-card-results {
   padding: 10px 14px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-card-results details + details {
   margin-top: 8px;
 }
 .actions-panel pre {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 220px;
@@ -234,14 +234,14 @@
 .action-card-warning,
 .action-card > .action-error {
   margin: 8px 14px;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-card-warning {
   color: var(--muted);
 }
 .action-card-complex-input {
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-card-complex-input > span {
   display: block;
@@ -261,7 +261,7 @@
   color: var(--text);
 }
 .action-input-edit-label {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--muted);
 }
 .action-input-dialog {
@@ -314,7 +314,7 @@
 }
 .action-feedback {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: var(--font-size-base);
   overflow-wrap: anywhere;
 }
 .action-error {
@@ -333,7 +333,7 @@
   flex: 1;
   gap: 5px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-title-field input {
   font-size: 14px;
@@ -384,7 +384,7 @@
 }
 .action-graph-toolbar > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .action-zoom {
   display: flex;
@@ -399,7 +399,7 @@
   color: var(--muted);
 }
 .action-zoom > span {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--muted);
 }
 .action-graph-scroll {
@@ -493,23 +493,23 @@
   justify-content: space-between;
   width: 100%;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   gap: 4px;
 }
 .action-node-kind > span {
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
 }
 .action-node strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .action-node small {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   color: var(--muted);
   width: 100%;
   white-space: nowrap;
@@ -550,11 +550,11 @@
 }
 .action-canvas-empty strong {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 .action-canvas-empty p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-inspector {
   position: relative;
@@ -566,11 +566,11 @@
 }
 .action-inspector h2 {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   margin: 0 50px 16px 0;
 }
 .action-inspector p {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--muted);
 }
@@ -588,7 +588,7 @@
   flex-direction: column;
   gap: 6px;
   margin: 16px 0;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-field label,
 .action-field > div {
@@ -608,7 +608,7 @@
   margin: 0;
 }
 .action-field small {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
   color: var(--muted);
 }
@@ -618,10 +618,10 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .action-field-source {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--muted);
 }
 .action-field-source summary {
@@ -642,7 +642,7 @@
   background: transparent;
   padding: 0;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .actions-panel .action-remove {
   color: var(--danger);
@@ -654,7 +654,7 @@
   border-top: 1px solid var(--border);
   padding-top: 12px;
   margin: 16px 0;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .action-incoming summary {
   cursor: pointer;
@@ -711,7 +711,7 @@
 }
 .action-input-definitions h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-base);
 }
 .action-input-definition {
   border-top: 1px solid var(--border);

@@ -13,7 +13,7 @@
   min-height: 0;
   background: var(--terminal-bg);
   color: #cccccc;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   container-type: inline-size;
 }
 .terminal-panel *,
@@ -39,8 +39,8 @@
   align-items: center;
   align-self: stretch;
   position: relative;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: #ededed;
 }
 .terminal-view-title::after {
@@ -117,7 +117,7 @@
 .terminal-menu-heading {
   padding: 7px 9px 8px;
   color: #a6a6a6;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 .terminal-profile-menu button[role='menuitem'] {
   display: flex;
@@ -130,7 +130,7 @@
   background: transparent;
   padding: 5px 8px;
   color: #d4d4d4;
-  font-size: 12px;
+  font-size: var(--font-size-base);
   text-align: left;
   cursor: pointer;
 }
@@ -157,7 +157,7 @@
 .terminal-menu-empty {
   padding: 5px 9px;
   color: var(--terminal-muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .terminal-layout {
   display: flex;
@@ -222,7 +222,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-size-base);
 }
 .terminal-panel .terminal-close {
   width: 22px;
@@ -238,7 +238,7 @@
 }
 .terminal-exit-code {
   color: var(--terminal-muted);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   margin-left: auto;
 }
 .terminal-tab-error {
@@ -283,7 +283,7 @@
   margin: auto;
   padding: 24px;
   color: var(--terminal-muted);
-  font-size: 12px;
+  font-size: var(--font-size-base);
   gap: 12px;
 }
 .terminal-empty > svg {
@@ -299,7 +299,7 @@
   border: 1px solid #454545;
   border-radius: 3px;
   background: transparent;
-  font-size: 12px;
+  font-size: var(--font-size-base);
   cursor: pointer;
 }
 .terminal-empty button:hover {
@@ -309,7 +309,7 @@
   margin: 0;
   padding: 8px 16px;
   color: #f19b9f;
-  font-size: 12px;
+  font-size: var(--font-size-base);
   overflow-wrap: anywhere;
   border-bottom: 1px solid var(--terminal-border);
 }
@@ -348,7 +348,7 @@
     padding-left: 7px;
   }
   .terminal-tab-title {
-    font-size: 11px;
+    font-size: var(--font-size-sm);
   }
   .terminal-panel .terminal-host {
     padding-left: 10px;

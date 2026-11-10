@@ -24,6 +24,24 @@
       document.querySelector('.cal-app'),
   )
   const bridge = window.sisyphus
+  const menuTrigger = (name) =>
+    [...document.querySelectorAll('.workspace-menu-trigger[role="menuitem"]')].find(
+      (button) => button.textContent === name,
+    )
+  const menuItem = (name) =>
+    [...document.querySelectorAll('.workspace-dropdown [role="menuitem"]')].find(
+      (button) => button.firstChild?.textContent === name,
+    )
+  const openMenu = async (name) => {
+    const trigger = menuTrigger(name)
+    assert(trigger, `Missing ${name} menu`)
+    trigger.click()
+    await waitFor(() => trigger.getAttribute('aria-expanded') === 'true')
+  }
+  const openPluginControls = async () => {
+    await openMenu('View')
+    menuItem('Plugin controls').click()
+  }
   // Each plugin's stylesheet is a file beside its code, tied to the plugin's
   // lifetime: switching a plugin off takes its styles with it. Without this the
   // workspace would render unstyled while the plugins still reported active.
@@ -177,6 +195,29 @@
         (item) => item.title === 'Smoke task',
       ),
     )
+    await waitFor(() => !calendar.querySelector('.cal-surface'))
+    calendar.querySelector('[aria-label="Calendar options"]').click()
+    await waitFor(() => calendar.querySelector('[role="menuitem"]'))
+    ;[...calendar.querySelectorAll('[role="menuitem"]')]
+      .find((item) => item.textContent === 'Google Calendar sync')
+      .click()
+    await waitFor(() =>
+      [...calendar.querySelectorAll('.cal-surface button')].some(
+        (button) => button.textContent === 'Connect Google account' && !button.disabled,
+      ),
+    )
+    assert(!(await bridge.call('planner.google.status')).connected, 'Fresh Calendar profile is connected')
+    const setup = calendar.querySelector('.cal-setup-guide')
+    setup.querySelector('summary').click()
+    await waitFor(() => setup.open)
+    assert(setup.querySelectorAll('ol > li').length === 6, 'Calendar setup steps are missing')
+    assert(
+      [...setup.querySelectorAll('code')].some((scope) => scope.textContent.endsWith('/calendar.events')),
+      'Calendar setup scopes are missing',
+    )
+    calendar.querySelector('[aria-label="Close google calendar sync"]').click()
+    await waitFor(() => !calendar.querySelector('.cal-surface'))
+    console.info('GOOGLE_CALENDAR_SETUP_SMOKE_PASSED')
   } catch (error) {
     throw new Error(`Planner smoke: ${error}`)
   }
@@ -187,7 +228,7 @@
     'Provider did not unload',
   )
   await bridge.call('runtime.enable', { id: 'desktop.python-host', enabled: true })
-  document.querySelector('.header-actions > button').click()
+  await openPluginControls()
   await waitFor(() => document.querySelector('[role="switch"][aria-label="Home"]'))
   document.querySelector('[role="switch"][aria-label="Home"]').click()
   await waitFor(() => !document.querySelector('.home-panel'))
@@ -196,6 +237,23 @@
   document.querySelector('[aria-label="Open Home"]').click()
   await waitFor(() => document.querySelector('.home-panel'))
   document.querySelector('[aria-label="Close plugins"]').click()
+  await openMenu('File')
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  await waitFor(() => menuTrigger('Edit').getAttribute('aria-expanded') === 'true')
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await waitFor(() => !document.querySelector('.workspace-dropdown'))
+  assert(document.activeElement === menuTrigger('Edit'), 'Escape should return focus to the menu bar')
+
+  const editField = document.createElement('input')
+  editField.value = 'Edit menu focus'
+  document.querySelector('.workspace-body').append(editField)
+  editField.focus()
+  editField.setSelectionRange(0, 0)
+  await openMenu('Edit')
+  menuItem('Select all').click()
+  assert(document.activeElement === editField, 'Edit should return focus to the previous field')
+  await waitFor(() => editField.selectionEnd === editField.value.length, 'Edit menu selects text')
+  editField.remove()
   try {
     document.querySelector('[aria-label="Saved layouts"]').click()
     await waitFor(() => document.querySelector('[aria-label="Layout name"]'))
@@ -217,13 +275,14 @@
     async () => !!(await bridge.call('storage.get', { scope: 'ui.workspace', key: 'layout.v1' })),
   )
   assert(
-    document.querySelector('.workspace-header').getBoundingClientRect().height === 44,
+    document.querySelector('.workspace-header').getBoundingClientRect().height === 34,
     'Title bar should be compact',
   )
   assert(
     getComputedStyle(document.querySelector('.brand-symbol')).maskImage.includes('svg'),
-    'Ship icon should be bundled',
+    'Sisyphus icon should be bundled',
   )
+  console.info('WORKSPACE_MENUBAR_SMOKE_PASSED')
   // Every block icon draws its plugin's SVG as a mask over one shared color,
   // so no plugin can ship an off-palette tint of its own.
   const masks = [...document.querySelectorAll('.icon-mask')]
@@ -483,7 +542,7 @@
     'Calendar should render its own observable result',
   )
   const plannerBeforeDisable = (await bridge.call('planner.get')).records.length
-  document.querySelector('.header-actions > button').click()
+  await openPluginControls()
   await waitFor(() => document.querySelector('[role="switch"][aria-label="Calendar actions"]'))
   document.querySelector('[role="switch"][aria-label="Calendar actions"]').click()
   await waitFor(() => !document.querySelector('[aria-label="Event title"]'))
@@ -500,7 +559,7 @@
     'Removing a custom editor should show the current value in its generic editor',
   )
   document.querySelector('[aria-label="Close input"]').click()
-  document.querySelector('.header-actions > button').click()
+  await openPluginControls()
   await waitFor(
     () =>
       document.querySelector('[role="switch"][aria-label="Calendar actions"]')?.disabled === false,
