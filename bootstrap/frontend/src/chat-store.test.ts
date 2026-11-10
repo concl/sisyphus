@@ -64,6 +64,17 @@ function runEvent(runId: string, event: Omit<ChatEvent, 'runId'>): ChatEvent {
 }
 
 describe('chat store', () => {
+  it('refreshes the sidebar when a workflow creates a conversation and keeps the current selection', async () => {
+    const { desktop, emit, calls } = bridge()
+    const store = new ChatStore(desktop)
+    await store.open('thread-1')
+    const created = { ...CONVERSATION, id: 'workflow-thread', folder: 'project' }
+    emit('chat.conversation.created', created)
+    expect(calls.at(-1)?.method).toBe('chat.list')
+    expect(store.getSnapshot().threadId).toBe('thread-1')
+    store.dispose()
+  })
+
   it('selects a provider and model together and keeps the previous selection on failure', async () => {
     const { desktop, emit } = bridge()
     const store = new ChatStore(desktop)

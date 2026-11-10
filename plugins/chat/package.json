@@ -33,6 +33,10 @@
         "id": "desktop.chat",
         "entry": "./backend/chat.js",
         "order": 0
+      },
+      {
+        "id": "desktop.chat-actions",
+        "entry": "./backend/actions.js"
       }
     ]
   }

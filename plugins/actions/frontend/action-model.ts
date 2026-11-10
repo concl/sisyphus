@@ -5,6 +5,7 @@ export interface Field {
   key: string
   label: string
   kind: 'text' | 'file' | 'folder' | 'targets' | 'lines' | 'number' | 'select' | 'boolean' | 'json'
+  multiline?: boolean
   hint?: string
   min?: number
   max?: number
@@ -76,6 +77,7 @@ export function cardInputFor(field: Field, value: unknown): CardInput {
         : 'text') as CardInput['kind'],
     field: {
       kind: field.kind,
+      ...(field.multiline ? { multiline: true } : {}),
       ...(field.hint !== undefined ? { hint: field.hint } : {}),
       ...(field.min !== undefined ? { min: field.min } : {}),
       ...(field.max !== undefined ? { max: field.max } : {}),

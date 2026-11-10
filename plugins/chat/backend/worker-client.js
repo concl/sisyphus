@@ -1,10 +1,11 @@
 const { z } = require('zod')
 const path = require('node:path')
+const { randomUUID } = require('node:crypto')
 
 // Electron owns keys, dialogs, and tool capabilities. Model and history work runs
 // in a worker, communicating only through requests, stream events, and tool RPC.
 class WorkerChat {
-  constructor({ workers, directory, attachments, registry, config }) {
+  constructor({ workers, directory, attachments, registry, config, onConversationCreated }) {
     this.pending = new Map()
     this.tools = new Map()
     this.toolRuns = new Set()
@@ -19,6 +20,7 @@ class WorkerChat {
     })
     this.registry = registry
     this.config = config
+    this.onConversationCreated = onConversationCreated
   }
   fail(error) {
     for (const pending of this.pending.values()) pending.reject(error)
@@ -60,12 +62,14 @@ class WorkerChat {
     if (message.error) pending.reject(new Error(message.error))
     else pending.resolve(message.value)
   }
-  async call(method, args, emit) {
+  async call(method, args, emit, signal) {
     if (this.closed) throw new Error('Chat plugin is stopped')
     const worker = await this.worker
+    if (this.closed) throw new Error('Chat plugin is stopped')
+    signal?.throwIfAborted()
     const id = ++this.next
     let settings, definitions
-    if (method === 'send' || method === 'edit') {
+    if (method === 'send' || method === 'edit' || method === 'createConversation') {
       settings = this.config.resolve()
       definitions = this.registry.list().map(({ name, description, access, inputSchema }) =>
         ({ name, description, access, schema: z.toJSONSchema(inputSchema) }))
@@ -83,6 +87,24 @@ class WorkerChat {
   cancel(id, owner) { return this.call('cancel', [id, owner]).catch(() => {}) }
   send(input, owner, emit) { return this.call('send', [input, owner], emit) }
   edit(input, owner, emit) { return this.call('edit', [input, owner], emit) }
+  async createConversation({ prompt, folder }, { signal } = {}) {
+    const runId = randomUUID()
+    const cancel = () => void this.cancel(runId, runId)
+    signal?.addEventListener('abort', cancel, { once: true })
+    try {
+      const thread = await this.call(
+        'createConversation',
+        [{ prompt, folder, runId }, runId],
+        undefined,
+        signal,
+      )
+      this.onConversationCreated?.(thread)
+      signal?.throwIfAborted()
+      return thread
+    } finally {
+      signal?.removeEventListener('abort', cancel)
+    }
+  }
   async dispose() {
     const worker = await this.worker
     try {

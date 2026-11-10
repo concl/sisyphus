@@ -15,6 +15,10 @@ const { ChatHistory } = require('../../../plugins/chat/backend/lib/chat-history.
 const { activePath, siblings } = require('../../../plugins/chat/backend/lib/chat-tree.js')
 const { PlannerRepository, createSchema } = require('../../../plugins/planner/backend/lib/planner-data.js')
 const mockModel = require('../smoke/mock-model')
+const { ActionServices } = require('../../../plugins/actions/backend/lib/catalog.js')
+const { WorkflowEngine } = require('../../../plugins/actions/backend/lib/workflow-engine.js')
+const chatActions = require('../../../plugins/chat/backend/actions.js')
+const { setTimeout: delay } = require('node:timers/promises')
 
 function memory() {
   const data = new Map()
@@ -116,6 +120,85 @@ test('worker permits concurrent conversations from one window, scopes cancellati
     await chat.cancel('worker-slow', 1)
     assert.equal((await first).messages.at(-1).status, 'stopped')
   } finally { await chat.dispose(); await server.close() }
+})
+
+test('Chat action sends a bound prompt in a new folder conversation and passes its reply to later steps', async (t) => {
+  const { createWorker } = require('../lib/plugin-compiler')
+  const { WorkerChat } = require('../../../plugins/chat/backend/worker-client')
+  const server = await mockModel()
+  const { config, directory, attachments } = fixture(server.baseURL, 'none')
+  const created = []
+  const chat = new WorkerChat({
+    workers: { create: createWorker },
+    directory,
+    config,
+    registry: { list: () => [] },
+    onConversationCreated: (thread) => created.push(thread),
+  })
+  const actions = new ActionServices()
+  chatActions().apply({
+    get: (name) => (name === 'chat.v1' ? chat : actions),
+    effect: (effect) => effect(),
+  })
+  t.after(async () => {
+    actions.dispose()
+    await chat.dispose()
+    await server.close()
+    fs.rmSync(directory, { recursive: true, force: true })
+    fs.rmdirSync(attachments)
+  })
+
+  const type = 'chat.createConversation'
+  await assert.rejects(actions.invoke(type, { folder: directory, prompt: ' ' }), /Enter a prompt/)
+  await assert.rejects(actions.invoke(type, { folder: '.', prompt: 'think' }), /absolute path/)
+  assert.deepEqual(await chat.list(), [])
+
+  const engine = new WorkflowEngine({ actions })
+  const prompt = 'Please think about this.\n\nGive a short reply.'
+  engine.register('echo', {
+    fields: [{ key: 'text', kind: 'text' }],
+    outputs: [{ key: 'text', kind: 'text' }],
+    execute: (input) => input,
+  })
+  engine.run({
+    id: 'chat-test',
+    inputs: [{ key: 'folder', label: 'Folder', kind: 'text', value: directory }],
+    nodes: [
+      { id: 'prompt', type: 'echo', config: { text: prompt } },
+      {
+        id: 'chat',
+        type,
+        bindings: { folder: 'folder', prompt: { step: 'prompt', path: ['text'] } },
+      },
+      { id: 'reply', type: 'echo', bindings: { text: { step: 'chat', path: ['reply'] } } },
+    ],
+    edges: [
+      { from: 'start', to: 'prompt' },
+      { from: 'prompt', to: 'chat' },
+      { from: 'chat', to: 'reply' },
+    ],
+  })
+  for (let i = 0; i < 1000 && engine.snapshot()[0].status === 'running'; i++) await delay(5)
+  const run = engine.snapshot()[0]
+  assert.equal(run.status, 'succeeded', JSON.stringify(run.nodes))
+  const { conversationId, reply } = run.nodes.chat.result
+  const thread = await chat.get(conversationId)
+  assert.equal(thread.folder, fs.realpathSync(directory))
+  assert.equal(thread.messages[0].text, prompt)
+  assert.deepEqual(created, [thread])
+  assert.equal(reply, 'It is 42.')
+  assert.equal(run.nodes.reply.result.text, reply)
+
+  const controller = new AbortController()
+  const slow = actions.invoke(type, { folder: directory, prompt: 'slow' }, { signal: controller.signal })
+  const cancelled = assert.rejects(slow, { name: 'AbortError' })
+  for (let i = 0; i < 1000 && server.requests.length < 2; i++) await delay(5)
+  assert.equal(server.requests.length, 2)
+  controller.abort()
+  await cancelled
+  for (let i = 0; i < 1000 && created.length < 2; i++) await delay(5)
+  assert.equal(created.length, 2)
+  assert.equal((await chat.get(created[1].id)).messages.at(-1).status, 'stopped')
 })
 
 test('attachments reach the provider, live beside the conversation, and are replayed', async () => {

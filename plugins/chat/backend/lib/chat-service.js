@@ -4,6 +4,7 @@ const path = require('node:path')
 const { z } = require('zod')
 const { validateFolder } = require('@sisyphus/native/folder')
 const { DEFAULT_LIMITS } = require('./chat-config.js')
+const { MAX_MESSAGE_LENGTH, validateConversationInput } = require('./chat-input.js')
 const { leafOf, normalizeMessages, pathTo, toolActivity } = require('./chat-tree.js')
 const { appendText, appendReasoning, addTool } = require('./transcript.js')
 const { DEFAULT_COMPACTION, estimate } = require('./compaction')
@@ -292,13 +293,22 @@ class ChatService {
   send(input, owner, emit) {
     return this.reply(input, owner, emit)
   }
+  createConversation({ runId, prompt, folder }, owner, emit) {
+    const canonicalFolder = validateConversationInput({ prompt, folder })
+    return this.reply({ runId, text: prompt }, owner, emit, canonicalFolder)
+  }
   // Editing keeps the original message and starts a sibling branch beside it.
   edit({ editMessageId, ...input }, owner, emit) {
     if (!editMessageId) throw new Error('Choose the message to edit.')
     return this.reply({ ...input, editMessageId }, owner, emit)
   }
-  async reply({ conversationId, editMessageId, text, runId, folder, attachments }, owner, emit) {
-    if (typeof text !== 'string' || text.length > 20000)
+  async reply(
+    { conversationId, editMessageId, text, runId, folder, attachments },
+    owner,
+    emit,
+    canonicalFolder,
+  ) {
+    if (typeof text !== 'string' || text.length > MAX_MESSAGE_LENGTH)
       throw new Error('A message can be up to 20,000 characters.')
     const files = acceptAttachments(attachments)
     if (!text.trim() && !files.length) throw new Error('Write a message or attach a file.')
@@ -336,7 +346,7 @@ class ChatService {
         messages: [],
         activeLeafId: null,
         updatedAt: new Date().toISOString(),
-        folder: usableFolder(folder),
+        folder: canonicalFolder ?? usableFolder(folder),
       }
     }
     // Where this message attaches. Editing answers the edited message's parent,

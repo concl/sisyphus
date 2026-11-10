@@ -134,6 +134,11 @@ export class ChatStore {
     this.attached = true
     this.cleanup.push(this.desktop.on<ChatConfig>('chat.config.changed', (config) => this.update({ config })))
     this.cleanup.push(this.desktop.on<ChatEvent>('chat.event', (event) => this.receive(event)))
+    this.cleanup.push(this.desktop.on<ChatThread>('chat.conversation.created', (thread) => {
+      this.conversations.set(thread.id, thread)
+      if (this.session.threadId === thread.id) this.update({ thread })
+      void this.refresh()
+    }))
   }
 
   dispose() {

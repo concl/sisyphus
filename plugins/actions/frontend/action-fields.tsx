@@ -198,6 +198,13 @@ export function ConfigField({
               update(next)
             }}
           />
+        ) : field.kind === 'text' && field.multiline ? (
+          <textarea
+            rows={compact ? 2 : 4}
+            aria-label={field.label}
+            value={String(value ?? '')}
+            onChange={(event) => update(event.target.value)}
+          />
         ) : (
           <input
             type={field.kind === 'number' ? 'number' : 'text'}

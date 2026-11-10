@@ -57,12 +57,14 @@ function normalizeInputs(inputs = []) {
           'lines',
           'json',
         ].includes(field.kind) ||
-        Object.keys(field).some((key) => !['kind', 'hint', 'min', 'max', 'options'].includes(key))
+        Object.keys(field).some((key) => !['kind', 'hint', 'min', 'max', 'options', 'multiline'].includes(key))
       )
         throw new Error('Invalid input control')
       if (
         (field.hint !== undefined &&
           (typeof field.hint !== 'string' || field.hint.length > 4096)) ||
+        (field.multiline !== undefined &&
+          (field.kind !== 'text' || typeof field.multiline !== 'boolean')) ||
         ['min', 'max'].some(
           (key) =>
             field[key] !== undefined &&

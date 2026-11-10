@@ -87,6 +87,13 @@ the default for new conversations, and chooses it again to clear the default; th
 folder is remembered per window and is written to a conversation only when its
 first message is sent.
 
+In Actions, add **Chat → Create conversation** to send a prompt in a new
+conversation with an existing folder. Set the folder and prompt in the step,
+expose them on the card, or bind them to earlier results. The step waits for the
+reply and returns the conversation ID and reply text for later steps. Chat uses
+its current model, harness, and tool access. The conversation stays in Chat
+history if you stop the reply or the model reports an error.
+
 Edit the installed source folder and reload from Plugins, or use
 `npm run plugins:watch` to sync repository edits. Reloading the backend adapter
 cancels its runs; ordinary UI navigation does not. See the repository's
