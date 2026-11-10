@@ -5,6 +5,7 @@ const { createInterface } = require('node:readline')
 const { setTimeout: sleep } = require('node:timers/promises')
 const fs = require('node:fs')
 const os = require('node:os')
+const { vmCommand } = require('./vm-connection')
 
 function helperCommand(platform, env = process.env) {
   if (platform === 'win32') return {
@@ -20,16 +21,29 @@ function helperCommand(platform, env = process.env) {
 // Each helper process owns its cancellation flag. Late output from a retired
 // process cannot satisfy a request sent to its replacement.
 class HelperDriver {
-  constructor(platform = process.platform) { this.platform = platform; this.session = null }
+  constructor(platform = process.platform, { connection, spawnProcess = spawn } = {}) {
+    this.platform = platform
+    this.connection = connection
+    this.spawnProcess = spawnProcess
+    this.session = null
+  }
   start() {
     if (this.session) return this.session
-    const { command, args } = helperCommand(this.platform)
-    const child = spawn(command, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
-    const session = { child, pending: null, cancelFile: path.join(os.tmpdir(), `sisyphus-computer-${randomUUID()}.cancel`) }
+    const remote = this.connection?.()
+    if (this.connection && !remote) throw new Error('Complete the VM connection in Computer use settings.')
+    const { command, args } = remote ? vmCommand(remote.host) : helperCommand(this.platform)
+    const child = this.spawnProcess(command, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+    const session = {
+      child,
+      pending: null,
+      remote,
+      cancelFile: remote ? null : path.join(os.tmpdir(), `sisyphus-computer-${randomUUID()}.cancel`),
+    }
     this.session = session
     let errors = ''
     child.stderr.on('data', data => { errors = (errors + data).slice(-2000) })
-    child.stdin.on('error', error => session.pending?.reject(error))
+    // The close event carries SSH's diagnostic even if writing to stdin fails first.
+    child.stdin.on('error', error => { if (!remote) session.pending?.reject(error) })
     createInterface({ input: child.stdout }).on('line', line => {
       const pending = session.pending
       if (!pending) return
@@ -41,20 +55,26 @@ class HelperDriver {
     })
     child.on('error', error => {
       if (this.session === session) this.session = null
-      session.pending?.reject(new Error(`Cannot start desktop helper (${command}): ${error.message}. On macOS/Linux install Python 3 and the computer plugin's requirements.txt, or set SISYPHUS_COMPUTER_PYTHON.`))
+      session.pending?.reject(new Error(remote
+        ? `Cannot start SSH for the VM: ${error.message}`
+        : `Cannot start desktop helper (${command}): ${error.message}. On macOS/Linux install Python 3 and the computer plugin's requirements.txt, or set SISYPHUS_COMPUTER_PYTHON.`))
     })
-    child.on('exit', () => {
+    child.on('close', () => {
       if (this.session === session) this.session = null
-      session.pending?.reject(new Error(errors || 'Desktop helper stopped'))
-      fs.rmSync(session.cancelFile, { force: true })
+      session.pending?.reject(new Error(remote
+        ? `VM connection closed. ${errors.trim() || 'Check that the VM and its desktop helper are running.'}`
+        : errors || 'Desktop helper stopped'))
+      if (session.cancelFile) fs.rmSync(session.cancelFile, { force: true })
     })
     return session
   }
-  call(input, signal) {
-    if (signal?.aborted) return Promise.reject(new Error('Request stopped'))
+  async call(input, signal) {
+    if (signal?.aborted) throw new Error('Request stopped')
+    if (this.connection && !this.session && input.action !== 'screenshot')
+      throw new Error('VM connection changed. Take another screenshot before acting.')
     const session = this.start()
-    if (session.pending) return Promise.reject(new Error('Desktop helper is busy'))
-    fs.rmSync(session.cancelFile, { force: true })
+    if (session.pending) throw new Error('Desktop helper is busy')
+    if (session.cancelFile) fs.rmSync(session.cancelFile, { force: true })
     return new Promise((resolve, reject) => {
       let finished = false
       const finish = (fn, value) => {
@@ -65,9 +85,14 @@ class HelperDriver {
         session.pending = null
         fn(value)
       }
-      const abort = () => fs.writeFileSync(session.cancelFile, '')
+      const abort = () => {
+        if (session.cancelFile) fs.writeFileSync(session.cancelFile, '')
+        else {
+          finish(reject, new Error('Request stopped'))
+          if (this.session === session) this.dispose()
+        }
+      }
       const timer = setTimeout(() => {
-        abort()
         finish(reject, new Error('Desktop helper timed out; input may have been sent. Observe the desktop before retrying.'))
         if (this.session === session) this.dispose()
       }, 30000)
@@ -76,17 +101,25 @@ class HelperDriver {
         reject: error => finish(reject, error),
       }
       signal?.addEventListener('abort', abort, { once: true })
-      session.child.stdin.write(`${JSON.stringify({ ...input, cancelFile: session.cancelFile })}\n`, error => { if (error) session.pending?.reject(error) })
+      const request = session.remote
+        ? { token: session.remote.token, request: input }
+        : { ...input, cancelFile: session.cancelFile }
+      session.child.stdin.write(`${JSON.stringify(request)}\n`, error => {
+        if (error && !session.remote) session.pending?.reject(error)
+      })
     })
   }
   dispose() {
     const session = this.session
     if (!session) return
     this.session = null
-    fs.writeFileSync(session.cancelFile, '')
+    if (session.cancelFile) fs.writeFileSync(session.cancelFile, '')
     session.child.stdin.end()
     const timer = setTimeout(() => session.child.kill(), 2000)
-    session.child.once('exit', () => clearTimeout(timer))
+    session.child.once('close', () => clearTimeout(timer))
+  }
+  release() {
+    if (this.connection) this.dispose()
   }
 }
 class WindowsDriver extends HelperDriver { constructor() { super('win32') } }
@@ -105,7 +138,12 @@ class Computer {
     this.controller = new AbortController()
   }
   release(runId) {
-    if (this.owner === runId) { this.owner = null; this.frame = null; this.digest = null; this.display = 0 }
+    if (this.owner !== runId) return
+    this.owner = null
+    this.frame = null
+    this.digest = null
+    this.display = 0
+    this.driver.release?.()
   }
   execute(action, input, context) {
     const runId = context?.runId

@@ -1,12 +1,26 @@
 const { z } = require('zod')
-const { Computer } = require('./lib/computer')
+const { Computer, HelperDriver } = require('./lib/computer')
+const { computerSettings } = require('./lib/computer-settings')
 
-module.exports = () => ({
+module.exports = ({ safeStorage = require('electron').safeStorage } = {}) => ({
   id: 'desktop.computer',
   name: 'Computer control',
-  inject: ['agent.tools.v1'],
+  inject: ['agent.tools.v1', 'storage.v1', 'transport.v1'],
   apply(ctx) {
-    const computer = new Computer()
+    const settings = computerSettings(ctx.get('storage.v1'), safeStorage)
+    const transport = ctx.get('transport.v1')
+    const createComputer = ({ enabled }) => new Computer(
+      enabled ? new HelperDriver(undefined, { connection: settings.connection }) : undefined,
+    )
+    let computer = createComputer(settings.get())
+    ctx.effect(() => transport.handle('computer.settings.get', () => settings.get()))
+    ctx.effect(() => transport.handle('computer.settings.save', (input) => {
+      if (computer.owner) throw new Error('Stop the reply or release computer control before changing desktops.')
+      const saved = settings.save(input)
+      computer.dispose()
+      computer = createComputer(saved)
+      return saved
+    }))
     const registry = ctx.get('agent.tools.v1')
     const point = { x: z.number().int().min(0), y: z.number().int().min(0) }
     const frame = { screenshotId: z.string().min(1) }

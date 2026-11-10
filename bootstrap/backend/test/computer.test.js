@@ -65,8 +65,17 @@ test('screenshots are image content, compatible projection is idempotent and rem
 test('click duration is optional, bounded and distinct from observation wait', async () => {
   const registered = new Map()
   const cleanup = []
-  require('../../../plugins/computer/backend/computer')().apply({
-    get: () => ({ register: (name, tool) => { registered.set(name, tool); return () => registered.delete(name) } }),
+  const methods = new Map()
+  require('../../../plugins/computer/backend/computer')({ safeStorage: {} }).apply({
+    get: (name) => ({
+      'agent.tools.v1': {
+        register: (name, tool) => { registered.set(name, tool); return () => registered.delete(name) },
+      },
+      'storage.v1': { get: () => undefined },
+      'transport.v1': {
+        handle: (method, fn) => { methods.set(method, fn); return () => methods.delete(method) },
+      },
+    })[name],
     effect: effect => cleanup.push(effect()),
   })
   try {

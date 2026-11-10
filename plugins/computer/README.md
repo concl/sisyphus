@@ -58,11 +58,29 @@ protected desktops, and some applications that reject synthetic input may not
 work. It shares the user's mouse, focus and keyboard; avoid using them during a
 computer task. It does not bypass OS permissions.
 
-## Session isolation
+## Isolated desktop
 
-The plugin uses the existing desktop by default. A fresh virtual workspace is
-not an independent input session. For isolated browser work, use a dedicated
-browser context/profile. For independent desktop automation, run the app/helper
-inside a dedicated VM or Linux graphical session with its own display. Keep that
-environment for the duration of a task so files, sign-ins and app state survive.
-Provisioning fresh desktops or VMs is not implemented here.
+Sisyphus can keep Chat on the host and send computer screenshots and input through
+an existing Windows VM. The VM keeps its own applications, desktop, and sign-ins.
+Chat's file and shell tools still use the host conversation folder.
+
+1. Set up [OpenSSH Server](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse)
+   with [key authentication](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement)
+   in the VM. Configure the host's OpenSSH client with a host name or SSH config
+   alias for the VM, verify the VM's host key, and confirm that the host can
+   connect without prompting. The server must allow local TCP forwarding to
+   `127.0.0.1:47631` in the guest.
+2. Copy the `computer` plugin folder into the VM. From that folder, in a
+   PowerShell window on the signed-in VM desktop with Node.js installed, run
+   `node backend/lib/vm-guest.js`. Keep that window open and the guest desktop
+   unlocked. The helper listens only on the guest loopback interface. Retrieve
+   the pairing token with `node backend/lib/vm-guest.js --show-token` in a
+   separate terminal under the same Windows account. Close the terminal showing
+   the token before using computer tools. The token persists across restarts.
+3. In host Sisyphus, open **Settings → Chat → Computer use**. Enter the VM SSH
+   host and pairing token, turn on **Use an isolated desktop**, and save. The
+   token is stored encrypted on the host. Clear the checkbox and save to use
+   the host desktop again.
+
+When the VM connection fails, computer tools report the error. Start or
+reconnect the guest helper, then take a new screenshot before sending input.

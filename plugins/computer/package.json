@@ -2,7 +2,17 @@
   "name": "@sisyphus/plugin-computer",
   "version": "0.1.0",
   "private": true,
+  "dependencies": {
+    "@sisyphus/sdk": "*",
+    "react": "^19.2.8"
+  },
   "sisyphus": {
+    "frontend": {
+      "id": "feature.computer-settings",
+      "entry": "./frontend/index.tsx",
+      "export": "computerSettingsPlugin",
+      "order": 8
+    },
     "backend": [{ "id": "desktop.computer", "entry": "./backend/computer.js", "order": 8 }]
   }
 }
