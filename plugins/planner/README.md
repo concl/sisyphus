@@ -73,8 +73,10 @@ Sisyphus remembers the client in encrypted storage for future sign-ins.
 
 Choose **Connect Google account** and approve access in your browser. Select a
 Google calendar you can edit, then choose **Link calendar**. Sisyphus creates a
-separate local calendar and syncs immediately. Automatic sync runs every five
-minutes while Sisyphus is open. You can turn it off in the sync dialog or choose
+separate local calendar and syncs immediately. Automatic sync runs a second
+after you edit events in the linked calendar and every five minutes while
+Sisyphus is open. Edits made during a sync trigger another pass after it finishes.
+You can turn it off in the sync dialog or choose
 **Sync now** at any time. Connections created before automatic sync was added
 keep manual sync until you enable it.
 

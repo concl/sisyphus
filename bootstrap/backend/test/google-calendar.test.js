@@ -420,3 +420,98 @@ test('automatic sync starts after linking, coalesces manual requests, and pauses
   await new Promise(setImmediate)
   assert.equal(refreshes, before)
 })
+
+test('linked calendar edits sync after a short delay and edits during a write get another pass', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const remote = new Map([['g1', allDay('g1', 'From Google')]])
+  let reads = 0
+  let releaseWrite
+  let holdWrite = false
+  const { call, planner } = connectionFixture(t, {
+    setup({ storage }) {
+      const encrypted = Buffer.from(
+        JSON.stringify({ ...client, refresh_token: 'refresh' }),
+      ).toString('base64')
+      storage.set('planner.google', 'connection.v1', { encrypted })
+    },
+    async fetch(url, options) {
+      const target = new URL(url)
+      if (target.hostname === 'oauth2.googleapis.com')
+        return Response.json({ access_token: 'access' })
+      if (target.pathname.endsWith('/calendarList'))
+        return Response.json({ items: [{ id: 'work', summary: 'Work', accessRole: 'owner' }] })
+      if (!options.method) {
+        reads++
+        return Response.json({ accessRole: 'owner', items: [...remote.values()] })
+      }
+      const id = target.pathname.split('/').pop()
+      if (options.method === 'DELETE') {
+        remote.delete(id)
+        return new Response(null, { status: 204 })
+      }
+      const body = JSON.parse(options.body)
+      const eventId = body.id || id
+      const event = { ...remote.get(eventId), ...body, etag: '"updated"' }
+      remote.set(eventId, event)
+      if (holdWrite) {
+        holdWrite = false
+        await new Promise((resolve) => {
+          releaseWrite = resolve
+        })
+      }
+      return Response.json(event)
+    },
+  })
+  await call('link', 'work')
+  t.mock.timers.tick(0)
+  await new Promise(setImmediate)
+  assert.equal(reads, 1)
+  t.mock.timers.tick(1000)
+  await new Promise(setImmediate)
+  assert.equal(reads, 1, 'A Google pull must not trigger another sync')
+
+  const calendarId = planner.list()[0].calendarId
+  const item = planner.createEvent({ title: 'First draft', date: '2026-11-11', calendarId })
+  t.mock.timers.tick(500)
+  planner.update({ id: item.id, title: 'Saved event' })
+  t.mock.timers.tick(500)
+  await new Promise(setImmediate)
+  assert.equal(reads, 1, 'Edits close together should share one sync')
+  t.mock.timers.tick(500)
+  await new Promise(setImmediate)
+  assert.equal(reads, 2)
+  assert.ok([...remote.values()].some((event) => event.summary === 'Saved event'))
+
+  holdWrite = true
+  planner.update({ id: item.id, title: 'Edit being sent' })
+  t.mock.timers.tick(1000)
+  await new Promise(setImmediate)
+  assert.equal(call('status').syncing, true)
+  planner.update({ id: item.id, title: 'Edited during sync' })
+  releaseWrite()
+  await new Promise(setImmediate)
+  t.mock.timers.tick(1000)
+  await new Promise(setImmediate)
+  assert.equal(reads, 4)
+  assert.ok([...remote.values()].some((event) => event.summary === 'Edited during sync'))
+
+  planner.remove({ id: item.id })
+  t.mock.timers.tick(1000)
+  await new Promise(setImmediate)
+  assert.equal(reads, 5)
+  assert.equal(remote.size, 1)
+  planner.createEvent({ title: 'Local event', date: '2026-11-11' })
+  planner.update({
+    id: planner.list().find((event) => event.title === 'From Google').id,
+    starred: true,
+  })
+  t.mock.timers.tick(1000)
+  await new Promise(setImmediate)
+  assert.equal(reads, 5, 'Local events and stars should not schedule Google sync')
+
+  await call('setAutomatic', false)
+  planner.createEvent({ title: 'Manual event', date: '2026-11-11', calendarId })
+  t.mock.timers.tick(1000)
+  await new Promise(setImmediate)
+  assert.equal(reads, 5)
+})

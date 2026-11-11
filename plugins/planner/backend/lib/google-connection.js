@@ -10,11 +10,12 @@ const {
   GoogleReconnectError,
   scopes,
 } = require('./google-calendar.js')
-const { syncGoogle } = require('./google-sync.js')
+const { syncGoogle, localEvent } = require('./google-sync.js')
 
 const scope = 'planner.google'
 const key = 'connection.v1'
 const interval = 5 * 60 * 1000
+const editDelay = 1000
 const clientFilename = 'google-calendar.oauth.json'
 const setupPages = new Map([
   [
@@ -26,6 +27,16 @@ const setupPages = new Map([
   ['scopes', 'https://console.cloud.google.com/auth/scopes'],
   ['clients', 'https://console.cloud.google.com/auth/clients'],
 ])
+
+function calendarEvents(document, calendarId) {
+  return JSON.stringify(
+    document.records
+      .filter((item) => !item.deleted && (item.calendarId || 'default') === calendarId)
+      .map((item) => [item.id, localEvent(item)])
+      .filter(([, event]) => event)
+      .sort(([first], [second]) => first.localeCompare(second)),
+  )
+}
 
 async function readClient(filename) {
   const file = await open(filename, 'r')
@@ -62,6 +73,7 @@ function registerGoogleSync(
   let needsReconnect = false
   let busy = false
   let signIn
+  let pendingEdits = false
   ctx.effect(() => () => {
     clearTimeout(timer)
     lifetime.abort()
@@ -119,7 +131,7 @@ function registerGoogleSync(
     const { binding, automatic, encrypted } = load()
     if (!binding || automatic !== true || !encrypted) return
     timer = setTimeout(() => {
-      if (busy) schedule()
+      if (busy) schedule(pendingEdits ? editDelay : interval)
       else void sync().catch(() => {})
     }, delay)
     timer.unref()
@@ -130,6 +142,7 @@ function registerGoogleSync(
     options.signal.throwIfAborted()
     const state = load()
     if (!state.binding) throw new Error('Link a Google calendar first.')
+    pendingEdits = false
     syncError = ''
     syncJob = Promise.resolve().then(async () => {
       try {
@@ -153,7 +166,7 @@ function registerGoogleSync(
       } finally {
         syncJob = undefined
         if (!options.signal.aborted) {
-          schedule()
+          schedule(pendingEdits ? editDelay : interval)
           publish()
         }
       }
@@ -264,6 +277,23 @@ function registerGoogleSync(
     schedule()
     return status()
   })
+  let previousDocument = planner.document()
+  ctx.effect(() =>
+    planner.subscribe((document, source) => {
+      const previous = previousDocument
+      previousDocument = document
+      const { binding, automatic } = load()
+      if (
+        source === 'google' ||
+        !binding ||
+        automatic !== true ||
+        calendarEvents(previous, binding.localId) === calendarEvents(document, binding.localId)
+      )
+        return
+      pendingEdits = true
+      schedule(editDelay)
+    }),
+  )
   schedule(0)
 }
 

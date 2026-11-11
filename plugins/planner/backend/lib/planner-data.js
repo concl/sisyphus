@@ -56,6 +56,7 @@ class PlannerRepository {
   constructor(storage, changed = () => {}) {
     this.storage = storage
     this.changed = changed
+    this.listeners = new Set()
     this.actor = storage.get('planner', 'actor.v1') || randomUUID()
     storage.set('planner', 'actor.v1', this.actor)
   }
@@ -66,13 +67,18 @@ class PlannerRepository {
   list() {
     return this.document().records.filter((item) => !item.deleted)
   }
-  save(document) {
+  subscribe(listener) {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+  save(document, { source } = {}) {
     if (document.calendars?.length > 1000)
       throw new Error('Calendar has reached its 1,000 calendar limit')
     if (document.records.length > 10000)
       throw new Error('Calendar has reached its 10,000 item limit')
     this.storage.set('planner', 'document.v1', document)
     this.changed(document)
+    for (const listener of this.listeners) listener(document, source)
     return document
   }
   create(input) {

@@ -182,7 +182,8 @@ async function syncGoogle({ planner, state, saveState, api, signal }) {
     const remote = randomUUID().replaceAll('-', '')
     writes.push({ link: { remote, id: item.id, base: null }, outgoing })
   }
-  if (result.pulled) planner.save({ ...document, records: [...records.values()] })
+  if (result.pulled)
+    planner.save({ ...document, records: [...records.values()] }, { source: 'google' })
   saveLinks()
 
   for (const { link, entry, incoming, outgoing } of writes) {
@@ -224,4 +225,4 @@ async function syncGoogle({ planner, state, saveState, api, signal }) {
   return result
 }
 
-module.exports = { syncGoogle }
+module.exports = { syncGoogle, localEvent }

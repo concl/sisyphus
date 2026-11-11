@@ -219,7 +219,7 @@ export function GoogleSyncDialog({ api, close }: { api: GoogleSync; close: () =>
                   void run(async () => setStatus(await api.setAutomatic(enabled)))
                 }}
               />{' '}
-              Sync every five minutes while Sisyphus is open
+              Sync after edits and every five minutes while Sisyphus is open
             </label>
             <button
               className="cal-primary"
@@ -251,8 +251,8 @@ export function GoogleSyncDialog({ api, close }: { api: GoogleSync; close: () =>
               </select>
             </label>
             <p>
-              Sisyphus creates a linked calendar and syncs it now and every five minutes while the
-              app is open.
+              Sisyphus creates a linked calendar and syncs it now, after edits, and every five
+              minutes while the app is open.
             </p>
             <button
               className="cal-primary"
